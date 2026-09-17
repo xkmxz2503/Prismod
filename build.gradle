@@ -177,7 +177,8 @@ dependencies {
         testRuntimeOnly 'org.lwjgl:lwjgl-glfw:3.3.1:natives-windows'
         testRuntimeOnly 'org.lwjgl:lwjgl-opengl:3.3.1:natives-windows'
     }
-    implementation fg.deobf("curse.maven:oculus-581495:6020952")
+    runtimeOnly fg.deobf("curse.maven:oculus-581495:6020952")
+    runtimeOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
 
 }
 
