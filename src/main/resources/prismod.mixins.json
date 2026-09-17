@@ -2,11 +2,14 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.xkmxz.prismod.mixin",
-  "compatibilityLevel": "JAVA_8",
+  "compatibilityLevel": "JAVA_17",
   "refmap": "prismod.refmap.json",
   "mixins": [
   ],
   "client": [
+    "client.BlendModeAccessor",
+    "client.GameRendererMixin",
+    "client.PostChainAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

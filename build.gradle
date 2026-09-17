@@ -95,6 +95,7 @@ minecraft {
         }
 
         client {
+            property 'prismod.profileGpu', project.findProperty('prismodProfileGpu') ?: 'false'
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             property 'forge.enabledGameTestNamespaces', mod_id
         }
@@ -165,6 +166,13 @@ dependencies {
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+    if (project.hasProperty('prismodRenderTests')) {
+        testRuntimeOnly 'org.lwjgl:lwjgl:3.3.1:natives-windows'
+        testRuntimeOnly 'org.lwjgl:lwjgl-glfw:3.3.1:natives-windows'
+        testRuntimeOnly 'org.lwjgl:lwjgl-opengl:3.3.1:natives-windows'
+    }
 
 }
 
@@ -204,4 +212,9 @@ tasks.named('jar', Jar).configure {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
+    systemProperty 'prismod.renderTests', project.hasProperty('prismodRenderTests').toString()
 }
