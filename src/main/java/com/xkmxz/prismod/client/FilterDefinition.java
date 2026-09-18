@@ -10,8 +10,14 @@ public record FilterDefinition(
         ResourceLocation postEffect,
         String translationKey,
         float defaultStrength,
-        boolean builtIn
+        boolean builtIn,
+        String packNamespace
 ) {
+    public FilterDefinition(FilterKey key, ResourceLocation postEffect, String translationKey,
+                            float defaultStrength, boolean builtIn) {
+        this(key, postEffect, translationKey, defaultStrength, builtIn, null);
+    }
+
     public Component displayName() {
         if (translationKey != null && !translationKey.isBlank() && I18n.exists(translationKey)) {
             return Component.translatable(translationKey);

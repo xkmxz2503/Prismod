@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -165,6 +166,18 @@ class FilterControllerTest {
         controller.select(FilterId.VINTAGE);
         controller.refreshConfig(true, FilterId.defaultOrder(), Map.of(FilterId.VINTAGE, Double.NaN));
         assertEquals(0.0F, controller.effectiveState().strength());
+    }
+
+    @Test
+    void hiddenFilterIsSkippedByCycleAndFallsBackToOriginal() {
+        FilterController controller = new FilterController();
+        controller.select(FilterId.WARM);
+        Set<FilterKey> visible = Set.of(FilterKey.of(FilterId.ORIGINAL), FilterKey.of(FilterId.COOL));
+        controller.refreshDynamicConfig(true, FilterId.defaultOrder().stream().map(FilterKey::of).toList(), Map.of(), visible);
+        assertEquals(FilterId.ORIGINAL, controller.effectiveState().id());
+        controller.select(FilterId.ORIGINAL);
+        controller.cycle();
+        assertEquals(FilterId.COOL, controller.effectiveState().id());
     }
 
     @Test

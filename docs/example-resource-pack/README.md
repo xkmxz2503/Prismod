@@ -1,6 +1,6 @@
-# Prismod 示例资源包
+# Prismod 示例模组资源包
 
-这是一个最小可用的自定义滤镜资源包，提供 `example:debug` 反色滤镜。
+这是一个最小可用的 Prismod 自定义模组资源包，提供 `example:debug` 反色滤镜。它不是 Minecraft 原版资源包，不需要 `pack.mcmeta`。
 
 资源包根目录必须包含固定文件名 `prismod.meta.json`，并声明一个合法且未被占用的命名空间：
 

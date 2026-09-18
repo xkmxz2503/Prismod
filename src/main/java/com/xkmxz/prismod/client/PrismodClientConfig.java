@@ -6,9 +6,13 @@ import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public final class PrismodClientConfig {
@@ -17,6 +21,8 @@ public final class PrismodClientConfig {
     public static final ForgeConfigSpec.BooleanValue ENABLED;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> CYCLE_ORDER;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> CUSTOM_STRENGTHS;
+    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> DISABLED_PACKS;
+    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> HIDDEN_FILTERS;
     private static final ForgeConfigSpec.DoubleValue[] STRENGTHS = new ForgeConfigSpec.DoubleValue[FilterId.values().length];
     private static final List<String> DEFAULT_ORDER = Arrays.stream(FilterId.values()).map(FilterId::serializedName).toList();
 
@@ -27,6 +33,10 @@ public final class PrismodClientConfig {
                 .define("cycle_order", DEFAULT_ORDER, value -> value instanceof List<?>);
         CUSTOM_STRENGTHS = builder.comment("Custom filter strengths as namespace:path=value entries.")
                 .define("custom_strengths", List.of(), value -> value instanceof List<?>);
+        DISABLED_PACKS = builder.comment("Disabled Prismod resource pack namespaces.")
+                .define("disabled_packs", List.of(), value -> value instanceof List<?>);
+        HIDDEN_FILTERS = builder.comment("Hidden filter IDs.")
+                .define("hidden_filters", List.of(), value -> value instanceof List<?>);
         for (FilterId id : FilterId.values()) {
             STRENGTHS[id.ordinal()] = builder.comment("Filter strength from 0.0 to 1.0.")
                     .defineInRange("strength_" + id.serializedName(), 1.0D, 0.0D, 1.0D);
@@ -115,6 +125,56 @@ public final class PrismodClientConfig {
         return result;
     }
 
+    public static Set<String> disabledPacks() {
+        return stringSet(DISABLED_PACKS.get(), "disabled_packs");
+    }
+
+    public static void setDisabledPacks(Collection<String> namespaces) {
+        DISABLED_PACKS.set(normalizeStrings(namespaces));
+    }
+
+    public static boolean isPackEnabled(String namespace) {
+        if (namespace == null) return false;
+        try {
+            return !disabledPacks().contains(namespace);
+        } catch (IllegalStateException exception) {
+            // Forge discovers repository packs before the client config is loaded.
+            return true;
+        }
+    }
+
+    public static boolean isLoaded() {
+        try {
+            DISABLED_PACKS.get();
+            return true;
+        } catch (IllegalStateException exception) {
+            return false;
+        }
+    }
+
+    public static Set<FilterKey> hiddenFilters() {
+        Set<FilterKey> result = new LinkedHashSet<>();
+        for (String value : stringSet(HIDDEN_FILTERS.get(), "hidden_filters")) {
+            FilterKey key = FilterKey.parse(value);
+            if (key != null) result.add(key);
+            else LOGGER.warn("Ignoring invalid Prismod hidden filter entry: {}", value);
+        }
+        return Collections.unmodifiableSet(result);
+    }
+
+    public static void setHiddenFilters(Collection<FilterKey> filters) {
+        List<String> serialized = filters == null ? List.of() : filters.stream()
+                .filter(key -> key != null)
+                .map(FilterKey::serializedName)
+                .distinct()
+                .toList();
+        HIDDEN_FILTERS.set(serialized);
+    }
+
+    public static boolean isFilterVisible(FilterKey key) {
+        return key != null && !hiddenFilters().contains(key);
+    }
+
     public static void appendDiscoveredFilters() {
         List<FilterKey> configuredOrder = cycleOrder();
         List<FilterKey> order = configuredOrder.stream()
@@ -134,6 +194,17 @@ public final class PrismodClientConfig {
         }
     }
 
+    public static void removeHiddenAndUnavailableFromCycleOrder() {
+        List<FilterKey> filtered = cycleOrder().stream()
+                .filter(key -> {
+                    FilterDefinition definition = FilterRegistry.get().definition(key);
+                    return definition != null && (definition.builtIn()
+                            || isPackEnabled(definition.packNamespace()));
+                })
+                .toList();
+        if (!filtered.equals(cycleOrder())) setCycleOrder(filtered);
+    }
+
     private static float defaultStrength(FilterKey key) {
         FilterDefinition definition = FilterRegistry.get().definition(key);
         return definition == null ? 1.0F : definition.defaultStrength();
@@ -141,5 +212,21 @@ public final class PrismodClientConfig {
 
     private static boolean isBuiltIn(FilterKey key) {
         return "prismod".equals(key.id().getNamespace()) && FilterId.fromSerialized(key.id().getPath()) != null;
+    }
+
+    private static Set<String> stringSet(Object value, String field) {
+        Set<String> result = new LinkedHashSet<>();
+        if (value instanceof List<?> raw) {
+            for (Object item : raw) {
+                if (item instanceof String string && !string.isBlank()) result.add(string);
+                else if (!(item instanceof String)) LOGGER.warn("Ignoring non-string Prismod {} entry: {}", field, item);
+            }
+        }
+        return Collections.unmodifiableSet(result);
+    }
+
+    private static List<String> normalizeStrings(Collection<String> values) {
+        if (values == null) return List.of();
+        return values.stream().filter(value -> value != null && !value.isBlank()).distinct().toList();
     }
 }

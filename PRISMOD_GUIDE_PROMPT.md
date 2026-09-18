@@ -1,28 +1,34 @@
 # Prismod 后续开发引导提示词
 
-你正在维护 Prismod：一个面向 Minecraft 1.20.1、Forge 47.3.32、Java 17 的客户端画面滤镜模组。请先阅读本文件、`README.md` 和相关源码，再进行任何修改。除非用户明确要求，不要改变已经确定的配置格式、公开 API、渲染时序或客户端/服务端边界。
+你正在维护 Prismod：一个面向 Minecraft 1.20.1、Forge 47.3.32、Java 17 的客户端世界画面滤镜模组。开始修改前先阅读本文件、`README.md`、`docs/自定义滤镜资源包制作说明.md`、`docs/Java_API_调用说明.md` 和相关源码。除非用户明确要求，不要改变已经确定的配置格式、公开 API、渲染时序或客户端/服务端边界。
 
 ## 当前项目状态
 
-Prismod 初版已经实现并能构建，功能包括：
+项目已实现并能构建：
 
-- 原色、黑白、暖色、冷色、复古、夜视六种滤镜。
-- F8 按配置顺序循环，任何时刻最多激活一个滤镜。
-- 独立 Forge 配置屏幕：总开关、六个强度滑块、当前滤镜选择、循环顺序拖拽/上下调整、保存/取消/Esc。
-- 只处理世界渲染结果（包括手持物品）；HUD、聊天、容器、菜单保持原色。
-- 客户端强制滤镜 API，可覆盖按键和用户配置，清除后恢复用户选择。
-- 不把 Oculus 设为依赖；在当前主渲染目标上追加一次自有后处理。
-- shader、状态机、配置校验和真实 OpenGL 测试已经加入。
+- 内置滤镜：原色、黑白、暖色、冷色、复古、夜视。
+- F8 按配置顺序循环；自定义滤镜使用 `namespace:path` 的 `FilterKey` 参与循环。
+- F8 提示使用当前 `FilterDefinition.displayName()`：优先显示翻译名称，没有翻译时显示真实自定义 ID，不得通过旧版 `FilterState.id()` 把自定义滤镜显示成原色。
+- 一级滤镜配置页：总开关、当前选择、滤镜强度、循环顺序、保存/取消/Esc。
+- 二级资源包管理页：导入目录或 ZIP、启用/禁用资源包、滚动列表、独立保存/取消。
+- 独立滤镜管理页：控制单个滤镜是否展示、滚动列表、独立保存/取消。
+- 当前实际生效滤镜来自某个资源包时，该资源包暂时不能禁用；被禁用资源包中的滤镜不会出现在管理页，也不能单独切换展示状态。
+- 隐藏滤镜不会出现在一级配置页或 F8 循环；取消隐藏后恢复其原有循环顺序。
+- 资源包加载失败、shader 编译失败或 OpenGL 状态异常时回退原色并提示；资源重载后允许重新尝试。
+- 自定义滤镜通过客户端 API 注册时仍支持强制覆盖和动态注销。
 
-构建产物：`build/libs/prismod-1.0.jar`。
+构建产物默认位于 `build/libs/prismod-1.0.jar`。当前工作区可能存在未提交的功能修改，修改时必须保留用户已有改动。
 
 ## 不可改变的功能契约
 
-客户端配置文件为 `config/prismod/config/prismod-client.toml`，字段固定为：
+客户端配置文件为 `config/prismod/config/prismod-client.toml`。顶层字段包括：
 
 ```toml
 enabled = true
 cycle_order = ["original", "grayscale", "warm", "cool", "vintage", "night_vision"]
+custom_strengths = []
+disabled_packs = []
+hidden_filters = []
 strength_original = 1.0
 strength_grayscale = 1.0
 strength_warm = 1.0
@@ -31,50 +37,74 @@ strength_vintage = 1.0
 strength_night_vision = 1.0
 ```
 
-`cycle_order` 必须包含六个唯一滤镜 ID；非法列表整体回退默认顺序并记录警告。强度始终钳制到 `[0.0, 1.0]`。当前选择不跨启动保存，每次客户端会话从 `ORIGINAL` 开始；用户配置本身需要持久化。
+`cycle_order` 使用 `FilterKey` 序列化值：内置滤镜继续接受短名称，自定义滤镜使用 `namespace:path`。解析时忽略非法项和重复项；如果解析后为空则回退内置默认顺序。资源重载会补充已发现滤镜，并移除不存在或已禁用资源包中的滤镜。隐藏状态不会从顺序配置中删除，以便取消隐藏后恢复原位置。
 
-自定义滤镜只从 `config/prismod/resourcepacks/` 的直接子目录和 `.zip` 加载。每个资源包根目录必须有 `prismod.meta.json`，格式至少为 `{"namespace":"example"}`；不再读取原版 `resourcepacks/` 或 `pack.mcmeta` 中的 Prismod 字段。
+`custom_strengths` 使用 `namespace:path=value` 字符串保存自定义滤镜强度；全部强度都会规范化到 `[0.0, 1.0]`，NaN 和无穷值按 `0.0` 处理。`disabled_packs` 保存资源包 namespace，`hidden_filters` 保存滤镜 ID。
 
-公开客户端 API 的签名和语义如下：
+资源包扫描发生在 Forge 客户端配置加载之前。此阶段必须默认允许资源包进入首次扫描，不能直接读取尚未加载的 `ForgeConfigSpec.ConfigValue`；配置加载完成后由客户端 tick 触发一次资源重载，再应用 `disabled_packs`。不要删除这一启动兼容逻辑。
+
+自定义资源包是 Prismod 自己的模组资源包格式，不是 Minecraft 原版资源包：
+
+- 只扫描 `config/prismod/resourcepacks/` 的直接子目录和 `.zip` 文件。
+- 根目录必须有 `prismod.meta.json`，至少包含合法且未保留的 `namespace`。
+- 可选 `name` 只作为资源包在管理界面的显示名称。
+- 可选 `dependencies` 声明 Forge 模组版本范围。
+- 资源必须位于 `assets/<namespace>/...` 下；后处理 JSON 位于 `shaders/post/`，program JSON 和 GLSL 位于 `shaders/program/`。
+- 不需要 `pack.mcmeta`，不读取原版 `resourcepacks/`，也不使用 Minecraft 原版资源包界面管理。
+- 同一 namespace 只接受按文件名升序扫描到的第一个有效资源包；导入时拒绝重复 namespace 和同名目标，不覆盖已有文件。
+
+自定义滤镜名称通过资源包语言文件提供，例如 `assets/example/lang/zh_cn.json` 中为 `filter.example.debug` 提供翻译。没有翻译时界面和 F8 提示必须显示 `example:debug`，不得回退为内置滤镜名称。
+
+公开客户端 API 位于 `com.xkmxz.prismod.api.client`：
 
 ```java
-package com.xkmxz.prismod.api.client;
-
-public final class FilterApi {
-    public static void setActiveFilter(FilterId id, float strength);
-    public static void clearForcedFilter();
-    public static FilterState getEffectiveState();
-}
+FilterApi.setActiveFilter(FilterId.VINTAGE, 0.75F);
+FilterApi.setActiveFilter(ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"), 0.75F);
+FilterApi.clearForcedFilter();
+FilterState state = FilterApi.getEffectiveState();
+FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEffect, metadata);
 ```
 
-`setActiveFilter` 设置强制状态并覆盖总开关、F8 和配置；重复调用替换强制状态。`clearForcedFilter` 恢复用户原来的选择。强度自动限制在 `[0, 1]`；空 ID 按原色处理，NaN 和无穷值按零处理。非客户端线程调用写 API 时必须提交到 Minecraft 主线程。API 位于 `api.client`，专用服务器不得加载客户端类。
+强制滤镜优先于玩家总开关、F8 和普通选择；重复设置会替换原强制状态，清除后恢复用户选择和最新配置。写 API 会调度到 Minecraft 客户端线程，读取返回最近一次已应用的不可变旧版快照。`FilterState` 只能表达内置 `FilterId`，自定义滤镜的完整身份通过内部 `FilterSelection`/`FilterKey` 保留。专用服务器不得加载 `api.client` 或任何 `net.minecraft.client` 类。
 
 ## 架构和模块职责
 
-### 状态层
+### 状态与配置
 
-- `client/FilterId.java`：六个滤镜 ID、序列化名称、翻译键和默认顺序。
-- `client/FilterState.java`：不可变状态快照，包含 `id`、`strength`、`forced`。
-- `client/FilterController.java`：纯 Java 状态机，维护用户选择、强制覆盖、总开关、循环顺序、强度和渲染可用状态。
-- `client/FilterManager.java`：客户端状态门面，负责配置刷新、会话重置和失败提示。
-- `client/PrismodClientConfig.java`：Forge `ModConfig.Type.CLIENT` 配置定义和顺序/强度读写。
+- `client/FilterKey.java`：内置和自定义滤镜的稳定 `ResourceLocation` 身份。
+- `client/FilterDefinition.java`：后处理资源、翻译键、默认强度、内置标记和资源包 namespace；`displayName()` 是 UI/F8 的名称来源。
+- `client/FilterSelection.java`：内部动态选择，保留自定义 key、强度和 forced 标记。
+- `client/FilterState.java`：兼容旧 API 的内置状态快照。
+- `client/FilterController.java`：纯 Java 状态机，维护选择、强制覆盖、总开关、循环、强度、可见性和渲染可用状态。
+- `client/FilterManager.java`：状态门面、配置刷新、资源失败处理和当前滤镜名称解析。
+- `client/PrismodClientConfig.java`：Forge 客户端配置、资源包禁用列表、隐藏滤镜列表、顺序和强度读写。
 
-优先级为：渲染失败时临时原色 > 强制状态 > 用户总开关与选择。渲染失败会禁用当前滤镜直到资源重载或客户端重启，但保留强制标记以便 API 状态可诊断；离开世界时清除本次会话强制覆盖。
+有效状态优先级为：渲染不可用时临时原色 > 有效强制状态 > 用户总开关与选择。强制或普通选择指向隐藏/不可用滤镜时，实际渲染回退原色，但保留用户选择用于恢复。离开世界清除强制覆盖，不丢失用户选择。
 
 ### 客户端入口和界面
 
-- `Prismod.java`：通用模组入口；客户端分支通过 `DistExecutor` 创建 `PrismodClient`。
-- `client/PrismodClient.java`：注册 F8、客户端配置屏幕、资源重载监听器和客户端 tick。
-- `client/FilterConfigScreen.java`：配置草稿界面；保存后刷新配置，取消和 Esc 放弃草稿。
+- `Prismod.java`：通用入口；客户端分支通过 `DistExecutor` 创建客户端入口。
+- `client/PrismodClient.java`：注册 F8、客户端配置、资源包发现、资源重载监听和客户端 tick。
+- `client/FilterConfigScreen.java`：一级滤镜配置页。
+- `client/ResourcePackManagerScreen.java`：独立资源包管理页，只负责导入和资源包开关。
+- `client/FilterVisibilityManagerScreen.java`：独立滤镜管理页，只负责滤镜展示状态。
 
-F8 只在世界内、没有打开屏幕且没有强制状态时响应。按键冲突只提示一次，不修改玩家绑定。
+F8 只在世界内、没有打开屏幕且没有强制状态时响应。按键冲突只提示，不修改玩家绑定。资源包管理页保存后写入配置并触发资源重载，取消和 Esc 放弃草稿。
+
+### 资源包和注册表
+
+- `client/PrismodPackLoader.java`：扫描、解析、校验、导入并为每个 namespace 创建独立资源包来源。
+- `client/FilterRegistry.java`：从 Prismod 资源包发现后处理滤镜，验证 post JSON、program JSON 和 `Intensity` float uniform；记录资源包 namespace。
+- `client/PrismodClientConfig.java`：资源重载后补充新滤镜并清理禁用资源包中的滤镜。
+
+内部可以使用 Forge 的 `RepositorySource`/`PackResources` 接入 Minecraft 资源管理，但这只是加载实现细节，不得把自定义资源包文档写成原版资源包格式。
 
 ### 渲染层
 
 - `client/WorldFilterRenderer.java`：只在渲染线程运行，管理自有 `PostChain`、临时 framebuffer、resize、资源重载和失败降级。
-- `mixin/client/GameRendererMixin.java`：注入 `GameRenderer.render`，位置必须保持在世界/手持物品及原版后处理完成、HUD 绘制开始之前。
-- `mixin/client/PostChainAccessor.java`：访问 `PostChain` 的 pass 列表并调用私有资源加载方法。
-- `mixin/client/BlendModeAccessor.java`：恢复 `BlendMode.lastApplied`，避免后续 HUD 暗角因静态缓存污染而黑屏。
+- `mixin/client/GameRendererMixin.java`：注入 `GameRenderer.render`，位置保持在世界和手持物品及原版后处理完成、HUD 开始之前。
+- `mixin/client/PostChainAccessor.java`：访问 `PostChain` 的 pass 列表和资源加载方法。
+- `mixin/client/BlendModeAccessor.java`：恢复 `BlendMode.lastApplied`，避免 HUD 状态污染。
 
 渲染链固定为：
 
@@ -82,52 +112,32 @@ F8 只在世界内、没有打开屏幕且没有强制状态时响应。按键�
 minecraft:main --(一个滤镜 pass)--> swap --(颜色 blit)--> minecraft:main
 ```
 
-成功处理前不得清空主目标；后处理失败、shader 编译失败、FBO 错误或新的 OpenGL 错误都必须保留原画面、停用当前滤镜并显示一次提示。必须恢复 blend、depth、cull、depth mask、blend factors、blend equations 和 `BlendMode.lastApplied`，确保 HUD 使用原始颜色。原色或强度为零时不创建/执行滤镜 pass。
+成功处理前不得清空主目标。失败时保留原画面、停用当前滤镜并提示一次；必须恢复 blend、depth、cull、depth mask、blend factors、blend equations 和 `BlendMode.lastApplied`。原色或强度为零时不执行后处理。不得调用 Oculus 私有 API，Oculus 只能作为可选共存模组。
 
-每个滤镜只允许一个 pass，资源重载和窗口尺寸变化必须重建或 resize 临时目标。不要调用 Oculus 私有类或内部 API；Oculus 只能作为可选共存模组处理。
+## 测试和验证
 
-### Shader 资源
+测试位于 `src/test/java/com/xkmxz/prismod/client/`，覆盖：
 
-资源位于 `src/main/resources/assets/prismod/shaders/`：
+- `FilterControllerTest`：状态优先级、循环、隐藏滤镜、强制状态、失败回退、线程安全快照。
+- `FilterOrderTest`、`FilterKeyTest`、`FilterStateTest`：ID 解析、顺序校验、强度规范化。
+- `FilterRegistryTest`、`PrismodPackLoaderTest`：资源来源限制、元数据、显示名、ZIP/目录扫描和重复 namespace。
+- `ShaderResourceTest`、`FilterShaderGlTest`：shader 资源关系、GLSL 编译、像素/alpha 和 OpenGL 渲染验证。
 
-- `post/{grayscale,warm,cool,vintage,night_vision}.json`
-- `program/{grayscale,warm,cool,vintage,night_vision}.json`
-- 对应 `.fsh` 以及公共 `fullscreen.vsh`
-
-每个 fragment shader 接受 `DiffuseSampler`、`Intensity` 和 `ScreenSize`。黑白使用 Rec.709 灰度；暖色提升红黄通道；冷色提升蓝青通道；复古降低对比度并褪色；夜视采用绿色偏移、暗部抬升和整体提亮。原色不需要 shader 资源。
-
-## 测试和验证证据
-
-已有测试位于 `src/test/java/com/xkmxz/prismod/client/`：
-
-- `FilterControllerTest`、`FilterOrderTest`、`FilterStateTest`：状态优先级、循环、非法顺序、强度裁剪和强制状态。
-- `ShaderResourceTest`：shader JSON、uniform 和资源关系。
-- `FilterShaderGlTest`：隐藏 OpenGL 上下文中真实编译 GLSL、像素/alpha 验证及性能采样。
-
-此前完整命令已通过 40 项测试：
+普通测试命令：
 
 ```powershell
-.\gradlew.bat build -PprismodRenderTests --offline --console=plain "-Dorg.gradle.jvmargs=-Xmx3G -Dfile.encoding=COMPAT"
+.\gradlew.bat --gradle-user-home C:\Users\xkmxz\.gradle --offline test --console=plain
 ```
 
-游戏内已验证：F8 循环五种实际滤镜和原色、配置保存、HUD 原色隔离、F3+T 重载、窗口/全屏尺寸变化、损坏 shader 后回退及修复后恢复。RTX 4050 Laptop、1920x1080、夜视滤镜预热后 300 帧采样为 P95 `0.185344 ms`，满足 1 ms 目标。独立 OpenGL 测试中的滤镜+blit P95 约 `0.0625-0.0635 ms`。
-
-## 尚未完成的验证
-
-不要把以下事项描述为已通过：
-
-- Oculus 安装并启用 shaderpack 的实际兼容性和性能。
-- 专用服务器真实启动及服务器连接回归。
-- 所有滤镜在完整 Minecraft 场景下分别完成 1080p P95 采样。
-
-当前环境偶尔会因 ForgeGradle 证书探测导致重新构建失败；这属于依赖解析环境问题，不应通过修改源代码绕过。优先使用项目已有的 Gradle 缓存和 Java 17 工具链，并在报告中区分“代码测试通过”和“环境无法重跑”。
+OpenGL 测试需显式添加 `-PprismodRenderTests`，并且只代表独立 GL 测试，不等同于完整 Minecraft、HUD、Mixin 或 Oculus 集成测试。修改后必须报告实际运行的命令、结果和没有验证的项目，不得把未运行的游戏内回归写成已通过。
 
 ## 后续修改规则
 
-1. 先阅读实际映射和现有调用链，再修改 Mixin descriptor 或渲染时机。
-2. 不把 Oculus、OptiFine 或其他渲染前置变成 Prismod 发布包的硬依赖。当前 `build.gradle` 中的 Oculus 坐标仅用于开发环境共存测试，发布 jar 不打包它；如调整依赖，必须保留 Curse Maven 仓库和可选共存语义。
-3. 不把 HUD、聊天、菜单或容器绘制放进滤镜链。
-4. 不在专用服务器路径引用 `net.minecraft.client`、`Minecraft` 或任何 `client` 包。
-5. 修改渲染状态时必须补充失败回退和状态恢复测试；修改配置/API 时必须保留线程调度和不可变快照语义。
-6. 使用 `apply_patch` 编辑，保留用户已有改动，不删除 `.vscode/` 等 IDE 文件。
-7. 完成修改后至少运行覆盖变更的测试，并报告命令、结果、未验证项和产物路径。
+1. 先阅读实际调用链和资源加载顺序，再修改 Mixin descriptor、资源包来源或渲染时机。
+2. 保留 `FilterKey`/`FilterSelection` 对自定义滤镜身份的支持；不要在 UI、F8 提示或新逻辑中重新使用旧版 `FilterState.id()` 代替自定义 key。
+3. 不把 Oculus、OptiFine 或其他渲染前置变成发布包硬依赖；不要调用它们的私有 API。
+4. 不把 HUD、聊天、菜单或容器绘制放进滤镜链。
+5. 不在专用服务器路径引用 `net.minecraft.client`、`Minecraft` 或任何 `client` 包。
+6. 修改配置/API 时保留线程调度、不可变快照、资源重载和启动阶段配置未加载兼容行为。
+7. 使用 `apply_patch` 编辑，保留用户已有改动，不删除 IDE 文件或运行产物目录中的用户数据。
+8. 完成修改后至少运行覆盖变更的测试，并报告测试命令、结果、未验证项和产物路径。

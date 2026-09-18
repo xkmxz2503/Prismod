@@ -35,9 +35,16 @@ public final class FilterConfigScreen extends Screen {
         super(Component.translatable("screen.prismod.title"));
         this.parent = parent;
         draftEnabled = PrismodClientConfig.ENABLED.get();
-        draftOrder = new ArrayList<>(PrismodClientConfig.cycleOrder());
+        draftOrder = new ArrayList<>();
+        for (FilterKey key : PrismodClientConfig.cycleOrder()) {
+            if (PrismodClientConfig.isFilterVisible(key) && FilterRegistry.get().definition(key) != null) {
+                draftOrder.add(key);
+            }
+        }
         for (FilterDefinition definition : FilterRegistry.get().definitions()) {
-            if (!draftOrder.contains(definition.key())) draftOrder.add(definition.key());
+            if (PrismodClientConfig.isFilterVisible(definition.key()) && !draftOrder.contains(definition.key())) {
+                draftOrder.add(definition.key());
+            }
         }
         draftSelected = FilterManager.get().selectedSelection().key();
         for (FilterKey key : draftOrder) {
@@ -58,7 +65,7 @@ public final class FilterConfigScreen extends Screen {
         panelLeft = (width - panelWidth) / 2;
         int panelHeight = Math.min(Math.max(180, height - 20), 300);
         panelTop = Math.max(6, (height - panelHeight) / 2);
-        listTop = panelTop + 58;
+        listTop = panelTop + 82;
         listBottom = panelTop + panelHeight - 42;
 
         Button enabled = addRenderableWidget(Button.builder(enabledLabel(), button -> {
@@ -66,6 +73,18 @@ public final class FilterConfigScreen extends Screen {
             button.setMessage(enabledLabel());
         }).bounds(panelLeft, panelTop + 18, panelWidth, 20).build());
         enabled.setTabOrderGroup(0);
+
+        int managerButtonWidth = (panelWidth - 4) / 2;
+        Button resourcePacks = addRenderableWidget(Button.builder(
+                Component.translatable("screen.prismod.resource_packs"),
+                button -> minecraft.setScreen(new ResourcePackManagerScreen(this)))
+                .bounds(panelLeft, panelTop + 40, managerButtonWidth, 20).build());
+        resourcePacks.setTabOrderGroup(1);
+        Button filterManager = addRenderableWidget(Button.builder(
+                Component.translatable("screen.prismod.filter_manager"),
+                button -> minecraft.setScreen(new FilterVisibilityManagerScreen(this)))
+                .bounds(panelLeft + managerButtonWidth + 4, panelTop + 40, managerButtonWidth, 20).build());
+        filterManager.setTabOrderGroup(2);
 
         int nameWidth = Math.min(132, panelWidth / 3);
         int nameLeft = panelLeft + 20;
@@ -154,13 +173,21 @@ public final class FilterConfigScreen extends Screen {
 
     private void save() {
         PrismodClientConfig.ENABLED.set(draftEnabled);
-        PrismodClientConfig.setCycleOrder(draftOrder);
+        List<FilterKey> order = new ArrayList<>(draftOrder);
+        for (FilterKey key : PrismodClientConfig.cycleOrder()) {
+            if (!order.contains(key)) order.add(key);
+        }
+        PrismodClientConfig.setCycleOrder(order);
         draftStrengths.forEach(PrismodClientConfig::setStrength);
         PrismodClientConfig.SPEC.save();
         FilterManager.get().refreshConfig();
         // select 仅更新玩家选择，不能覆盖其他模组正在强制使用的滤镜。
         FilterManager.get().select(draftSelected);
         onClose();
+    }
+
+    Screen parentScreen() {
+        return parent;
     }
 
     @Override
@@ -219,7 +246,7 @@ public final class FilterConfigScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         renderBackground(graphics);
         graphics.drawCenteredString(font, title, width / 2, panelTop, 0xFFFFFF);
-        graphics.drawCenteredString(font, Component.translatable("screen.prismod.order_hint"), width / 2, panelTop + 43, 0xBBBBBB);
+        graphics.drawCenteredString(font, Component.translatable("screen.prismod.order_hint"), width / 2, panelTop + 66, 0xBBBBBB);
         boolean forced = FilterManager.get().isForced();
         graphics.drawCenteredString(font, Component.translatable(forced ? "screen.prismod.forced_hint" : "screen.prismod.save_hint"),
                 width / 2, listBottom + 2, forced ? 0xFFCC66 : 0xBBBBBB);

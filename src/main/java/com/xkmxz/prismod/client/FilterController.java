@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Thread-confined state machine with an immutable cross-thread snapshot. */
 final class FilterController {
@@ -14,6 +15,7 @@ final class FilterController {
     private boolean renderAvailable = true;
     private List<FilterKey> cycleOrder = defaultKeys();
     private final Map<FilterKey, Float> strengths = new HashMap<>();
+    private Set<FilterKey> visibleKeys = Set.copyOf(defaultKeys());
     private volatile Snapshot snapshot;
 
     FilterController() {
@@ -53,7 +55,7 @@ final class FilterController {
     void cycle() {
         if (forcedState != null && (forcedState.key().isOriginal()
                 || FilterRegistry.get().isAvailable(forcedState.key()))) return;
-        List<FilterKey> available = cycleOrder.stream().filter(FilterRegistry.get()::isAvailable).toList();
+        List<FilterKey> available = cycleOrder.stream().filter(this::isSelectable).toList();
         if (available.isEmpty()) {
             selected = FilterKey.of(FilterId.ORIGINAL);
         } else {
@@ -88,12 +90,23 @@ final class FilterController {
 
     void refreshDynamicConfig(boolean enabled, List<FilterKey> order,
                               Map<FilterKey, ? extends Number> configuredStrengths) {
+        refreshDynamicConfig(enabled, order, configuredStrengths, null);
+    }
+
+    void refreshDynamicConfig(boolean enabled, List<FilterKey> order,
+                              Map<FilterKey, ? extends Number> configuredStrengths,
+                              Set<FilterKey> visibleKeys) {
         this.enabled = enabled;
         LinkedHashSet<FilterKey> normalized = new LinkedHashSet<>();
         if (order != null) normalized.addAll(order);
         for (FilterDefinition definition : FilterRegistry.get().definitions()) normalized.add(definition.key());
         if (normalized.isEmpty()) normalized.addAll(defaultKeys());
         cycleOrder = List.copyOf(normalized);
+        if (visibleKeys == null) {
+            this.visibleKeys = Set.copyOf(normalized);
+        } else {
+            this.visibleKeys = Set.copyOf(visibleKeys);
+        }
         for (FilterDefinition definition : FilterRegistry.get().definitions()) {
             Number value = configuredStrengths == null ? null : configuredStrengths.get(definition.key());
             strengths.put(definition.key(), value == null ? definition.defaultStrength()
@@ -114,9 +127,9 @@ final class FilterController {
 
     private void publish() {
         FilterSelection selectedState = new FilterSelection(selected, strength(selected), false);
-        FilterSelection effective = forcedState != null && (forcedState.key().isOriginal()
-                || FilterRegistry.get().isAvailable(forcedState.key())) ? forcedState
-                : enabled && FilterRegistry.get().isAvailable(selected) ? selectedState
+        FilterSelection effective = forcedState != null
+                && (forcedState.key().isOriginal() || isSelectable(forcedState.key())) ? forcedState
+                : enabled && (selected.isOriginal() || isSelectable(selected)) ? selectedState
                 : new FilterSelection(FilterKey.of(FilterId.ORIGINAL), 0.0F, false);
         if (!renderAvailable) effective = new FilterSelection(FilterKey.of(FilterId.ORIGINAL), 0.0F,
                 forcedState != null);
@@ -126,6 +139,10 @@ final class FilterController {
     private float strength(FilterKey key) {
         Float value = strengths.get(key);
         return value == null ? 1.0F : value;
+    }
+
+    private boolean isSelectable(FilterKey key) {
+        return key != null && visibleKeys.contains(key) && FilterRegistry.get().isAvailable(key);
     }
 
     private static List<FilterKey> defaultKeys() {

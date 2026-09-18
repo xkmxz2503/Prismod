@@ -31,9 +31,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -45,12 +47,16 @@ import java.util.zip.ZipFile;
 /** Discovers Prismod filter packs from config/prismod/resourcepacks. */
 public final class PrismodPackLoader implements RepositorySource {
     public static final PrismodPackLoader INSTANCE = new PrismodPackLoader();
-    public static final String PACK_ID = "prismod_external_resources";
+    public static final String PACK_ID_PREFIX = "prismod_external_";
+    /** Legacy aggregate ID retained for source compatibility with older integrations. */
+    @Deprecated
+    public static final String PACK_ID = PACK_ID_PREFIX + "resources";
     public static final String CONFIG_FILE = "prismod/config/prismod-client.toml";
     public static final String META_FILE = "prismod.meta.json";
     private static final String RESOURCE_PACKS_DIRECTORY = "prismod/resourcepacks";
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Set<String> RESERVED_NAMESPACES = Set.of("minecraft", "prismod");
+    private static boolean configWasUnavailable;
 
     private PrismodPackLoader() {
     }
@@ -69,40 +75,48 @@ public final class PrismodPackLoader implements RepositorySource {
     }
 
     public static boolean isPrismodPackId(String packId) {
-        return PACK_ID.equals(packId);
+        return packId != null && packId.startsWith(PACK_ID_PREFIX)
+                && packId.length() > PACK_ID_PREFIX.length();
+    }
+
+    public static String packIdForNamespace(String namespace) {
+        return PACK_ID_PREFIX + namespace;
+    }
+
+    public static String namespaceForPackId(String packId) {
+        return isPrismodPackId(packId) ? packId.substring(PACK_ID_PREFIX.length()) : null;
+    }
+
+    static boolean configWasUnavailable() {
+        return configWasUnavailable;
+    }
+
+    static void clearConfigUnavailable() {
+        configWasUnavailable = false;
     }
 
     @Override
     public void loadPacks(Consumer<Pack> onLoad) {
         ensureDirectories();
         List<PackCandidate> candidates = scan(resourcePacksDirectory());
-        if (candidates.isEmpty()) {
-            return;
-        }
-
-        List<PackResources> resources = new ArrayList<>();
         for (PackCandidate candidate : candidates) {
+            if (!PrismodClientConfig.isLoaded()) {
+                configWasUnavailable = true;
+            } else if (!PrismodClientConfig.isPackEnabled(candidate.metadata().namespace())) {
+                continue;
+            }
             try {
-                resources.add(createResources(candidate));
+                Pack pack = Pack.readMetaAndCreate(packIdForNamespace(candidate.metadata().namespace()),
+                        Component.literal(candidate.metadata().displayName(candidate.fileName())), true,
+                        id -> new DelegatingPackResources(id, false,
+                                new PackMetadataSection(Component.literal(candidate.metadata().displayName(candidate.fileName())),
+                                        SharedConstants.getCurrentVersion().getPackVersion(PackType.CLIENT_RESOURCES)),
+                                List.of(createResources(candidate))), PackType.CLIENT_RESOURCES, Pack.Position.BOTTOM,
+                        PackSource.BUILT_IN);
+                if (pack != null) onLoad.accept(pack);
             } catch (RuntimeException exception) {
                 LOGGER.warn("Skipping Prismod resource pack {}", candidate.path().getFileName(), exception);
             }
-        }
-        if (resources.isEmpty()) {
-            return;
-        }
-
-        // DelegatingPackResources returns the first matching delegate. Reverse the
-        // ascending scan order so a later file name has stable override precedence.
-        List<PackResources> delegates = new ArrayList<>(resources);
-        java.util.Collections.reverse(delegates);
-        Pack pack = Pack.readMetaAndCreate(PACK_ID, Component.literal("Prismod custom filters"), true,
-                id -> new DelegatingPackResources(id, false,
-                        new PackMetadataSection(Component.literal("Prismod custom filters"),
-                                SharedConstants.getCurrentVersion().getPackVersion(PackType.CLIENT_RESOURCES)),
-                        delegates), PackType.CLIENT_RESOURCES, Pack.Position.BOTTOM, PackSource.BUILT_IN);
-        if (pack != null) {
-            onLoad.accept(pack);
         }
     }
 
@@ -122,10 +136,16 @@ public final class PrismodPackLoader implements RepositorySource {
         entries.sort(Comparator.comparing(path -> path.getFileName().toString()));
 
         List<PackCandidate> result = new ArrayList<>();
+        Set<String> namespaces = new HashSet<>();
         for (Path path : entries) {
             try {
                 PackMetadata metadata = Files.isDirectory(path) ? readDirectoryMetadata(path) : readZipMetadata(path);
                 if (metadata != null && dependenciesMatch(metadata.dependencies())) {
+                    if (!namespaces.add(metadata.namespace())) {
+                        LOGGER.warn("Skipping Prismod resource pack {} because namespace {} is already used",
+                                path.getFileName(), metadata.namespace());
+                        continue;
+                    }
                     result.add(new PackCandidate(path, metadata));
                     LOGGER.info("Found Prismod resource pack {} (namespace {})", path.getFileName(), metadata.namespace());
                 }
@@ -146,6 +166,14 @@ public final class PrismodPackLoader implements RepositorySource {
             throw new IllegalArgumentException("invalid or reserved namespace: " + namespace);
         }
 
+        String name = null;
+        if (object.has("name")) {
+            if (!object.get("name").isJsonPrimitive() || !object.getAsJsonPrimitive("name").isString()) {
+                throw new IllegalArgumentException("name must be a string");
+            }
+            name = object.get("name").getAsString().trim();
+            if (name.isBlank()) name = null;
+        }
         Map<String, String> dependencies = new HashMap<>();
         if (object.has("dependencies")) {
             if (!object.get("dependencies").isJsonObject()) {
@@ -159,7 +187,95 @@ public final class PrismodPackLoader implements RepositorySource {
                 dependencies.put(entry.getKey(), entry.getValue().getAsString());
             }
         }
-        return new PackMetadata(namespace, Map.copyOf(dependencies));
+        return new PackMetadata(namespace, name, Map.copyOf(dependencies));
+    }
+
+    static ImportResult importPack(Path source) {
+        if (source == null || (!Files.isDirectory(source) && !isZip(source))) {
+            return ImportResult.failure("请选择资源包目录或 ZIP 文件。");
+        }
+        try {
+            PackMetadata metadata = Files.isDirectory(source) ? readDirectoryMetadata(source) : readZipMetadata(source);
+            if (!dependenciesMatch(metadata.dependencies())) {
+                return ImportResult.failure("资源包依赖不满足，未导入。");
+            }
+            validateContents(source, metadata.namespace());
+            Path directory = resourcePacksDirectory();
+            Files.createDirectories(directory);
+            for (PackCandidate candidate : scan(directory)) {
+                if (candidate.metadata().namespace().equals(metadata.namespace())) {
+                    return ImportResult.failure("资源包 namespace 已存在，未导入。");
+                }
+            }
+            Path target = directory.resolve(source.getFileName().toString()).normalize();
+            if (!target.getParent().equals(directory) || Files.exists(target)) {
+                return ImportResult.failure("目标目录已有同名资源包，未覆盖原文件。");
+            }
+            if (Files.isDirectory(source)) copyDirectory(source, target);
+            else Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
+            return ImportResult.success(new PackCandidate(target, metadata));
+        } catch (Exception exception) {
+            LOGGER.warn("Unable to import Prismod resource pack {}", source, exception);
+            return ImportResult.failure("资源包校验失败：" + safeMessage(exception));
+        }
+    }
+
+    private static boolean isZip(Path path) {
+        return Files.isRegularFile(path)
+                && path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".zip");
+    }
+
+    private static void validateContents(Path source, String namespace) throws IOException {
+        String prefix = "assets/" + namespace + "/";
+        if (Files.isDirectory(source)) {
+            try (var paths = Files.walk(source)) {
+                for (Path path : paths.filter(Files::isRegularFile).toList()) {
+                    validateEntry(source.relativize(path).toString().replace('\\', '/'), prefix);
+                }
+            }
+            return;
+        }
+        try (ZipFile zip = new ZipFile(source.toFile())) {
+            var entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                if (!entry.isDirectory()) validateEntry(entry.getName(), prefix);
+            }
+        }
+    }
+
+    private static void validateEntry(String entry, String assetsPrefix) throws IOException {
+        if (entry.equals(META_FILE)) return;
+        if (entry.contains("..") || !entry.startsWith(assetsPrefix)) {
+            throw new IOException("资源必须位于 " + assetsPrefix + " 下");
+        }
+    }
+
+    private static void copyDirectory(Path source, Path target) throws IOException {
+        try {
+            try (var paths = Files.walk(source)) {
+                for (Path path : paths.toList()) {
+                    Path destination = target.resolve(source.relativize(path).toString());
+                    if (Files.isDirectory(path)) Files.createDirectories(destination);
+                    else Files.copy(path, destination, StandardCopyOption.COPY_ATTRIBUTES);
+                }
+            }
+        } catch (IOException exception) {
+            deleteRecursively(target);
+            throw exception;
+        }
+    }
+
+    private static void deleteRecursively(Path path) throws IOException {
+        if (!Files.exists(path)) return;
+        try (var paths = Files.walk(path)) {
+            for (Path child : paths.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(child);
+        }
+    }
+
+    private static String safeMessage(Exception exception) {
+        String message = exception.getMessage();
+        return message == null || message.isBlank() ? exception.getClass().getSimpleName() : message;
     }
 
     private static PackMetadata readDirectoryMetadata(Path path) throws IOException {
@@ -222,6 +338,19 @@ public final class PrismodPackLoader implements RepositorySource {
         }
     }
 
-    record PackMetadata(String namespace, Map<String, String> dependencies) {
+    record PackMetadata(String namespace, String name, Map<String, String> dependencies) {
+        String displayName(String fallback) {
+            return name == null || name.isBlank() ? fallback : name;
+        }
+    }
+
+    record ImportResult(boolean success, String message, PackCandidate candidate) {
+        static ImportResult success(PackCandidate candidate) {
+            return new ImportResult(true, "资源包已导入。", candidate);
+        }
+
+        static ImportResult failure(String message) {
+            return new ImportResult(false, message, null);
+        }
     }
 }

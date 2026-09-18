@@ -48,6 +48,34 @@ class PrismodPackLoaderTest {
                 JsonParser.parseString("{\"namespace\":\"minecraft\"}").getAsJsonObject()));
     }
 
+    @Test
+    void parsesOptionalDisplayName() {
+        PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseMetadata(
+                JsonParser.parseString("{\"namespace\":\"example\",\"name\":\"Example Filters\"}")
+                        .getAsJsonObject());
+        assertEquals("Example Filters", metadata.name());
+        assertEquals("Example Filters", metadata.displayName("fallback"));
+    }
+
+    @Test
+    void blankDisplayNameFallsBackToFileName() {
+        PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseMetadata(
+                JsonParser.parseString("{\"namespace\":\"example\",\"name\":\"  \"}")
+                        .getAsJsonObject());
+        assertEquals("fallback", metadata.displayName("fallback"));
+    }
+
+    @Test
+    void rejectsDuplicateNamespacesAfterTheFirstFileName() throws IOException {
+        createDirectoryPack("a-first", "same");
+        createDirectoryPack("z-second", "same");
+
+        List<PrismodPackLoader.PackCandidate> candidates = PrismodPackLoader.scan(temp);
+
+        assertEquals(List.of("a-first"), candidates.stream()
+                .map(candidate -> candidate.path().getFileName().toString()).toList());
+    }
+
     private void createDirectoryPack(String name, String namespace) throws IOException {
         Path pack = Files.createDirectories(temp.resolve(name));
         Files.writeString(pack.resolve(PrismodPackLoader.META_FILE),

@@ -21,6 +21,8 @@ import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.concurrent.CompletableFuture;
+
 /** 只由 DistExecutor 的客户端分支创建，专用服务器不会解析此类。 */
 public final class PrismodClient {
     private static final KeyMapping CYCLE = new KeyMapping("key.prismod.cycle", KeyConflictContext.IN_GAME,
@@ -44,6 +46,10 @@ public final class PrismodClient {
         MinecraftForge.EVENT_BUS.addListener(PrismodClient::tick);
     }
 
+    public static CompletableFuture<Void> reloadResources() {
+        return Minecraft.getInstance().reloadResourcePacks();
+    }
+
     private static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(CYCLE);
     }
@@ -58,6 +64,7 @@ public final class PrismodClient {
         event.registerReloadListener((ResourceManagerReloadListener) manager -> {
             FilterRegistry.get().reload(manager);
             PrismodClientConfig.appendDiscoveredFilters();
+            PrismodClientConfig.removeHiddenAndUnavailableFromCycleOrder();
             WorldFilterRenderer.reload();
             FilterManager.get().refreshConfig();
         });
@@ -72,6 +79,10 @@ public final class PrismodClient {
     private static void tick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getInstance();
+        if (PrismodPackLoader.configWasUnavailable() && PrismodClientConfig.isLoaded()) {
+            PrismodPackLoader.clearConfigUnavailable();
+            reloadResources();
+        }
         boolean inWorld = mc.level != null && mc.player != null;
         if (hadWorld && !inWorld) {
             FilterManager.get().resetSession();
@@ -94,7 +105,7 @@ public final class PrismodClient {
             if (inWorld && mc.screen == null && !FilterManager.get().isForced()) {
                 FilterManager.get().cycle();
                 mc.player.displayClientMessage(Component.translatable("message.prismod.selected",
-                        Component.translatable(FilterManager.get().effectiveState().id().translationKey())), true);
+                        FilterManager.get().effectiveDisplayName()), true);
             }
         }
     }

@@ -28,7 +28,7 @@ public void registerDebugFilter() {
 - `metadata.translationKey`：可选翻译键。为空或没有翻译时显示完整资源 ID。
 - `metadata.defaultStrength`：默认强度，会规范化到 `0.0` 到 `1.0`。
 
-资源必须满足资源包契约，否则会被登记为不可用。
+资源必须满足 Prismod 自定义模组资源包契约，否则会被登记为不可用；这不要求 Minecraft 原版 `pack.mcmeta`。
 
 ## 2. 注销滤镜
 

@@ -67,13 +67,14 @@ public final class FilterRegistry {
         resources.keySet().stream().sorted(Comparator.comparing(ResourceLocation::toString)).forEach(id -> {
             Resource resource = resources.get(id);
             if (resource == null || !PrismodPackLoader.isPrismodPackId(resource.sourcePackId())) return;
-            FilterDefinition definition = inspect(manager, id, false, null);
+            String packNamespace = PrismodPackLoader.namespaceForPackId(resource.sourcePackId());
+            FilterDefinition definition = inspect(manager, id, false, null, packNamespace);
             if (definition != null && !definitions.containsKey(definition.key())) {
                 definitions.put(definition.key(), definition);
             }
         });
         for (RegistrationRecord record : registrations.values()) {
-            FilterDefinition definition = inspect(manager, record.postEffect, false, record.metadata);
+            FilterDefinition definition = inspect(manager, record.postEffect, false, record.metadata, null);
             if (definition != null) definitions.put(record.key(), definition);
         }
         generation++;
@@ -94,7 +95,7 @@ public final class FilterRegistry {
         RegistrationRecord record = new RegistrationRecord(registrationId, postEffect, safeMetadata, ++generation);
         registrations.put(registrationId, record);
         ResourceManager manager = Minecraft.getInstance().getResourceManager();
-        FilterDefinition definition = inspect(manager, postEffect, false, safeMetadata);
+        FilterDefinition definition = inspect(manager, postEffect, false, safeMetadata, null);
         if (definition != null) definitions.put(key, definition);
         return new Handle(registrationId, record.version);
     }
@@ -107,7 +108,7 @@ public final class FilterRegistry {
         failures.remove(id.key);
         ResourceManager manager = Minecraft.getInstance().getResourceManager();
         if (manager.getResource(current.postEffect).isPresent()) {
-            FilterDefinition discovered = inspect(manager, current.postEffect, false, null);
+            FilterDefinition discovered = inspect(manager, current.postEffect, false, null, null);
             if (discovered != null) definitions.put(id.key, discovered);
         }
         generation++;
@@ -133,7 +134,7 @@ public final class FilterRegistry {
     }
 
     private FilterDefinition inspect(ResourceManager manager, ResourceLocation postEffect,
-                                    boolean builtIn, CustomFilterMetadata metadata) {
+                                    boolean builtIn, CustomFilterMetadata metadata, String packNamespace) {
         if (postEffect == null) return null;
         boolean requirePrismodSource = !builtIn && metadata == null;
         try {
@@ -161,6 +162,10 @@ public final class FilterRegistry {
             if (requirePrismodSource && !PrismodPackLoader.isPrismodPackId(programResource.sourcePackId())) {
                 throw new IllegalArgumentException("program resource is not from Prismod resource packs");
             }
+            if (packNamespace != null && !packNamespace.equals(
+                    PrismodPackLoader.namespaceForPackId(programResource.sourcePackId()))) {
+                throw new IllegalArgumentException("program resource comes from a different resource pack");
+            }
             JsonObject program = parse(programResource);
             if (!hasFloatUniform(program.getAsJsonArray("uniforms"), "Intensity")) {
                 throw new IllegalArgumentException("program is missing Intensity");
@@ -169,7 +174,7 @@ public final class FilterRegistry {
             String translationKey = metadata != null && metadata.translationKey() != null
                     ? metadata.translationKey() : generatedTranslationKey(key);
             float strength = metadata == null ? 1.0F : metadata.defaultStrength();
-            return new FilterDefinition(key, postEffect, translationKey, strength, builtIn);
+            return new FilterDefinition(key, postEffect, translationKey, strength, builtIn, packNamespace);
         } catch (Exception exception) {
             FilterKey key = FilterKey.fromPostEffect(postEffect);
             String reason = exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
@@ -178,7 +183,7 @@ public final class FilterRegistry {
             String translationKey = metadata != null && metadata.translationKey() != null
                     ? metadata.translationKey() : generatedTranslationKey(key);
             float strength = metadata == null ? 1.0F : metadata.defaultStrength();
-            return new FilterDefinition(key, postEffect, translationKey, strength, builtIn);
+            return new FilterDefinition(key, postEffect, translationKey, strength, builtIn, packNamespace);
         }
     }
 

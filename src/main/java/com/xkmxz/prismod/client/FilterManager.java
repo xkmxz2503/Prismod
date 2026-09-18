@@ -4,8 +4,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** 状态读取可跨线程；所有写操作以及配置读取只由客户端线程执行。 */
 public final class FilterManager {
@@ -58,14 +60,23 @@ public final class FilterManager {
     /** 配置加载、热重载或界面保存后，在客户端线程刷新全部配置与状态。 */
     public void refreshConfig() {
         Map<FilterKey, Float> strengths = new HashMap<>();
+        Set<FilterKey> visible = new HashSet<>();
         for (FilterDefinition definition : FilterRegistry.get().definitions()) {
             strengths.put(definition.key(), PrismodClientConfig.strength(definition.key()));
+            if (PrismodClientConfig.isFilterVisible(definition.key())) visible.add(definition.key());
         }
-        controller.refreshDynamicConfig(PrismodClientConfig.ENABLED.get(), PrismodClientConfig.cycleOrder(), strengths);
+        controller.refreshDynamicConfig(PrismodClientConfig.ENABLED.get(), PrismodClientConfig.cycleOrder(), strengths, visible);
     }
 
     public FilterSelection effectiveSelection() {
         return controller.effectiveSelection();
+    }
+
+    /** 显示当前滤镜名称，保留自定义滤镜的 namespace:path 身份。 */
+    public Component effectiveDisplayName() {
+        FilterSelection selection = effectiveSelection();
+        FilterDefinition definition = FilterRegistry.get().definition(selection.key());
+        return definition == null ? Component.literal(selection.key().serializedName()) : definition.displayName();
     }
 
     public FilterSelection selectedSelection() {
@@ -74,6 +85,12 @@ public final class FilterManager {
 
     public List<FilterDefinition> filters() {
         return FilterRegistry.get().definitions();
+    }
+
+    public List<FilterDefinition> visibleFilters() {
+        return FilterRegistry.get().definitions().stream()
+                .filter(definition -> PrismodClientConfig.isFilterVisible(definition.key()))
+                .toList();
     }
 
     public void resetSession() {
@@ -98,11 +115,7 @@ public final class FilterManager {
 
     public void reportFilterFailure(FilterKey key, Throwable error) {
         FilterRegistry.get().markFailed(key, error);
-        Map<FilterKey, Float> strengths = new HashMap<>();
-        for (FilterDefinition definition : FilterRegistry.get().definitions()) {
-            strengths.put(definition.key(), PrismodClientConfig.strength(definition.key()));
-        }
-        controller.refreshDynamicConfig(PrismodClientConfig.ENABLED.get(), PrismodClientConfig.cycleOrder(), strengths);
+        refreshConfig();
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player != null) {
             minecraft.player.displayClientMessage(Component.translatable("message.prismod.filter_failed",
