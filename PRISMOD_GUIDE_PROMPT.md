@@ -141,3 +141,61 @@ OpenGL 测试需显式添加 `-PprismodRenderTests`，并且只代表独立 GL �
 6. 修改配置/API 时保留线程调度、不可变快照、资源重载和启动阶段配置未加载兼容行为。
 7. 使用 `apply_patch` 编辑，保留用户已有改动，不删除 IDE 文件或运行产物目录中的用户数据。
 8. 完成修改后至少运行覆盖变更的测试，并报告测试命令、结果、未验证项和产物路径。
+
+## 示例代码和功能文档规则
+
+1. 删除一段当前不用的示范代码是允许的，但不能让示范用法永久丢失。应在本文件保留一份完整、可复制的示例，并明确说明它当前处于停用状态、重新启用需要改哪些位置。
+2. 示例必须同时写清用途、启用步骤和具体事例，不能只保留一个无法运行的片段。示例代码中的注册名、事件类型和调用顺序要与当前 Forge/Minecraft 版本一致。
+3. 实现重要功能时，除了源码和测试，还必须在本文件补充用户如何使用、配置字段如何填写、调用 API 的方式、资源文件的目录结构或界面操作步骤。可以在功能代码完成后集中补文档，但提交前不得遗漏。
+4. 功能行为发生变化时，先同步更新本文件中的契约和示例，再继续后续开发；示例不得描述已经不存在的注册项、命令或配置字段。
+
+### 当前停用的物品示范
+
+`src/main/java/com/xkmxz/prismod/Prismod.java` 中的示例方块、示例物品和创造模式标签注册目前使用块注释保留，没有注册到游戏中。后续确实需要添加物品时，可恢复以下结构：
+
+```java
+public static final DeferredRegister<Item> ITEMS =
+        DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
+
+public static final RegistryObject<Item> EXAMPLE_ITEM = ITEMS.register(
+        "example_item", () -> new Item(new Item.Properties()));
+
+public Prismod() {
+    IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+    ITEMS.register(modEventBus);
+}
+```
+
+具体使用步骤：取消对应导入和注册代码的注释，在构造函数中调用 `ITEMS.register(modEventBus)`，再根据需要把 `EXAMPLE_ITEM` 放入创造模式标签；同时补充物品模型、语言键和纹理资源。只有在物品确实成为 Prismod 功能的一部分时才恢复，不能仅为验证模板而注册示例物品。
+
+### 未来命令示范
+
+Prismod 当前没有注册服务器命令。若未来需要增加命令，应保留客户端/服务端边界，并使用 Forge 的命令事件注册，例如：
+
+```java
+private void registerCommands(RegisterCommandsEvent event) {
+    event.getDispatcher().register(Commands.literal("prismod")
+            .then(Commands.literal("reload")
+                    .requires(source -> source.hasPermission(2))
+                    .executes(context -> {
+                        // 这里只调用服务端安全的重载逻辑。
+                        return 1;
+                    })));
+}
+```
+
+启用前需要导入 `RegisterCommandsEvent` 和 `Commands`，将监听器注册到正确的 Forge 事件总线，并明确命令只作用于服务端还是需要向客户端发送请求。滤镜渲染、`Minecraft`、`FilterApi` 等客户端类不能直接从专用服务器命令路径加载；命令的实际语法、权限和反馈文本也必须在本文件和用户文档中写出具体例子。
+
+### 重要功能文档示例
+
+新增客户端 API 时，至少应留下类似下面的完整用法，而不是只记录方法签名：
+
+```java
+// 在客户端入口调用：让 Prismod 临时使用复古滤镜，强度为 75%。
+FilterApi.setActiveFilter(FilterId.VINTAGE, 0.75F);
+
+// 用完后解除强制状态，恢复玩家在配置界面中的选择。
+FilterApi.clearForcedFilter();
+```
+
+同时说明调用环境、线程要求、状态优先级、配置是否落盘、失败时的回退行为，以及一个用户可复现的操作路径。例如资源包功能必须写明放置目录、`prismod.meta.json` 最小内容、导入入口、启用/禁用位置和资源重载时机。
