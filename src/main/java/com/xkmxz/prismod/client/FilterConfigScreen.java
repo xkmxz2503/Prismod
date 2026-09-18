@@ -10,32 +10,42 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** 配置草稿独立于控件，调整窗口大小或取消时不会意外写入配置。 */
 public final class FilterConfigScreen extends Screen {
     private static final int ROW_HEIGHT = 22;
     private final Screen parent;
-    private final List<FilterId> draftOrder;
-    private final EnumMap<FilterId, Double> draftStrengths = new EnumMap<>(FilterId.class);
-    private final EnumMap<FilterId, RowControls> rows = new EnumMap<>(FilterId.class);
+    private final List<FilterKey> draftOrder;
+    private final Map<FilterKey, Double> draftStrengths = new HashMap<>();
+    private final Map<FilterKey, RowControls> rows = new HashMap<>();
     private boolean draftEnabled;
-    private FilterId draftSelected;
-    private FilterId draggedId;
+    private FilterKey draftSelected;
+    private FilterKey draggedId;
     private int panelTop;
     private int panelLeft;
     private int panelWidth;
     private int listTop;
+    private int listBottom;
+    private int scrollOffset;
 
     public FilterConfigScreen(Screen parent) {
         super(Component.translatable("screen.prismod.title"));
         this.parent = parent;
         draftEnabled = PrismodClientConfig.ENABLED.get();
         draftOrder = new ArrayList<>(PrismodClientConfig.cycleOrder());
-        draftSelected = FilterManager.get().selectedState().id();
-        for (FilterId id : FilterId.values()) {
-            draftStrengths.put(id, (double) PrismodClientConfig.strength(id));
+        for (FilterDefinition definition : FilterRegistry.get().definitions()) {
+            if (!draftOrder.contains(definition.key())) draftOrder.add(definition.key());
+        }
+        draftSelected = FilterManager.get().selectedSelection().key();
+        for (FilterKey key : draftOrder) {
+            draftStrengths.put(key, (double) PrismodClientConfig.strength(key));
+        }
+        for (FilterDefinition definition : FilterRegistry.get().definitions()) {
+            FilterKey key = definition.key();
+            draftStrengths.put(key, (double) PrismodClientConfig.strength(key));
         }
     }
 
@@ -46,8 +56,10 @@ public final class FilterConfigScreen extends Screen {
         setDragging(false);
         panelWidth = Math.min(440, width - 16);
         panelLeft = (width - panelWidth) / 2;
-        panelTop = Math.max(6, (height - 228) / 2);
+        int panelHeight = Math.min(Math.max(180, height - 20), 300);
+        panelTop = Math.max(6, (height - panelHeight) / 2);
         listTop = panelTop + 58;
+        listBottom = panelTop + panelHeight - 42;
 
         Button enabled = addRenderableWidget(Button.builder(enabledLabel(), button -> {
             draftEnabled = !draftEnabled;
@@ -61,7 +73,7 @@ public final class FilterConfigScreen extends Screen {
         int sliderWidth = panelWidth - nameWidth - 62;
         int upLeft = panelLeft + panelWidth - 38;
 
-        for (FilterId id : draftOrder) {
+        for (FilterKey id : draftOrder) {
             Button handle = addRenderableWidget(Button.builder(Component.literal("≡"), button -> {})
                     .bounds(panelLeft, listTop, 18, 20)
                     .tooltip(Tooltip.create(Component.translatable("screen.prismod.drag", filterName(id))))
@@ -90,9 +102,9 @@ public final class FilterConfigScreen extends Screen {
 
         int buttonWidth = (panelWidth - 4) / 2;
         Button save = addRenderableWidget(Button.builder(Component.translatable("screen.prismod.save"), button -> save())
-                .bounds(panelLeft, panelTop + 208, buttonWidth, 20).build());
+                .bounds(panelLeft, listBottom + 18, buttonWidth, 20).build());
         Button cancel = addRenderableWidget(Button.builder(Component.translatable("gui.cancel"), button -> onClose())
-                .bounds(panelLeft + buttonWidth + 4, panelTop + 208, buttonWidth, 20).build());
+                .bounds(panelLeft + buttonWidth + 4, listBottom + 18, buttonWidth, 20).build());
         save.setTabOrderGroup(100);
         cancel.setTabOrderGroup(100);
     }
@@ -102,16 +114,19 @@ public final class FilterConfigScreen extends Screen {
                 Component.translatable(draftEnabled ? "options.on" : "options.off"));
     }
 
-    private static Component filterName(FilterId id) {
-        return Component.translatable(id.translationKey());
+    private static Component filterName(FilterKey id) {
+        FilterDefinition definition = FilterRegistry.get().definition(id);
+        Component name = definition == null ? Component.literal(id.serializedName()) : definition.displayName();
+        String failure = FilterRegistry.get().failure(id);
+        return definition != null && failure == null ? name : Component.literal(name.getString() + " (unavailable)");
     }
 
-    private Component selectionLabel(FilterId id) {
-        return id == draftSelected
+    private Component selectionLabel(FilterKey id) {
+        return id.equals(draftSelected)
                 ? Component.translatable("screen.prismod.selected", filterName(id)) : filterName(id);
     }
 
-    private void move(FilterId id, int direction) {
+    private void move(FilterKey id, int direction) {
         int oldIndex = draftOrder.indexOf(id);
         int newIndex = Mth.clamp(oldIndex + direction, 0, draftOrder.size() - 1);
         if (oldIndex != newIndex) {
@@ -124,8 +139,12 @@ public final class FilterConfigScreen extends Screen {
     private void arrangeRows() {
         for (int index = 0; index < draftOrder.size(); index++) {
             RowControls row = rows.get(draftOrder.get(index));
+            int y = listTop + index * ROW_HEIGHT - scrollOffset;
+            boolean visible = y + ROW_HEIGHT > listTop && y < listBottom;
             for (AbstractWidget widget : row.widgets()) {
-                widget.setY(listTop + index * ROW_HEIGHT);
+                widget.setY(y);
+                widget.visible = visible;
+                widget.active = visible;
                 widget.setTabOrderGroup(index + 1);
             }
             row.up.active = index > 0;
@@ -155,7 +174,7 @@ public final class FilterConfigScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) {
             draggedId = null;
-            for (FilterId id : draftOrder) {
+            for (FilterKey id : draftOrder) {
                 if (rows.get(id).handle.isMouseOver(mouseX, mouseY)) {
                     draggedId = id;
                     break;
@@ -168,11 +187,22 @@ public final class FilterConfigScreen extends Screen {
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         if (button == 0 && draggedId != null) {
-            int target = Mth.clamp((int) Math.floor((mouseY - listTop) / ROW_HEIGHT), 0, draftOrder.size() - 1);
+            int target = Mth.clamp((int) Math.floor((mouseY - listTop + scrollOffset) / ROW_HEIGHT), 0, draftOrder.size() - 1);
             move(draggedId, target - draftOrder.indexOf(draggedId));
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        if (mouseX >= panelLeft && mouseX <= panelLeft + panelWidth && mouseY >= listTop && mouseY <= listBottom) {
+            int maxScroll = Math.max(0, draftOrder.size() * ROW_HEIGHT - (listBottom - listTop));
+            scrollOffset = Mth.clamp(scrollOffset - (int) Math.signum(delta) * ROW_HEIGHT, 0, maxScroll);
+            arrangeRows();
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, delta);
     }
 
     @Override
@@ -192,9 +222,9 @@ public final class FilterConfigScreen extends Screen {
         graphics.drawCenteredString(font, Component.translatable("screen.prismod.order_hint"), width / 2, panelTop + 43, 0xBBBBBB);
         boolean forced = FilterManager.get().isForced();
         graphics.drawCenteredString(font, Component.translatable(forced ? "screen.prismod.forced_hint" : "screen.prismod.save_hint"),
-                width / 2, panelTop + 194, forced ? 0xFFCC66 : 0xBBBBBB);
+                width / 2, listBottom + 2, forced ? 0xFFCC66 : 0xBBBBBB);
         if (draggedId != null) {
-            int y = listTop + draftOrder.indexOf(draggedId) * ROW_HEIGHT;
+            int y = listTop + draftOrder.indexOf(draggedId) * ROW_HEIGHT - scrollOffset;
             graphics.fill(panelLeft - 2, y - 1, panelLeft + panelWidth + 2, y + 21, 0x8855AAFF);
         }
         super.render(graphics, mouseX, mouseY, partialTick);
@@ -207,9 +237,9 @@ public final class FilterConfigScreen extends Screen {
     }
 
     private final class StrengthSlider extends AbstractSliderButton {
-        private final FilterId id;
+        private final FilterKey id;
 
-        private StrengthSlider(FilterId id, int x, int y, int sliderWidth) {
+        private StrengthSlider(FilterKey id, int x, int y, int sliderWidth) {
             super(x, y, sliderWidth, 20, Component.empty(), draftStrengths.get(id));
             this.id = id;
             setTooltip(Tooltip.create(Component.translatable("screen.prismod.strength_hint", filterName(id))));

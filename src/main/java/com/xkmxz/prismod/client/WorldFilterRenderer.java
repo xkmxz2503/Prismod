@@ -23,10 +23,9 @@ public final class WorldFilterRenderer {
     private static PostChain chain;
     private static RenderTarget source;
     private static Uniform intensity;
-    private static FilterId loaded;
+    private static FilterKey loaded;
     private static int width;
     private static int height;
-    private static boolean disabled;
     private static final GpuFilterProfiler PROFILER = new GpuFilterProfiler();
 
     private WorldFilterRenderer() { }
@@ -34,8 +33,9 @@ public final class WorldFilterRenderer {
     public static void render(float partialTick) {
         RenderSystem.assertOnRenderThread();
         Minecraft mc = Minecraft.getInstance();
-        FilterState state = FilterManager.get().effectiveState();
-        if (disabled || mc.level == null || state.id() == FilterId.ORIGINAL || state.strength() <= 0) return;
+        FilterSelection selection = FilterManager.get().effectiveSelection();
+        FilterKey key = selection.key();
+        if (mc.level == null || key.isOriginal() || selection.strength() <= 0) return;
         RenderTarget main = mc.getMainRenderTarget();
         if (main.width <= 0 || main.height <= 0) return;
 
@@ -54,14 +54,14 @@ public final class WorldFilterRenderer {
         // 隔离调用方遗留的错误；本次 process/blit 的错误必须独立检查。
         while (GL11.glGetError() != GL11.GL_NO_ERROR) { }
         try {
-            prepare(mc, main, state.id());
-            intensity.set(state.strength());
+            prepare(mc, main, key);
+            intensity.set(selection.strength());
             RenderSystem.disableBlend();
             RenderSystem.disableDepthTest();
             RenderSystem.disableCull();
             RenderSystem.depthMask(false);
             RenderSystem.resetTextureMatrix();
-            PROFILER.begin(state.id(), main.width, main.height);
+            PROFILER.begin(key, main.width, main.height);
             // main -> swap。效果成功前绝不清空主目标，错误时仍能呈现原始世界。
             chain.process(partialTick);
             int error = GL11.glGetError();
@@ -78,9 +78,8 @@ public final class WorldFilterRenderer {
                 throw new IllegalStateException("Prismod color copy GL error: " + error);
             }
         } catch (Exception exception) {
-            disabled = true;
-            LOGGER.error("Prismod 滤镜已停用；资源重载后重试", exception);
-            FilterManager.get().reportRenderFailure();
+            LOGGER.error("Prismod filter {} failed; falling back to the original view", key.serializedName(), exception);
+            FilterManager.get().reportFilterFailure(key, exception);
             releaseChain();
         } finally {
             PROFILER.end();
@@ -97,14 +96,17 @@ public final class WorldFilterRenderer {
         }
     }
 
-    private static void prepare(Minecraft mc, RenderTarget main, FilterId id) throws Exception {
-        if (chain == null || source != main || loaded != id) {
+    private static void prepare(Minecraft mc, RenderTarget main, FilterKey key) throws Exception {
+        FilterDefinition definition = FilterRegistry.get().definition(key);
+        if (definition == null || definition.postEffect() == null) {
+            throw new IllegalStateException("No post effect registered for " + key.serializedName());
+        }
+        if (chain == null || source != main || loaded != key) {
             releaseChain();
             // 先取得空链的所有权，再加载可失败的资源，确保已创建的 FBO 能在 catch 中释放。
             chain = new PostChain(mc.getTextureManager(), mc.getResourceManager(), main,
-                    new ResourceLocation("prismod", "shaders/post/empty.json"));
-            ((PostChainAccessor) chain).prismod$load(mc.getTextureManager(),
-                    new ResourceLocation("prismod", "shaders/post/" + id.serializedName() + ".json"));
+                    ResourceLocation.fromNamespaceAndPath("prismod", "shaders/post/empty.json"));
+            ((PostChainAccessor) chain).prismod$load(mc.getTextureManager(), definition.postEffect());
             if (((PostChainAccessor) chain).prismod$getPasses().size() != 1) {
                 throw new IllegalStateException("Prismod requires exactly one filter pass");
             }
@@ -118,7 +120,7 @@ public final class WorldFilterRenderer {
             intensity = pass.getEffect().getUniform("Intensity");
             if (intensity == null) throw new IllegalStateException("Missing Intensity uniform");
             source = main;
-            loaded = id;
+            loaded = key;
             width = height = -1;
         }
         if (width != main.width || height != main.height) {
@@ -135,7 +137,6 @@ public final class WorldFilterRenderer {
         RenderSystem.assertOnRenderThread();
         releaseChain();
         PROFILER.close();
-        disabled = false;
         FilterManager.get().setRenderAvailable(true);
     }
 

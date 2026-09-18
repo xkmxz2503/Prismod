@@ -20,11 +20,11 @@ final class GpuFilterProfiler {
     private int count;
     private int active = -1;
     private int slot;
-    private FilterId filter;
+    private FilterKey filter;
     private int width;
     private int height;
 
-    void begin(FilterId id, int newWidth, int newHeight) {
+    void begin(FilterKey id, int newWidth, int newHeight) {
         if (!requested || !GL.getCapabilities().OpenGL33) return;
         if (id != filter || width != newWidth || height != newHeight) {
             close();

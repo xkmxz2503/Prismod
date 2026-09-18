@@ -8,6 +8,7 @@
   "key.categories.prismod": "Prismod 滤镜",
   "key.prismod.cycle": "切换滤镜",
   "message.prismod.render_failed": "Prismod 滤镜渲染失败，已恢复原画；重载资源后重试。",
+  "message.prismod.filter_failed": "Prismod 滤镜 %s 加载失败，已跳过该滤镜。",
   "message.prismod.key_conflict": "Prismod：按键 %s 存在冲突，请在控制设置中调整。",
   "message.prismod.selected": "滤镜：%s",
   "message.prismod.forced": "其他模组正在强制使用滤镜，暂时无法切换。",

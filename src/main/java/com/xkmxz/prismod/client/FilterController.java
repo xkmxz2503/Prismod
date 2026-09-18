@@ -1,30 +1,39 @@
 package com.xkmxz.prismod.client;
 
-import java.util.EnumMap;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
-/** 纯 Java 状态机；写入由客户端线程串行执行，读取通过不可变快照发布。 */
+/** Thread-confined state machine with an immutable cross-thread snapshot. */
 final class FilterController {
-    private FilterId selected = FilterId.ORIGINAL;
-    private FilterState forcedState;
+    private FilterKey selected = FilterKey.of(FilterId.ORIGINAL);
+    private FilterSelection forcedState;
     private boolean enabled = true;
     private boolean renderAvailable = true;
-    private List<FilterId> cycleOrder = FilterId.defaultOrder();
-    private final EnumMap<FilterId, Float> strengths = new EnumMap<>(FilterId.class);
+    private List<FilterKey> cycleOrder = defaultKeys();
+    private final Map<FilterKey, Float> strengths = new HashMap<>();
     private volatile Snapshot snapshot;
 
     FilterController() {
-        for (FilterId id : FilterId.values()) strengths.put(id, 1.0F);
+        for (FilterId id : FilterId.values()) strengths.put(FilterKey.of(id), 1.0F);
         publish();
     }
 
     FilterState selectedState() {
-        return snapshot.selected();
+        return legacyState(snapshot.selected());
     }
 
     FilterState effectiveState() {
+        return legacyState(snapshot.effective());
+    }
+
+    FilterSelection selectedSelection() {
+        return snapshot.selected();
+    }
+
+    FilterSelection effectiveSelection() {
         return snapshot.effective();
     }
 
@@ -33,18 +42,33 @@ final class FilterController {
     }
 
     void select(FilterId id) {
-        selected = id == null ? FilterId.ORIGINAL : id;
+        select(id == null ? null : FilterKey.of(id));
+    }
+
+    void select(FilterKey key) {
+        selected = key == null ? FilterKey.of(FilterId.ORIGINAL) : key;
         publish();
     }
 
     void cycle() {
-        if (forcedState != null) return;
-        selected = cycleOrder.get((cycleOrder.indexOf(selected) + 1) % cycleOrder.size());
+        if (forcedState != null && (forcedState.key().isOriginal()
+                || FilterRegistry.get().isAvailable(forcedState.key()))) return;
+        List<FilterKey> available = cycleOrder.stream().filter(FilterRegistry.get()::isAvailable).toList();
+        if (available.isEmpty()) {
+            selected = FilterKey.of(FilterId.ORIGINAL);
+        } else {
+            int index = available.indexOf(selected);
+            selected = available.get((index + 1) % available.size());
+        }
         publish();
     }
 
     void setForced(FilterId id, float strength) {
-        forcedState = new FilterState(id, strength, true);
+        setForced(id == null ? null : FilterKey.of(id), strength);
+    }
+
+    void setForced(FilterKey key, float strength) {
+        forcedState = new FilterSelection(key, strength, true);
         publish();
     }
 
@@ -54,18 +78,28 @@ final class FilterController {
     }
 
     void refreshConfig(boolean enabled, List<FilterId> order, Map<FilterId, ? extends Number> configuredStrengths) {
+        List<FilterKey> keys = order == null ? null : order.stream().map(FilterKey::of).toList();
+        Map<FilterKey, Number> strengths = new HashMap<>();
+        if (configuredStrengths != null) {
+            configuredStrengths.forEach((key, value) -> strengths.put(FilterKey.of(key), value));
+        }
+        refreshDynamicConfig(enabled, keys, strengths);
+    }
+
+    void refreshDynamicConfig(boolean enabled, List<FilterKey> order,
+                              Map<FilterKey, ? extends Number> configuredStrengths) {
         this.enabled = enabled;
-        if (order != null && order.size() == FilterId.values().length
-                && order.stream().noneMatch(Objects::isNull)
-                && order.stream().distinct().count() == FilterId.values().length) {
-            cycleOrder = List.copyOf(order);
-        } else {
-            cycleOrder = FilterId.defaultOrder();
+        LinkedHashSet<FilterKey> normalized = new LinkedHashSet<>();
+        if (order != null) normalized.addAll(order);
+        for (FilterDefinition definition : FilterRegistry.get().definitions()) normalized.add(definition.key());
+        if (normalized.isEmpty()) normalized.addAll(defaultKeys());
+        cycleOrder = List.copyOf(normalized);
+        for (FilterDefinition definition : FilterRegistry.get().definitions()) {
+            Number value = configuredStrengths == null ? null : configuredStrengths.get(definition.key());
+            strengths.put(definition.key(), value == null ? definition.defaultStrength()
+                    : FilterState.normalizeStrength(value.doubleValue()));
         }
-        for (FilterId id : FilterId.values()) {
-            Number value = configuredStrengths.get(id);
-            strengths.put(id, value == null ? 1.0F : FilterState.normalizeStrength(value.doubleValue()));
-        }
+        if (selected == null) selected = FilterKey.of(FilterId.ORIGINAL);
         publish();
     }
 
@@ -74,19 +108,43 @@ final class FilterController {
         publish();
     }
 
-    /** 离开世界时只移除本次会话的覆盖，保留用户自己的滤镜选择。 */
     void resetSession() {
         clearForced();
     }
 
     private void publish() {
-        FilterState selectedState = new FilterState(selected, strengths.get(selected), false);
-        FilterState effective = forcedState != null ? forcedState
-                : enabled ? selectedState : new FilterState(FilterId.ORIGINAL, 0.0F, false);
-        if (!renderAvailable) effective = new FilterState(FilterId.ORIGINAL, 0.0F, forcedState != null);
+        FilterSelection selectedState = new FilterSelection(selected, strength(selected), false);
+        FilterSelection effective = forcedState != null && (forcedState.key().isOriginal()
+                || FilterRegistry.get().isAvailable(forcedState.key())) ? forcedState
+                : enabled && FilterRegistry.get().isAvailable(selected) ? selectedState
+                : new FilterSelection(FilterKey.of(FilterId.ORIGINAL), 0.0F, false);
+        if (!renderAvailable) effective = new FilterSelection(FilterKey.of(FilterId.ORIGINAL), 0.0F,
+                forcedState != null);
         snapshot = new Snapshot(selectedState, effective);
     }
 
-    private record Snapshot(FilterState selected, FilterState effective) {
+    private float strength(FilterKey key) {
+        Float value = strengths.get(key);
+        return value == null ? 1.0F : value;
+    }
+
+    private static List<FilterKey> defaultKeys() {
+        List<FilterKey> keys = new ArrayList<>();
+        for (FilterId id : FilterId.values()) keys.add(FilterKey.of(id));
+        return List.copyOf(keys);
+    }
+
+    private static FilterState legacyState(FilterSelection selection) {
+        return new FilterState(toLegacyId(selection.key()), selection.strength(), selection.forced());
+    }
+
+    private static FilterId toLegacyId(FilterKey key) {
+        if (key != null && "prismod".equals(key.id().getNamespace())) {
+            return FilterId.fromSerialized(key.id().getPath());
+        }
+        return FilterId.ORIGINAL;
+    }
+
+    private record Snapshot(FilterSelection selected, FilterSelection effective) {
     }
 }

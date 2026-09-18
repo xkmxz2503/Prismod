@@ -44,7 +44,12 @@ public final class PrismodClient {
     }
 
     private static void registerReload(RegisterClientReloadListenersEvent event) {
-        event.registerReloadListener((ResourceManagerReloadListener) manager -> WorldFilterRenderer.reload());
+        event.registerReloadListener((ResourceManagerReloadListener) manager -> {
+            FilterRegistry.get().reload(manager);
+            PrismodClientConfig.appendDiscoveredFilters();
+            WorldFilterRenderer.reload();
+            FilterManager.get().refreshConfig();
+        });
     }
 
     private static void configChanged(ModConfigEvent event) {

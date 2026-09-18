@@ -8,6 +8,7 @@
   "key.categories.prismod": "Prismod Filters",
   "key.prismod.cycle": "Cycle Filter",
   "message.prismod.render_failed": "Prismod filter rendering failed. Original view restored; reload resources to retry.",
+  "message.prismod.filter_failed": "Prismod filter %s failed and was skipped.",
   "message.prismod.key_conflict": "Prismod: %s has a key conflict. Change it in Controls.",
   "message.prismod.selected": "Filter: %s",
   "message.prismod.forced": "Another mod is forcing a filter. Switching is currently unavailable.",

@@ -3,7 +3,9 @@ package com.xkmxz.prismod.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
-import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /** 状态读取可跨线程；所有写操作以及配置读取只由客户端线程执行。 */
 public final class FilterManager {
@@ -29,8 +31,16 @@ public final class FilterManager {
         controller.select(id);
     }
 
+    public void select(FilterKey key) {
+        controller.select(key);
+    }
+
     public void setForced(FilterId id, float strength) {
         controller.setForced(id, strength);
+    }
+
+    public void setForced(FilterKey key, float strength) {
+        controller.setForced(key, strength);
     }
 
     public void clearForced() {
@@ -47,9 +57,23 @@ public final class FilterManager {
 
     /** 配置加载、热重载或界面保存后，在客户端线程刷新全部配置与状态。 */
     public void refreshConfig() {
-        EnumMap<FilterId, Float> strengths = new EnumMap<>(FilterId.class);
-        for (FilterId id : FilterId.values()) strengths.put(id, PrismodClientConfig.strength(id));
-        controller.refreshConfig(PrismodClientConfig.ENABLED.get(), PrismodClientConfig.cycleOrder(), strengths);
+        Map<FilterKey, Float> strengths = new HashMap<>();
+        for (FilterDefinition definition : FilterRegistry.get().definitions()) {
+            strengths.put(definition.key(), PrismodClientConfig.strength(definition.key()));
+        }
+        controller.refreshDynamicConfig(PrismodClientConfig.ENABLED.get(), PrismodClientConfig.cycleOrder(), strengths);
+    }
+
+    public FilterSelection effectiveSelection() {
+        return controller.effectiveSelection();
+    }
+
+    public FilterSelection selectedSelection() {
+        return controller.selectedSelection();
+    }
+
+    public List<FilterDefinition> filters() {
+        return FilterRegistry.get().definitions();
     }
 
     public void resetSession() {
@@ -65,6 +89,24 @@ public final class FilterManager {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player != null) {
             minecraft.player.displayClientMessage(Component.translatable("message.prismod.render_failed"), true);
+        }
+    }
+
+    public void reportFilterFailure(FilterKey key) {
+        reportFilterFailure(key, new IllegalStateException("shader load or render failure"));
+    }
+
+    public void reportFilterFailure(FilterKey key, Throwable error) {
+        FilterRegistry.get().markFailed(key, error);
+        Map<FilterKey, Float> strengths = new HashMap<>();
+        for (FilterDefinition definition : FilterRegistry.get().definitions()) {
+            strengths.put(definition.key(), PrismodClientConfig.strength(definition.key()));
+        }
+        controller.refreshDynamicConfig(PrismodClientConfig.ENABLED.get(), PrismodClientConfig.cycleOrder(), strengths);
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player != null) {
+            minecraft.player.displayClientMessage(Component.translatable("message.prismod.filter_failed",
+                    key.serializedName()), true);
         }
     }
 }
