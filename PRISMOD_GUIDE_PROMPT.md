@@ -47,6 +47,7 @@ strength_night_vision = 1.0
 
 - 只扫描 `config/prismod/resourcepacks/` 的直接子目录和 `.zip` 文件。管理页支持将资源包直接拖入页面导入，也可以使用“打开资源包文件夹”按钮通过 Minecraft `Util.getPlatform().openFile(...)` 打开该目录；用户手动放入资源包后重新打开管理页即可刷新列表，目录无法自动打开时允许手动放置。
 - 根目录必须有 `prismod.meta.json`，至少包含合法且未保留的 `namespace`。
+- 除 `prismod.meta.json` 和元数据 namespace 对应的 `assets/<namespace>/...` 相对目录外的文件不会被 Prismod 读取；可以放置 README、文档或其它资源目录。
 - 可选 `name` 只作为资源包在管理界面的显示名称。
 - 可选 `dependencies` 声明 Forge 模组版本范围。
 - 资源必须位于 `assets/<namespace>/...` 下；后处理 JSON 位于 `shaders/post/`，program JSON 和 GLSL 位于 `shaders/program/`。

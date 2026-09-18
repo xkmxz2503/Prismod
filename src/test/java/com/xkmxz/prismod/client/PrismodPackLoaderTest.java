@@ -76,6 +76,50 @@ class PrismodPackLoaderTest {
                 .map(candidate -> candidate.path().getFileName().toString()).toList());
     }
 
+    @Test
+    void acceptsUnrelatedFilesAndUsesMetadataNamespace() throws IOException {
+        String namespace = "custom_pack";
+        Path directoryPack = temp.resolve("directory-pack");
+        Files.createDirectories(directoryPack.resolve(PrismodPackLoader.ASSETS_DIRECTORY).resolve(namespace));
+        Files.createDirectories(directoryPack.resolve("docs/nested"));
+        Files.writeString(directoryPack.resolve(PrismodPackLoader.META_FILE),
+                "{\"namespace\":\"" + namespace + "\"}");
+        Files.writeString(directoryPack.resolve("README.md"), "not read");
+        Files.writeString(directoryPack.resolve("docs/nested/notes.txt"), "not read");
+        Files.writeString(directoryPack.resolve(PrismodPackLoader.ASSETS_DIRECTORY)
+                .resolve(namespace).resolve("filter.json"), "{}");
+
+        PrismodPackLoader.validateContents(directoryPack, namespace);
+
+        Path zipPack = temp.resolve("zip-pack.zip");
+        try (OutputStream output = Files.newOutputStream(zipPack);
+             ZipOutputStream zip = new ZipOutputStream(output)) {
+            putZipEntry(zip, PrismodPackLoader.META_FILE, "{\"namespace\":\"" + namespace + "\"}");
+            putZipEntry(zip, "README.md", "not read");
+            putZipEntry(zip, "docs/notes.txt", "not read");
+            putZipEntry(zip, PrismodPackLoader.ASSETS_DIRECTORY + "/" + namespace + "/filter.json", "{}");
+        }
+
+        PrismodPackLoader.validateContents(zipPack, namespace);
+    }
+
+    @Test
+    void ignoresResourcesFromAnotherNamespace() throws IOException {
+        Path directoryPack = temp.resolve("extra-namespace-resource");
+        Files.createDirectories(directoryPack.resolve(PrismodPackLoader.ASSETS_DIRECTORY).resolve("other_namespace"));
+        Files.writeString(directoryPack.resolve(PrismodPackLoader.META_FILE), "{\"namespace\":\"custom_pack\"}");
+        Files.writeString(directoryPack.resolve(PrismodPackLoader.ASSETS_DIRECTORY)
+                .resolve("other_namespace").resolve("filter.json"), "{}");
+
+        PrismodPackLoader.validateContents(directoryPack, "custom_pack");
+    }
+
+    private static void putZipEntry(ZipOutputStream zip, String name, String content) throws IOException {
+        zip.putNextEntry(new ZipEntry(name));
+        zip.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        zip.closeEntry();
+    }
+
     private void createDirectoryPack(String name, String namespace) throws IOException {
         Path pack = Files.createDirectories(temp.resolve(name));
         Files.writeString(pack.resolve(PrismodPackLoader.META_FILE),

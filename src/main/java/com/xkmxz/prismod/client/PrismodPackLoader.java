@@ -53,6 +53,7 @@ public final class PrismodPackLoader implements RepositorySource {
     public static final String PACK_ID = PACK_ID_PREFIX + "resources";
     public static final String CONFIG_FILE = "prismod/config/prismod-client.toml";
     public static final String META_FILE = "prismod.meta.json";
+    static final String ASSETS_DIRECTORY = "assets";
     private static final String RESOURCE_PACKS_DIRECTORY = "prismod/resourcepacks";
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Set<String> RESERVED_NAMESPACES = Set.of("minecraft", "prismod");
@@ -225,12 +226,14 @@ public final class PrismodPackLoader implements RepositorySource {
                 && path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".zip");
     }
 
-    private static void validateContents(Path source, String namespace) throws IOException {
-        String prefix = "assets/" + namespace + "/";
+    static void validateContents(Path source, String namespace) throws IOException {
+        String prefix = ASSETS_DIRECTORY + "/" + namespace + "/";
         if (Files.isDirectory(source)) {
-            try (var paths = Files.walk(source)) {
+            Path assetsRoot = source.resolve(ASSETS_DIRECTORY).resolve(namespace).normalize();
+            if (!Files.isDirectory(assetsRoot) || !assetsRoot.startsWith(source.normalize())) return;
+            try (var paths = Files.walk(assetsRoot)) {
                 for (Path path : paths.filter(Files::isRegularFile).toList()) {
-                    validateEntry(source.relativize(path).toString().replace('\\', '/'), prefix);
+                    validateEntry(source.relativize(path).toString().replace('\\', '/'));
                 }
             }
             return;
@@ -239,15 +242,22 @@ public final class PrismodPackLoader implements RepositorySource {
             var entries = zip.entries();
             while (entries.hasMoreElements()) {
                 ZipEntry entry = entries.nextElement();
-                if (!entry.isDirectory()) validateEntry(entry.getName(), prefix);
+                if (!entry.isDirectory() && entry.getName().startsWith(prefix)) {
+                    validateEntry(entry.getName());
+                }
             }
         }
     }
 
-    private static void validateEntry(String entry, String assetsPrefix) throws IOException {
-        if (entry.equals(META_FILE)) return;
-        if (entry.contains("..") || !entry.startsWith(assetsPrefix)) {
-            throw new IOException("资源必须位于 " + assetsPrefix + " 下");
+    private static void validateEntry(String entry) throws IOException {
+        String normalized = entry.replace('\\', '/');
+        if (normalized.isBlank() || normalized.startsWith("/")) {
+            throw new IOException("资源路径无效：" + entry);
+        }
+        for (String segment : normalized.split("/")) {
+            if (segment.equals("..")) {
+                throw new IOException("资源路径不能包含 ..：" + entry);
+            }
         }
     }
 
