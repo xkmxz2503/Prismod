@@ -10,7 +10,7 @@
 - F8 按配置顺序循环；自定义滤镜使用 `namespace:path` 的 `FilterKey` 参与循环。
 - F8 提示使用当前 `FilterDefinition.displayName()`：优先显示翻译名称，没有翻译时显示真实自定义 ID，不得通过旧版 `FilterState.id()` 把自定义滤镜显示成原色。
 - 一级滤镜配置页：总开关、当前选择、滤镜强度、循环顺序、保存/取消/Esc。
-- 二级资源包管理页：导入目录或 ZIP、启用/禁用资源包、滚动列表、独立保存/取消。
+- 二级资源包管理页：支持将目录或 ZIP 直接拖入页面导入，也可打开 Prismod 专用资源包目录手动放置；导入后刷新并显示资源包、启用/禁用资源包、滚动列表、独立保存/取消。
 - 独立滤镜管理页：控制单个滤镜是否展示、滚动列表、独立保存/取消。
 - 当前实际生效滤镜来自某个资源包时，该资源包暂时不能禁用；被禁用资源包中的滤镜不会出现在管理页，也不能单独切换展示状态。
 - 隐藏滤镜不会出现在一级配置页或 F8 循环；取消隐藏后恢复其原有循环顺序。
@@ -45,7 +45,7 @@ strength_night_vision = 1.0
 
 自定义资源包是 Prismod 自己的模组资源包格式，不是 Minecraft 原版资源包：
 
-- 只扫描 `config/prismod/resourcepacks/` 的直接子目录和 `.zip` 文件。
+- 只扫描 `config/prismod/resourcepacks/` 的直接子目录和 `.zip` 文件。管理页支持将资源包直接拖入页面导入，也可以使用“打开资源包文件夹”按钮通过 Minecraft `Util.getPlatform().openFile(...)` 打开该目录；用户手动放入资源包后重新打开管理页即可刷新列表，目录无法自动打开时允许手动放置。
 - 根目录必须有 `prismod.meta.json`，至少包含合法且未保留的 `namespace`。
 - 可选 `name` 只作为资源包在管理界面的显示名称。
 - 可选 `dependencies` 声明 Forge 模组版本范围。
@@ -86,7 +86,7 @@ FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEf
 - `Prismod.java`：通用入口；客户端分支通过 `DistExecutor` 创建客户端入口。
 - `client/PrismodClient.java`：注册 F8、客户端配置、资源包发现、资源重载监听和客户端 tick。
 - `client/FilterConfigScreen.java`：一级滤镜配置页。
-- `client/ResourcePackManagerScreen.java`：独立资源包管理页，只负责导入和资源包开关。
+- `client/ResourcePackManagerScreen.java`：独立资源包管理页，负责拖放或手动导入资源包、打开资源包目录、刷新资源包和资源包开关。
 - `client/FilterVisibilityManagerScreen.java`：独立滤镜管理页，只负责滤镜展示状态。
 
 F8 只在世界内、没有打开屏幕且没有强制状态时响应。按键冲突只提示，不修改玩家绑定。资源包管理页保存后写入配置并触发资源重载，取消和 Esc 放弃草稿。

@@ -1,5 +1,6 @@
 package com.xkmxz.prismod.client;
 
+import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -8,8 +9,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
-import javax.swing.JFileChooser;
-import java.awt.HeadlessException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -50,7 +49,7 @@ public final class ResourcePackManagerScreen extends Screen {
         listBottom = panelTop + panelHeight - 44;
 
         int half = (panelWidth - 4) / 2;
-        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.import"), button -> importPack())
+        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.import"), button -> openPackDirectory())
                 .bounds(panelLeft, panelTop + 18, half, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.back"), button -> onClose())
                 .bounds(panelLeft + half + 4, panelTop + 18, half, 20).build());
@@ -112,22 +111,48 @@ public final class ResourcePackManagerScreen extends Screen {
         return definition == null ? null : definition.packNamespace();
     }
 
-    private void importPack() {
+    private void openPackDirectory() {
         try {
-            JFileChooser chooser = new JFileChooser(PrismodPackLoader.resourcePacksDirectory().toFile());
-            chooser.setDialogTitle(Component.translatable("screen.prismod.import").getString());
-            chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
-            chooser.setMultiSelectionEnabled(false);
-            if (chooser.showOpenDialog(null) != JFileChooser.APPROVE_OPTION) return;
-            Path selected = chooser.getSelectedFile().toPath();
-            PrismodPackLoader.ImportResult result = PrismodPackLoader.importPack(selected);
-            status = result.message();
-            if (result.success()) {
-                refreshCandidates();
-                rebuildRows();
-            }
-        } catch (HeadlessException exception) {
+            PrismodPackLoader.ensureDirectories();
+            Util.getPlatform().openFile(PrismodPackLoader.resourcePacksDirectory().toFile());
+            refreshCandidates();
+            rebuildRows();
+            status = Component.translatable("screen.prismod.import_hint").getString();
+        } catch (RuntimeException exception) {
             status = Component.translatable("screen.prismod.import_unavailable").getString();
+        }
+    }
+
+    @Override
+    public void onFilesDrop(List<Path> paths) {
+        if (paths == null || paths.isEmpty()) {
+            return;
+        }
+
+        int imported = 0;
+        String lastFailure = null;
+        for (Path path : paths) {
+            PrismodPackLoader.ImportResult result = PrismodPackLoader.importPack(path);
+            if (result.success()) {
+                imported++;
+            } else {
+                lastFailure = result.message();
+            }
+        }
+
+        if (imported > 0) {
+            refreshCandidates();
+            rebuildRows();
+        }
+        if (imported == paths.size()) {
+            status = Component.translatable("screen.prismod.import_success", imported).getString();
+        } else if (imported > 0) {
+            status = Component.translatable("screen.prismod.import_partial", imported, paths.size(), lastFailure)
+                    .getString();
+        } else {
+            status = lastFailure == null
+                    ? Component.translatable("screen.prismod.import_failed").getString()
+                    : lastFailure;
         }
     }
 
