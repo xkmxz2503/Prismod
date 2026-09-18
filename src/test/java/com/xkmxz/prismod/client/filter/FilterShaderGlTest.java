@@ -1,6 +1,5 @@
 package com.xkmxz.prismod.client.filter;
 
-import com.xkmxz.prismod.client.render.ShaderResourceTest;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -12,9 +11,11 @@ import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.Locale;
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.lwjgl.glfw.GLFW.*;
@@ -160,7 +161,7 @@ class FilterShaderGlTest {
         final int sampleFrames = 300;
         assertTrue(glGetQueryi(GL_TIMESTAMP, GL_QUERY_COUNTER_BITS) > 0,
                 "驱动必须提供 GPU timestamp 查询");
-        for (String filter : ShaderResourceTest.FILTERS) {
+        for (String filter : FILTERS) {
             try (Scene scene = new Scene(filter, 1920, 1080, GL_RGBA8, null)) {
                 for (int frame = 0; frame < warmupFrames; frame++) {
                     scene.resetMain();
@@ -313,8 +314,8 @@ class FilterShaderGlTest {
         int fragment = 0;
         int program = 0;
         try {
-            vertex = compile(GL_VERTEX_SHADER, ShaderResourceTest.resource("program/fullscreen.vsh"));
-            fragment = compile(GL_FRAGMENT_SHADER, ShaderResourceTest.resource("program/" + filter + ".fsh"));
+            vertex = compile(GL_VERTEX_SHADER, resource("program/fullscreen.vsh"));
+            fragment = compile(GL_FRAGMENT_SHADER, resource("program/" + filter + ".fsh"));
             program = glCreateProgram();
             glAttachShader(program, vertex);
             glAttachShader(program, fragment);
@@ -342,6 +343,16 @@ class FilterShaderGlTest {
             fail("真实驱动编译着色器失败: " + log);
         }
         return shader;
+    }
+
+    private static final String[] FILTERS = {"grayscale", "warm", "cool", "vintage", "night_vision"};
+
+    private static String resource(String name) throws IOException {
+        String path = "/assets/prismod/shaders/" + name;
+        try (InputStream input = FilterShaderGlTest.class.getResourceAsStream(path)) {
+            assertNotNull(input, "缺少资源: " + path);
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 
     private static final class Target implements AutoCloseable {
