@@ -10,6 +10,7 @@
       "uniforms": [
         {
           "name": "Intensity",
+          "type": "float",
           "values": [
             1
           ]
