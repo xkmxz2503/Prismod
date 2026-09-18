@@ -5,7 +5,9 @@ import com.xkmxz.prismod.Prismod;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+import net.minecraftforge.event.AddPackFindersEvent;
 import net.minecraftforge.client.ConfigScreenHandler;
 import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
@@ -32,8 +34,11 @@ public final class PrismodClient {
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         bus.addListener(PrismodClient::registerKeys);
         bus.addListener(PrismodClient::registerReload);
+        bus.addListener(PrismodClient::registerPackFinders);
         bus.addListener(PrismodClient::configChanged);
-        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, PrismodClientConfig.SPEC);
+        PrismodPackLoader.ensureDirectories();
+        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, PrismodClientConfig.SPEC,
+                PrismodPackLoader.CONFIG_FILE);
         ModLoadingContext.get().registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class,
                 () -> new ConfigScreenHandler.ConfigScreenFactory((mc, parent) -> new FilterConfigScreen(parent)));
         MinecraftForge.EVENT_BUS.addListener(PrismodClient::tick);
@@ -41,6 +46,12 @@ public final class PrismodClient {
 
     private static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(CYCLE);
+    }
+
+    private static void registerPackFinders(AddPackFindersEvent event) {
+        if (event.getPackType() == PackType.CLIENT_RESOURCES) {
+            event.addRepositorySource(PrismodPackLoader.INSTANCE);
+        }
     }
 
     private static void registerReload(RegisterClientReloadListenersEvent event) {

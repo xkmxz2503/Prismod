@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public final class PrismodClientConfig {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -115,8 +116,11 @@ public final class PrismodClientConfig {
     }
 
     public static void appendDiscoveredFilters() {
-        List<FilterKey> order = cycleOrder();
-        boolean changed = false;
+        List<FilterKey> configuredOrder = cycleOrder();
+        List<FilterKey> order = configuredOrder.stream()
+                .filter(key -> !"minecraft".equals(key.id().getNamespace()))
+                .collect(Collectors.toCollection(ArrayList::new));
+        boolean changed = order.size() != configuredOrder.size();
         for (FilterDefinition definition : FilterRegistry.get().definitions()) {
             if (!order.contains(definition.key())) {
                 order = new ArrayList<>(order);

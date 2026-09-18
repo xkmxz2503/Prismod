@@ -20,7 +20,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 /** Discovers, validates, and owns the runtime set of filters. */
 public final class FilterRegistry {
@@ -64,8 +63,10 @@ public final class FilterRegistry {
         failures.clear();
         installBuiltIns();
         Map<ResourceLocation, Resource> resources = manager.listResources("shaders/post",
-                id -> id.getPath().endsWith(".json") && !id.getPath().endsWith("/empty.json"));
+                FilterRegistry::isDiscoverableResource);
         resources.keySet().stream().sorted(Comparator.comparing(ResourceLocation::toString)).forEach(id -> {
+            Resource resource = resources.get(id);
+            if (resource == null || !PrismodPackLoader.isPrismodPackId(resource.sourcePackId())) return;
             FilterDefinition definition = inspect(manager, id, false, null);
             if (definition != null && !definitions.containsKey(definition.key())) {
                 definitions.put(definition.key(), definition);
@@ -76,6 +77,12 @@ public final class FilterRegistry {
             if (definition != null) definitions.put(record.key(), definition);
         }
         generation++;
+    }
+
+    static boolean isDiscoverableResource(ResourceLocation id) {
+        return !"minecraft".equals(id.getNamespace())
+                && id.getPath().endsWith(".json")
+                && !id.getPath().endsWith("/empty.json");
     }
 
     public synchronized FilterRegistration register(String ownerId, ResourceLocation postEffect, CustomFilterMetadata metadata) {
@@ -128,9 +135,13 @@ public final class FilterRegistry {
     private FilterDefinition inspect(ResourceManager manager, ResourceLocation postEffect,
                                     boolean builtIn, CustomFilterMetadata metadata) {
         if (postEffect == null) return null;
+        boolean requirePrismodSource = !builtIn && metadata == null;
         try {
             Resource resource = manager.getResource(postEffect).orElse(null);
             if (resource == null) throw new IllegalArgumentException("missing post resource");
+            if (requirePrismodSource && !PrismodPackLoader.isPrismodPackId(resource.sourcePackId())) {
+                throw new IllegalArgumentException("post resource is not from Prismod resource packs");
+            }
             JsonObject post = parse(resource);
             JsonArray targets = post.getAsJsonArray("targets");
             JsonArray passes = post.getAsJsonArray("passes");
@@ -147,6 +158,9 @@ public final class FilterRegistry {
             ResourceLocation programId = resourceId(pass.get("name").getAsString(), "shaders/program", ".json");
             Resource programResource = manager.getResource(programId).orElse(null);
             if (programResource == null) throw new IllegalArgumentException("missing program resource " + programId);
+            if (requirePrismodSource && !PrismodPackLoader.isPrismodPackId(programResource.sourcePackId())) {
+                throw new IllegalArgumentException("program resource is not from Prismod resource packs");
+            }
             JsonObject program = parse(programResource);
             if (!hasFloatUniform(program.getAsJsonArray("uniforms"), "Intensity")) {
                 throw new IllegalArgumentException("program is missing Intensity");

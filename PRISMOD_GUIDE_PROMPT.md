@@ -18,7 +18,7 @@ Prismod 初版已经实现并能构建，功能包括：
 
 ## 不可改变的功能契约
 
-客户端配置文件为 `config/prismod-client.toml`，字段固定为：
+客户端配置文件为 `config/prismod/config/prismod-client.toml`，字段固定为：
 
 ```toml
 enabled = true
@@ -32,6 +32,8 @@ strength_night_vision = 1.0
 ```
 
 `cycle_order` 必须包含六个唯一滤镜 ID；非法列表整体回退默认顺序并记录警告。强度始终钳制到 `[0.0, 1.0]`。当前选择不跨启动保存，每次客户端会话从 `ORIGINAL` 开始；用户配置本身需要持久化。
+
+自定义滤镜只从 `config/prismod/resourcepacks/` 的直接子目录和 `.zip` 加载。每个资源包根目录必须有 `prismod.meta.json`，格式至少为 `{"namespace":"example"}`；不再读取原版 `resourcepacks/` 或 `pack.mcmeta` 中的 Prismod 字段。
 
 公开客户端 API 的签名和语义如下：
 
