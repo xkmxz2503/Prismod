@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.filter;
 
 import java.util.Locale;
 import java.util.ArrayList;

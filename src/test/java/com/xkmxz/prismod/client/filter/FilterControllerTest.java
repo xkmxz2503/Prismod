@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.filter;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;

@@ -1,10 +1,11 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.render;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.shaders.Uniform;
 import com.mojang.blaze3d.shaders.BlendMode;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
+import com.xkmxz.prismod.client.filter.*;
 import com.xkmxz.prismod.mixin.client.PostChainAccessor;
 import com.xkmxz.prismod.mixin.client.BlendModeAccessor;
 import net.minecraft.client.Minecraft;

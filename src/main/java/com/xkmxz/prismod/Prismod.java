@@ -1,7 +1,7 @@
 package com.xkmxz.prismod;
 
 import com.mojang.logging.LogUtils;
-import com.xkmxz.prismod.client.PrismodClient;
+import com.xkmxz.prismod.client.bootstrap.PrismodClient;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.common.Mod;

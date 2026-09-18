@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.filter;
 
 public record FilterState(FilterId id, float strength, boolean forced) {
     public FilterState {

@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.filter;
 
 /** Dynamic filter state used internally by the client renderer and controller. */
 public record FilterSelection(FilterKey key, float strength, boolean forced) {

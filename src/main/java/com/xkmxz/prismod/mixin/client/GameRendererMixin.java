@@ -1,6 +1,6 @@
 package com.xkmxz.prismod.mixin.client;
 
-import com.xkmxz.prismod.client.WorldFilterRenderer;
+import com.xkmxz.prismod.client.render.WorldFilterRenderer;
 import net.minecraft.client.renderer.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

@@ -19,8 +19,8 @@ Minecraft **1.20.1 / Forge 47.3.32 / Java 17** 的客户端世界画面滤镜初
 
 ```java
 import com.xkmxz.prismod.api.client.FilterApi;
-import com.xkmxz.prismod.client.FilterId;
-import com.xkmxz.prismod.client.FilterState;
+import com.xkmxz.prismod.client.filter.FilterId;
+import com.xkmxz.prismod.client.filter.FilterState;
 
 FilterApi.setActiveFilter(FilterId.VINTAGE, 0.75F);
 FilterState current = FilterApi.getEffectiveState();

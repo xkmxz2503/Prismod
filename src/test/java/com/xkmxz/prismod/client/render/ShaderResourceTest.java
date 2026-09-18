@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.render;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -17,8 +17,8 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** 无需启动游戏或加载 OpenGL 的资源接线检查。 */
-class ShaderResourceTest {
-    static final String[] FILTERS = {"grayscale", "warm", "cool", "vintage", "night_vision"};
+public class ShaderResourceTest {
+    public static final String[] FILTERS = {"grayscale", "warm", "cool", "vintage", "night_vision"};
 
     @ParameterizedTest(name = "{0} 的着色器与单次后处理资源接线")
     @ValueSource(strings = {"grayscale", "warm", "cool", "vintage", "night_vision"})
@@ -77,7 +77,7 @@ class ShaderResourceTest {
         return JsonParser.parseString(resource(name)).getAsJsonObject();
     }
 
-    static String resource(String name) throws IOException {
+    public static String resource(String name) throws IOException {
         String path = "/assets/prismod/shaders/" + name;
         try (InputStream input = ShaderResourceTest.class.getResourceAsStream(path)) {
             assertNotNull(input, "缺少资源: " + path);

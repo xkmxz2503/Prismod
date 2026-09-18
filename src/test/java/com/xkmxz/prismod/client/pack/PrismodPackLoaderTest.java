@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.pack;
 
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;

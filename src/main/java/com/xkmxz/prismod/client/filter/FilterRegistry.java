@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.filter;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.xkmxz.prismod.api.client.CustomFilterMetadata;
 import com.xkmxz.prismod.api.client.FilterRegistration;
+import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -14,7 +15,6 @@ import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 
 import java.io.Reader;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;

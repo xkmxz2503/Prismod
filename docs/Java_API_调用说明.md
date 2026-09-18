@@ -59,7 +59,7 @@ try (FilterRegistration registration = FilterApi.registerCustomFilter(
 保留旧版内置滤镜 API：
 
 ```java
-import com.xkmxz.prismod.client.FilterId;
+import com.xkmxz.prismod.client.filter.FilterId;
 
 FilterApi.setActiveFilter(FilterId.WARM, 0.8F);
 ```
@@ -84,7 +84,7 @@ FilterApi.clearForcedFilter();
 ## 4. 查询当前状态
 
 ```java
-import com.xkmxz.prismod.client.FilterState;
+import com.xkmxz.prismod.client.filter.FilterState;
 
 FilterState state = FilterApi.getEffectiveState();
 FilterId id = state.id();

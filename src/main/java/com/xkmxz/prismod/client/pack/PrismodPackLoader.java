@@ -1,9 +1,10 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.pack;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
+import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import cpw.mods.jarhandling.SecureJar;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.chat.Component;
@@ -88,11 +89,11 @@ public final class PrismodPackLoader implements RepositorySource {
         return isPrismodPackId(packId) ? packId.substring(PACK_ID_PREFIX.length()) : null;
     }
 
-    static boolean configWasUnavailable() {
+    public static boolean configWasUnavailable() {
         return configWasUnavailable;
     }
 
-    static void clearConfigUnavailable() {
+    public static void clearConfigUnavailable() {
         configWasUnavailable = false;
     }
 
@@ -121,7 +122,7 @@ public final class PrismodPackLoader implements RepositorySource {
         }
     }
 
-    static List<PackCandidate> scan(Path directory) {
+    public static List<PackCandidate> scan(Path directory) {
         List<Path> entries = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
             for (Path path : stream) {
@@ -157,7 +158,7 @@ public final class PrismodPackLoader implements RepositorySource {
         return List.copyOf(result);
     }
 
-    static PackMetadata parseMetadata(JsonObject object) {
+    public static PackMetadata parseMetadata(JsonObject object) {
         if (object == null || !object.has("namespace") || !object.get("namespace").isJsonPrimitive()
                 || !object.getAsJsonPrimitive("namespace").isString()) {
             throw new IllegalArgumentException("missing namespace");
@@ -191,7 +192,7 @@ public final class PrismodPackLoader implements RepositorySource {
         return new PackMetadata(namespace, name, Map.copyOf(dependencies));
     }
 
-    static ImportResult importPack(Path source) {
+    public static ImportResult importPack(Path source) {
         if (source == null || (!Files.isDirectory(source) && !isZip(source))) {
             return ImportResult.failure("请选择资源包目录或 ZIP 文件。");
         }
@@ -342,19 +343,19 @@ public final class PrismodPackLoader implements RepositorySource {
         };
     }
 
-    record PackCandidate(Path path, PackMetadata metadata) {
-        String fileName() {
+    public record PackCandidate(Path path, PackMetadata metadata) {
+        public String fileName() {
             return path.getFileName().toString();
         }
     }
 
-    record PackMetadata(String namespace, String name, Map<String, String> dependencies) {
-        String displayName(String fallback) {
+    public record PackMetadata(String namespace, String name, Map<String, String> dependencies) {
+        public String displayName(String fallback) {
             return name == null || name.isBlank() ? fallback : name;
         }
     }
 
-    record ImportResult(boolean success, String message, PackCandidate candidate) {
+    public record ImportResult(boolean success, String message, PackCandidate candidate) {
         static ImportResult success(PackCandidate candidate) {
             return new ImportResult(true, "资源包已导入。", candidate);
         }

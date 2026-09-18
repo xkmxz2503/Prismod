@@ -1,7 +1,12 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.bootstrap;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import com.xkmxz.prismod.Prismod;
+import com.xkmxz.prismod.client.filter.FilterManager;
+import com.xkmxz.prismod.client.filter.FilterRegistry;
+import com.xkmxz.prismod.client.render.WorldFilterRenderer;
+import com.xkmxz.prismod.client.config.PrismodClientConfig;
+import com.xkmxz.prismod.client.pack.PrismodPackLoader;
+import com.xkmxz.prismod.client.ui.FilterConfigScreen;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;

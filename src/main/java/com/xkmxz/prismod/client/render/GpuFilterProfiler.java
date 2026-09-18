@@ -1,6 +1,7 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.render;
 
 import com.mojang.logging.LogUtils;
+import com.xkmxz.prismod.client.filter.FilterKey;
 import net.minecraftforge.fml.ModList;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;

@@ -1,5 +1,6 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.filter;
 
+import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 

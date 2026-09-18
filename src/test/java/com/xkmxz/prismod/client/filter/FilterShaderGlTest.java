@@ -1,5 +1,6 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.filter;
 
+import com.xkmxz.prismod.client.render.ShaderResourceTest;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

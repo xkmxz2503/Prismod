@@ -1,9 +1,10 @@
 package com.xkmxz.prismod.api.client;
 
-import com.xkmxz.prismod.client.FilterId;
-import com.xkmxz.prismod.client.FilterManager;
-import com.xkmxz.prismod.client.FilterState;
-import com.xkmxz.prismod.client.FilterRegistry;
+import com.xkmxz.prismod.client.filter.FilterId;
+import com.xkmxz.prismod.client.filter.FilterManager;
+import com.xkmxz.prismod.client.filter.FilterKey;
+import com.xkmxz.prismod.client.filter.FilterState;
+import com.xkmxz.prismod.client.filter.FilterRegistry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.Minecraft;
 
@@ -24,7 +25,7 @@ public final class FilterApi {
 
     public static void setActiveFilter(ResourceLocation id, float strength) {
         runOnClientThread(() -> FilterManager.get().setForced(
-                com.xkmxz.prismod.client.FilterKey.fromPostEffect(id), strength));
+                FilterKey.fromPostEffect(id), strength));
     }
 
     /** 清除强制覆盖，并恢复当前用户选择、总开关及配置强度。 */

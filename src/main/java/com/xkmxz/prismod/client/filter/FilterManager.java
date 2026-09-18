@@ -1,5 +1,6 @@
-package com.xkmxz.prismod.client;
+package com.xkmxz.prismod.client.filter;
 
+import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
