@@ -15,6 +15,7 @@ import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.forgespi.locating.IModFile;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.InvalidVersionSpecificationException;
 import org.apache.maven.artifact.versioning.VersionRange;
@@ -55,6 +56,11 @@ public final class PrismodPackLoader {
     private static final String RESOURCE_PACKS_DIRECTORY = "prismod/resourcepacks";
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Set<String> RESERVED_NAMESPACES = Set.of("minecraft", "prismod");
+    private static final String BUNDLED_DIRECTORY = "prismod/builtin";
+    private static final List<String> BUNDLED_RESOURCE_DIRECTORIES = List.of(
+            "assets/prismod/filters",
+            "assets/prismod/lang",
+            "assets/prismod/runtime");
     private static PrismodResourceManager activeResources;
 
     private PrismodPackLoader() { }
@@ -65,6 +71,7 @@ public final class PrismodPackLoader {
         try {
             Files.createDirectories(resourcePacksDirectory());
             Files.createDirectories(FMLPaths.CONFIGDIR.get().resolve("prismod/config"));
+            Files.createDirectories(FMLPaths.CONFIGDIR.get().resolve(BUNDLED_DIRECTORY));
         } catch (IOException exception) { LOGGER.warn("Unable to create Prismod configuration directories", exception); }
     }
 
@@ -146,23 +153,70 @@ public final class PrismodPackLoader {
     }
 
     private static PackCandidate bundledCandidate() {
-        try (InputStream stream = PrismodPackLoader.class.getResourceAsStream("/prismod.pack.json")) {
-            if (stream == null) throw new IOException("missing bundled prismod.pack.json");
-            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                PackMetadata metadata = parseManifest(JsonParser.parseReader(reader).getAsJsonObject(), true);
-                if (!"prismod".equals(metadata.namespace())) throw new IOException("bundled namespace must be prismod");
-                for (PackFilterEntry filter : metadata.filters()) {
-                    String resource = filter.path() + "/filter.json";
-                    if (PrismodPackLoader.class.getResource("/" + resource) == null) {
-                        throw new IOException("missing bundled " + resource);
-                    }
-                }
-                return new PackCandidate(null, metadata, true);
-            }
+        Path target = FMLPaths.CONFIGDIR.get().resolve(BUNDLED_DIRECTORY);
+        try {
+            exportBundledPack(target);
+            PackMetadata metadata = readDirectoryManifest(target, true);
+            if (!"prismod".equals(metadata.namespace())) throw new IOException("bundled namespace must be prismod");
+            return new PackCandidate(target, metadata, true);
         } catch (Exception exception) {
-            LOGGER.error("Unable to load bundled Prismod v1 resource pack", exception);
+            LOGGER.error("Unable to export/load bundled Prismod v1 resource pack", exception);
             return null;
         }
+    }
+
+    /**
+     * 与 TACZ 默认枪包相同：把模组内的默认包导出到配置目录，之后完全按目录资源包读取。
+     * 只补齐不存在的文件，避免重启时覆盖用户对默认滤镜包的编辑。
+     */
+    private static void exportBundledPack(Path target) throws IOException {
+        IModFile modFile = ModList.get().getModContainerById("prismod")
+                .map(container -> container.getModInfo().getOwningFile().getFile())
+                .orElse(null);
+        if (modFile != null) {
+            Path manifest = modFile.findResource(MANIFEST_FILE);
+            if (Files.isRegularFile(manifest)) {
+                Path sourceRoot = manifest.getParent();
+                copyIfMissing(manifest, target.resolve(MANIFEST_FILE));
+                for (String directory : BUNDLED_RESOURCE_DIRECTORIES) {
+                    Path source = sourceRoot.resolve(directory);
+                    if (Files.isDirectory(source)) copyTreeIfMissing(source, target.resolve(directory));
+                }
+                return;
+            }
+        }
+
+        // 开发环境或测试环境没有可查询的 Forge IModFile 时，回退到 classpath 文件资源。
+        java.net.URL manifestUrl = PrismodPackLoader.class.getResource("/" + MANIFEST_FILE);
+        if (manifestUrl == null || !"file".equalsIgnoreCase(manifestUrl.getProtocol())) {
+            throw new IOException("missing bundled prismod.pack.json source");
+        }
+        try {
+            Path sourceRoot = java.nio.file.Paths.get(manifestUrl.toURI()).getParent();
+            copyIfMissing(sourceRoot.resolve(MANIFEST_FILE), target.resolve(MANIFEST_FILE));
+            for (String directory : BUNDLED_RESOURCE_DIRECTORIES) {
+                Path source = sourceRoot.resolve(directory);
+                if (Files.isDirectory(source)) copyTreeIfMissing(source, target.resolve(directory));
+            }
+        } catch (java.net.URISyntaxException exception) {
+            throw new IOException("invalid bundled resource URL", exception);
+        }
+    }
+
+    private static void copyTreeIfMissing(Path source, Path target) throws IOException {
+        try (Stream<Path> paths = Files.walk(source)) {
+            for (Path path : paths.toList()) {
+                Path destination = target.resolve(source.relativize(path).toString());
+                if (Files.isDirectory(path)) Files.createDirectories(destination);
+                else copyIfMissing(path, destination);
+            }
+        }
+    }
+
+    private static void copyIfMissing(Path source, Path target) throws IOException {
+        if (Files.exists(target)) return;
+        Files.createDirectories(target.toAbsolutePath().getParent());
+        Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
     }
 
     /** @deprecated v1 has no legacy metadata parser; use {@link #parseManifest(JsonObject)}. */
@@ -247,10 +301,14 @@ public final class PrismodPackLoader {
     }
 
     private static PackMetadata readDirectoryManifest(Path path) throws IOException {
+        return readDirectoryManifest(path, false);
+    }
+
+    private static PackMetadata readDirectoryManifest(Path path, boolean bundled) throws IOException {
         Path manifest = path.resolve(MANIFEST_FILE);
         if (!Files.isRegularFile(manifest)) throw new IOException("missing " + MANIFEST_FILE);
         try (Reader reader = Files.newBufferedReader(manifest, StandardCharsets.UTF_8)) {
-            PackMetadata metadata = parseManifest(JsonParser.parseReader(reader).getAsJsonObject());
+            PackMetadata metadata = parseManifest(JsonParser.parseReader(reader).getAsJsonObject(), bundled);
             validateContents(path, metadata);
             return metadata;
         }
@@ -292,13 +350,12 @@ public final class PrismodPackLoader {
 
     private static final class PrismodPackResources extends AbstractPackResources {
         private final Path source;
-        private final ClassLoader bundledClassLoader;
         private final String namespace;
         private final Set<String> allowedDirectories;
 
-        private PrismodPackResources(PackCandidate candidate, ClassLoader bundledClassLoader) {
+        private PrismodPackResources(PackCandidate candidate) {
             super(packIdForNamespace(candidate.metadata().namespace()), false);
-            source = candidate.path(); this.bundledClassLoader = bundledClassLoader; namespace = candidate.metadata().namespace();
+            source = candidate.path(); namespace = candidate.metadata().namespace();
             Set<String> directories = new HashSet<>(candidate.metadata().filters().stream().map(entry -> entry.path() + "/").toList());
             if (candidate.bundled()) directories.add("assets/prismod/runtime/");
             allowedDirectories = Set.copyOf(directories);
@@ -319,7 +376,6 @@ public final class PrismodPackLoader {
         }
 
         private void listDirectory(String directory, String prefix, ResourceOutput output) {
-            if (source == null) return;
             String requested = "assets/" + namespace + "/" + prefix;
             if (!directory.startsWith(requested) && !requested.startsWith(directory)) return;
             if (Files.isDirectory(source)) {
@@ -341,15 +397,6 @@ public final class PrismodPackLoader {
         }
 
         private IoSupplier<InputStream> supplier(String relative) {
-            if (source == null) {
-                String prefix = "assets/" + namespace + "/";
-                if (bundledClassLoader == null || !relative.startsWith(prefix)) return null;
-                return () -> {
-                    InputStream stream = bundledClassLoader.getResourceAsStream(relative);
-                    if (stream == null) throw new IOException("Missing bundled resource " + relative);
-                    return stream;
-                };
-            }
             if (Files.isDirectory(source)) { Path file = source.resolve(relative).normalize(); return file.startsWith(source) && Files.isRegularFile(file) ? IoSupplier.create(file) : null; }
             try (ZipFile zip = new ZipFile(source.toFile())) { ZipEntry entry = zip.getEntry(relative); if (entry == null || entry.isDirectory()) return null; }
             catch (IOException exception) { return null; }
@@ -381,8 +428,7 @@ public final class PrismodPackLoader {
             if (bundled != null) all.add(bundled);
             all.addAll(candidates);
             this.candidates = all.stream().filter(candidate -> candidate.bundled() || PrismodClientConfig.isPackEnabled(candidate.metadata().namespace())).toList();
-            packs = this.candidates.stream().map(candidate -> new PrismodPackResources(candidate,
-                    candidate.bundled() ? PrismodPackLoader.class.getClassLoader() : null)).toList();
+            packs = this.candidates.stream().map(PrismodPackResources::new).toList();
         }
 
         public List<PackCandidate> candidates() { return candidates; }

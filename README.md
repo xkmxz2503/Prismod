@@ -10,6 +10,7 @@ Minecraft **1.20.1 / Forge 47.3.32 / Java 17** 的客户端世界画面滤镜初
 - 客户端配置存入 `config/prismod/config/prismod-client.toml`；每次启动从原色开始。原色或强度 0 跳过后处理。
 - Prismod 自定义模组资源包目录为 `config/prismod/resourcepacks/`，支持直接子目录和 `.zip`；资源包根目录必须包含 `prismod.pack.json`，使用统一资源包格式 v1。这是 Prismod 自己的资源包格式，不需要 `pack.mcmeta`，也不使用原版资源包界面管理。旧版 `prismod.meta.json` 与 `assets/<namespace>/shaders/...` 格式不再兼容。
 - 模组内置滤镜也使用同一套 v1 清单：`src/main/resources/prismod.pack.json` 声明 `prismod` 内置 namespace，具体滤镜位于 `assets/prismod/filters/<id>/`；运行时辅助 shader 位于同一内置包的 `runtime/`，不会作为额外资源包格式处理。
+- 首次启动时，Prismod 会把上述内置包导出到 `config/prismod/builtin/`，随后像 TACZ 的默认枪包一样按普通目录资源包读取；已存在的文件不会被启动过程覆盖，方便直接编辑默认滤镜。
 - 在 Prismod 的“资源包管理”页面可以直接将 ZIP 或资源包目录拖入窗口导入；也可以点击“打开资源包文件夹”手动放入上述目录。导入会执行清单、依赖、路径和重复项校验，成功后自动刷新列表，再单独保存启用/禁用设置。保存后由 Prismod 自己重新读取目录/ZIP，不会调用或修改 Minecraft 原版资源包管理。若系统无法自动打开目录，也可以在文件管理器中手动进入该路径。
 - 只处理世界（包括手持物品），HUD、聊天、容器、菜单保持原色。夜视只是画面调色，不赋予药水效果，也不能恢复全黑像素中不存在的细节。
 - F8 绑定冲突只提示，不擅自改动其他按键。打开界面时 F8 不切换。

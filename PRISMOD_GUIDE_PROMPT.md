@@ -50,6 +50,7 @@ strength_night_vision = 1.0
 - 清单中的 `filters` 是滤镜唯一来源；每个条目必须声明合法 `id` 和 `assets/<namespace>/filters/` 下的目录，并包含 `filter.json`。
 - 资源包支持 `post_chain` 和 Adobe `lut3d`；未知滤镜类型只跳过对应条目。旧版 `prismod.meta.json` 和 `assets/<namespace>/shaders/...` 格式不兼容。
 - `src/main/resources/prismod.pack.json` 是随模组发布的内置 v1 清单；内置 GLSL 滤镜同样放在 `assets/prismod/filters/<id>/` 并走同一 `FilterManifest`/类型处理器。`assets/prismod/runtime/` 只存空链和 LUT 类型处理器的运行时辅助资源，不参与滤镜扫描。
+- 内置包采用与 TACZ 默认枪包相同的导出方式：首次客户端资源重载时从模组文件导出到 `config/prismod/builtin/`，之后作为普通目录资源包由 Prismod 私有资源管理器读取；只补齐缺失文件，不覆盖用户对默认包的编辑。它仍由同一个 `prismod.pack.json` 驱动，不调用 Minecraft 原版资源包管理器。
 - 可选 `name` 只作为资源包在管理界面的显示名称。
 - 可选 `dependencies` 声明 Forge 模组版本范围。
 - `post_chain` 的 PostChain、program JSON 和 GLSL 位于当前滤镜目录；`lut3d` 的 `source` 指向同目录 `.cube` 文件。`.cube` 固定为 32³、32768 点、sRGB。

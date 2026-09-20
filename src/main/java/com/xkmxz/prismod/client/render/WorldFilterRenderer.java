@@ -184,7 +184,9 @@ public final class WorldFilterRenderer {
         if (chain != null) {
             try { chain.close(); } catch (Exception e) { LOGGER.warn("释放 Prismod 渲染资源失败", e); }
         }
-        if (resources != null) resources.close();
+        // PrismodResourceManager 由 PrismodPackLoader 持有，多个滤镜共享同一个
+        // 管理器和虚拟资源映射。这里只释放 PostChain；不能在切换滤镜时关闭
+        // 共享管理器，否则下一个滤镜会丢失 shaders/post 与 shaders/program 映射。
         chain = null;
         resources = null;
         source = null;
