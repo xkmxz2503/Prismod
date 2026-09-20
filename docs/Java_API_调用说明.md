@@ -15,7 +15,7 @@ private FilterRegistration debugRegistration;
 public void registerDebugFilter() {
     debugRegistration = FilterApi.registerCustomFilter(
             "example-debug-mod",
-            ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"),
+            ResourceLocation.fromNamespaceAndPath("example", "grayscale"),
             new CustomFilterMetadata("filter.example.debug", 0.75F)
     );
 }
@@ -46,7 +46,7 @@ if (debugRegistration != null) {
 ```java
 try (FilterRegistration registration = FilterApi.registerCustomFilter(
         "example-debug-mod",
-        ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"),
+        ResourceLocation.fromNamespaceAndPath("example", "grayscale"),
         CustomFilterMetadata.defaults())) {
     // 注册期间使用滤镜
 }
@@ -68,7 +68,7 @@ FilterApi.setActiveFilter(FilterId.WARM, 0.8F);
 
 ```java
 FilterApi.setActiveFilter(
-        ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"),
+        ResourceLocation.fromNamespaceAndPath("example", "grayscale"),
         0.8F
 );
 ```
@@ -104,7 +104,7 @@ boolean forced = state.forced();
 
 资源重载时 Prismod 会：
 
-1. 重新扫描所有资源包中的 `assets/*/shaders/post/*.json`。
+1. 重新读取所有 v1 资源包的 `prismod.pack.json`，只处理清单声明的滤镜。
 2. 重新校验 API 注册的资源。
 3. 释放旧的 post chain。
 4. 恢复当前仍然有效的滤镜。

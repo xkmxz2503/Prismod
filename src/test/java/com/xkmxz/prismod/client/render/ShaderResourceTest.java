@@ -23,11 +23,11 @@ public class ShaderResourceTest {
     @ParameterizedTest(name = "{0} 的着色器与单次后处理资源接线")
     @ValueSource(strings = {"grayscale", "warm", "cool", "vintage", "night_vision"})
     void resourcesExposeTheExpectedInterfaceAndSinglePass(String filter) throws IOException {
-        JsonObject program = json("program/" + filter + ".json");
+        JsonObject program = json("filters/" + filter + "/program/" + filter + ".json");
         assertEquals("prismod:fullscreen", program.get("vertex").getAsString());
         assertEquals("prismod:" + filter, program.get("fragment").getAsString());
-        assertFalse(resource("program/fullscreen.vsh").isBlank());
-        assertFalse(resource("program/" + filter + ".fsh").isBlank());
+        assertFalse(resource("filters/" + filter + "/program/fullscreen.vsh").isBlank());
+        assertFalse(resource("filters/" + filter + "/program/" + filter + ".fsh").isBlank());
         assertEquals("Position", program.getAsJsonArray("attributes").get(0).getAsString());
         assertEquals(1, program.getAsJsonArray("attributes").size());
         JsonArray samplers = program.getAsJsonArray("samplers");
@@ -47,7 +47,7 @@ public class ShaderResourceTest {
         assertUniform(uniforms.get("Intensity"), "float", 1);
         assertEquals(1.0F, uniforms.get("Intensity").getAsJsonArray("values").get(0).getAsFloat());
 
-        JsonObject post = json("post/" + filter + ".json");
+        JsonObject post = json("filters/" + filter + "/post.json");
         assertEquals(1, post.getAsJsonArray("targets").size());
         assertEquals("swap", post.getAsJsonArray("targets").get(0).getAsString());
         JsonArray passes = post.getAsJsonArray("passes");
@@ -78,7 +78,7 @@ public class ShaderResourceTest {
     }
 
     public static String resource(String name) throws IOException {
-        String path = "/assets/prismod/shaders/" + name;
+        String path = "/assets/prismod/" + name;
         try (InputStream input = ShaderResourceTest.class.getResourceAsStream(path)) {
             assertNotNull(input, "缺少资源: " + path);
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);

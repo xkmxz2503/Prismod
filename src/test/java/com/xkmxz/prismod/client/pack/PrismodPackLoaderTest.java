@@ -3,194 +3,51 @@ package com.xkmxz.prismod.client.pack;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.List;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.PackResources;
-import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.server.packs.resources.ResourceManager;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class PrismodPackLoaderTest {
-    @TempDir
-    Path temp;
+    @TempDir Path temp;
 
-    @Test
-    void scansDirectoriesAndZipFilesInFileNameOrder() throws IOException {
-        createDirectoryPack("z-last", "zeta");
-        createDirectoryPack("a-first", "alpha");
-        createZipPack("m-middle.zip", "middle");
-
-        List<PrismodPackLoader.PackCandidate> candidates = PrismodPackLoader.scan(temp);
-
-        assertEquals(List.of("a-first", "m-middle.zip", "z-last"),
-                candidates.stream().map(candidate -> candidate.path().getFileName().toString()).toList());
+    @Test void parsesV1ManifestAndIgnoresUnknownFields() {
+        PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseManifest(JsonParser.parseString("{\"schema\":\"prismod.resource_pack\",\"format_version\":1,\"namespace\":\"example\",\"name\":\"Example\",\"unknown\":true,\"filters\":[{\"id\":\"gray\",\"path\":\"assets/example/filters/gray\"}]}").getAsJsonObject());
+        assertEquals("example", metadata.namespace());
+        assertEquals("gray", metadata.filters().get(0).id());
     }
 
-    @Test
-    void skipsMissingMetadataAndInvalidNamespaces() throws IOException {
-        Files.createDirectories(temp.resolve("missing"));
-        createDirectoryPack("invalid", "Minecraft");
-        Files.writeString(temp.resolve("broken.zip"), "not a zip");
-
-        assertEquals(List.of(), PrismodPackLoader.scan(temp));
+    @Test void rejectsInvalidManifest() {
+        assertThrows(IllegalArgumentException.class, () -> PrismodPackLoader.parseManifest(JsonParser.parseString("{}").getAsJsonObject()));
+        assertThrows(IllegalArgumentException.class, () -> PrismodPackLoader.parseManifest(JsonParser.parseString("{\"schema\":\"prismod.resource_pack\",\"format_version\":2,\"namespace\":\"x\",\"filters\":[]}").getAsJsonObject()));
+        assertThrows(IllegalArgumentException.class, () -> PrismodPackLoader.parseManifest(JsonParser.parseString("{\"schema\":\"prismod.resource_pack\",\"format_version\":1,\"namespace\":\"minecraft\",\"filters\":[]}").getAsJsonObject()));
+        assertThrows(IllegalArgumentException.class, () -> PrismodPackLoader.parseManifest(JsonParser.parseString("{\"schema\":\"prismod.resource_pack\",\"format_version\":1,\"namespace\":\"x\",\"filters\":[{\"id\":\"a\",\"path\":\"assets/x/filters/a\"},{\"id\":\"a\",\"path\":\"assets/x/filters/b\"}]}").getAsJsonObject()));
+        assertThrows(IllegalArgumentException.class, () -> PrismodPackLoader.parseManifest(JsonParser.parseString("{\"schema\":\"prismod.resource_pack\",\"format_version\":1,\"namespace\":\"x\",\"filters\":[{\"id\":\"a\",\"path\":\"assets/other/filters/a\"}]}").getAsJsonObject()));
     }
 
-    @Test
-    void rejectsMalformedMetadata() {
-        assertThrows(IllegalArgumentException.class, () -> PrismodPackLoader.parseMetadata(
-                JsonParser.parseString("{\"namespace\":\"bad namespace\"}").getAsJsonObject()));
-        assertThrows(IllegalArgumentException.class, () -> PrismodPackLoader.parseMetadata(
-                JsonParser.parseString("{\"namespace\":\"minecraft\"}").getAsJsonObject()));
-    }
-
-    @Test
-    void parsesOptionalDisplayName() {
-        PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseMetadata(
-                JsonParser.parseString("{\"namespace\":\"example\",\"name\":\"Example Filters\"}")
-                        .getAsJsonObject());
-        assertEquals("Example Filters", metadata.name());
-        assertEquals("Example Filters", metadata.displayName("fallback"));
-    }
-
-    @Test
-    void blankDisplayNameFallsBackToFileName() {
-        PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseMetadata(
-                JsonParser.parseString("{\"namespace\":\"example\",\"name\":\"  \"}")
-                        .getAsJsonObject());
-        assertEquals("fallback", metadata.displayName("fallback"));
-    }
-
-    @Test
-    void rejectsDuplicateNamespacesAfterTheFirstFileName() throws IOException {
-        createDirectoryPack("a-first", "same");
-        createDirectoryPack("z-second", "same");
-
-        List<PrismodPackLoader.PackCandidate> candidates = PrismodPackLoader.scan(temp);
-
-        assertEquals(List.of("a-first"), candidates.stream()
-                .map(candidate -> candidate.path().getFileName().toString()).toList());
-    }
-
-    @Test
-    void acceptsUnrelatedFilesAndUsesMetadataNamespace() throws IOException {
-        String namespace = "custom_pack";
-        Path directoryPack = temp.resolve("directory-pack");
-        Files.createDirectories(directoryPack.resolve(PrismodPackLoader.ASSETS_DIRECTORY).resolve(namespace));
-        Files.createDirectories(directoryPack.resolve("docs/nested"));
-        Files.writeString(directoryPack.resolve(PrismodPackLoader.META_FILE),
-                "{\"namespace\":\"" + namespace + "\"}");
-        Files.writeString(directoryPack.resolve("README.md"), "not read");
-        Files.writeString(directoryPack.resolve("docs/nested/notes.txt"), "not read");
-        Files.writeString(directoryPack.resolve(PrismodPackLoader.ASSETS_DIRECTORY)
-                .resolve(namespace).resolve("filter.json"), "{}");
-
-        PrismodPackLoader.validateContents(directoryPack, namespace);
-
-        Path zipPack = temp.resolve("zip-pack.zip");
-        try (OutputStream output = Files.newOutputStream(zipPack);
-             ZipOutputStream zip = new ZipOutputStream(output)) {
-            putZipEntry(zip, PrismodPackLoader.META_FILE, "{\"namespace\":\"" + namespace + "\"}");
-            putZipEntry(zip, "README.md", "not read");
-            putZipEntry(zip, "docs/notes.txt", "not read");
-            putZipEntry(zip, PrismodPackLoader.ASSETS_DIRECTORY + "/" + namespace + "/filter.json", "{}");
+    @Test void directoryAndZipRequireDeclaredFilterJson() throws IOException {
+        Path directory = Files.createDirectories(temp.resolve("directory"));
+        Files.writeString(directory.resolve(PrismodPackLoader.MANIFEST_FILE), manifest("example", "gray"));
+        Path filter = Files.createDirectories(directory.resolve("assets/example/filters/gray"));
+        Files.writeString(filter.resolve("filter.json"), "{}");
+        assertEquals(1, PrismodPackLoader.scan(temp).size());
+        Path zip = temp.resolve("zip.zip");
+        try (OutputStream out = Files.newOutputStream(zip); ZipOutputStream archive = new ZipOutputStream(out)) {
+            put(archive, PrismodPackLoader.MANIFEST_FILE, manifest("zipns", "one"));
+            put(archive, "assets/zipns/filters/one/filter.json", "{}");
         }
-
-        PrismodPackLoader.validateContents(zipPack, namespace);
+        assertEquals(2, PrismodPackLoader.scan(temp).size());
     }
 
-    @Test
-    void ignoresResourcesFromAnotherNamespace() throws IOException {
-        Path directoryPack = temp.resolve("extra-namespace-resource");
-        Files.createDirectories(directoryPack.resolve(PrismodPackLoader.ASSETS_DIRECTORY).resolve("other_namespace"));
-        Files.writeString(directoryPack.resolve(PrismodPackLoader.META_FILE), "{\"namespace\":\"custom_pack\"}");
-        Files.writeString(directoryPack.resolve(PrismodPackLoader.ASSETS_DIRECTORY)
-                .resolve("other_namespace").resolve("filter.json"), "{}");
-
-        PrismodPackLoader.validateContents(directoryPack, "custom_pack");
+    @Test void oldPackIsNotScanned() throws IOException {
+        Path old = Files.createDirectories(temp.resolve("old"));
+        Files.writeString(old.resolve(PrismodPackLoader.META_FILE), "{\"namespace\":\"old\"}");
+        assertTrue(PrismodPackLoader.scan(temp).isEmpty());
     }
 
-    @Test
-    void privateResourceManagerReadsPackWithoutMinecraftRepository() throws Exception {
-        Path pack = temp.resolve("private-pack");
-        Path resource = pack.resolve("assets/example/shaders/post/debug.json");
-        Files.createDirectories(resource.getParent());
-        Files.writeString(resource, "{\"targets\":[\"swap\"]}");
-        PrismodPackLoader.PackCandidate candidate = new PrismodPackLoader.PackCandidate(
-                pack, new PrismodPackLoader.PackMetadata("example", null, Map.of()));
-
-        try (PrismodPackLoader.PrismodResourceManager manager =
-                     new PrismodPackLoader.PrismodResourceManager(emptyManager(), List.of(candidate))) {
-            ResourceLocation id = ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json");
-            Resource loaded = manager.getResource(id).orElseThrow();
-            assertEquals(PrismodPackLoader.packIdForNamespace("example"), loaded.sourcePackId());
-            try (var reader = loaded.openAsReader()) {
-                assertEquals("{\"targets\":[\"swap\"]}", reader.readLine());
-            }
-            assertTrue(manager.listResources("shaders/post", ignored -> true).containsKey(id));
-        }
-    }
-
-    private static ResourceManager emptyManager() {
-        return new ResourceManager() {
-            @Override
-            public Set<String> getNamespaces() { return Set.of(); }
-
-            @Override
-            public Optional<Resource> getResource(ResourceLocation id) { return Optional.empty(); }
-
-            @Override
-            public List<Resource> getResourceStack(ResourceLocation id) { return List.of(); }
-
-            @Override
-            public Map<ResourceLocation, Resource> listResources(String prefix, Predicate<ResourceLocation> filter) {
-                return Map.of();
-            }
-
-            @Override
-            public Map<ResourceLocation, List<Resource>> listResourceStacks(String prefix,
-                                                                              Predicate<ResourceLocation> filter) {
-                return Map.of();
-            }
-
-            @Override
-            public Stream<PackResources> listPacks() { return Stream.empty(); }
-        };
-    }
-
-    private static void putZipEntry(ZipOutputStream zip, String name, String content) throws IOException {
-        zip.putNextEntry(new ZipEntry(name));
-        zip.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        zip.closeEntry();
-    }
-
-    private void createDirectoryPack(String name, String namespace) throws IOException {
-        Path pack = Files.createDirectories(temp.resolve(name));
-        Files.writeString(pack.resolve(PrismodPackLoader.META_FILE),
-                "{\"namespace\":\"" + namespace + "\"}");
-    }
-
-    private void createZipPack(String name, String namespace) throws IOException {
-        Path zipPath = temp.resolve(name);
-        try (OutputStream output = Files.newOutputStream(zipPath);
-             ZipOutputStream zip = new ZipOutputStream(output)) {
-            zip.putNextEntry(new ZipEntry(PrismodPackLoader.META_FILE));
-            zip.write(("{\"namespace\":\"" + namespace + "\"}").getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            zip.closeEntry();
-        }
-    }
+    private static String manifest(String namespace, String id) { return "{\"schema\":\"prismod.resource_pack\",\"format_version\":1,\"namespace\":\"" + namespace + "\",\"filters\":[{\"id\":\"" + id + "\",\"path\":\"assets/" + namespace + "/filters/" + id + "\"}]}"; }
+    private static void put(ZipOutputStream zip, String name, String content) throws IOException { zip.putNextEntry(new ZipEntry(name)); zip.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8)); zip.closeEntry(); }
 }

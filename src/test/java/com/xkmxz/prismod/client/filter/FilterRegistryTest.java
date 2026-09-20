@@ -10,15 +10,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FilterRegistryTest {
     @Test
-    void excludesVanillaNamespaceEvenWhenAResourcePackIsMarked() {
+    void legacyShaderPathIsNeverAFilterSource() {
         assertFalse(FilterRegistry.isDiscoverableResource(
                 ResourceLocation.fromNamespaceAndPath("minecraft", "shaders/post/blur.json")));
-        assertTrue(FilterRegistry.isDiscoverableResource(
+        assertFalse(FilterRegistry.isDiscoverableResource(
                 ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json")));
     }
 
     @Test
-    void discoversNonVanillaPostEffectsExceptTheInternalEmptyChain() {
+    void legacyEmptyChainPathIsNeverAFilterSource() {
         assertFalse(FilterRegistry.isDiscoverableResource(
                 ResourceLocation.fromNamespaceAndPath("example", "shaders/post/empty.json")));
     }
@@ -30,11 +30,8 @@ class FilterRegistryTest {
     }
 
     @Test
-    void metadataRequiresANonReservedNamespace() {
-        assertTrue(PrismodPackLoader.parseMetadata(
-                com.google.gson.JsonParser.parseString("{\"namespace\":\"example\"}").getAsJsonObject())
-                .namespace().equals("example"));
+    void legacyMetadataIsRejected() {
         assertThrows(IllegalArgumentException.class, () -> PrismodPackLoader.parseMetadata(
-                com.google.gson.JsonParser.parseString("{\"namespace\":\"minecraft\"}").getAsJsonObject()));
+                com.google.gson.JsonParser.parseString("{\"namespace\":\"example\"}").getAsJsonObject()));
     }
 }

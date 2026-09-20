@@ -1,0 +1,1 @@
+{"targets":["swap"],"passes":[{"name":"prismod:cool","intarget":"minecraft:main","outtarget":"swap","uniforms":[{"name":"Intensity","type":"float","values":[1]}]}]}

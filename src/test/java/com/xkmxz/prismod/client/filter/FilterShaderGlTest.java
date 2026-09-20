@@ -314,8 +314,8 @@ class FilterShaderGlTest {
         int fragment = 0;
         int program = 0;
         try {
-            vertex = compile(GL_VERTEX_SHADER, resource("program/fullscreen.vsh"));
-            fragment = compile(GL_FRAGMENT_SHADER, resource("program/" + filter + ".fsh"));
+            vertex = compile(GL_VERTEX_SHADER, resource("filters/" + filter + "/program/fullscreen.vsh"));
+            fragment = compile(GL_FRAGMENT_SHADER, resource("filters/" + filter + "/program/" + filter + ".fsh"));
             program = glCreateProgram();
             glAttachShader(program, vertex);
             glAttachShader(program, fragment);
@@ -348,7 +348,7 @@ class FilterShaderGlTest {
     private static final String[] FILTERS = {"grayscale", "warm", "cool", "vintage", "night_vision"};
 
     private static String resource(String name) throws IOException {
-        String path = "/assets/prismod/shaders/" + name;
+        String path = "/assets/prismod/" + name;
         try (InputStream input = FilterShaderGlTest.class.getResourceAsStream(path)) {
             assertNotNull(input, "缺少资源: " + path);
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);

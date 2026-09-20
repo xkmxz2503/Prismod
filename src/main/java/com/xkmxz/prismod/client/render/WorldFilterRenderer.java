@@ -21,10 +21,14 @@ import org.slf4j.Logger;
 
 /** 拥有独立链，不占用原版的旁观者 postEffect 槽位。仅从渲染线程调用。 */
 public final class WorldFilterRenderer {
+    private static final int GL_CLAMP_TO_EDGE = 0x812F;
     private static final Logger LOGGER = LogUtils.getLogger();
     private static PostChain chain;
     private static RenderTarget source;
     private static Uniform intensity;
+    private static Uniform lutDomainMin;
+    private static Uniform lutDomainMax;
+    private static int lutTexture;
     private static PrismodPackLoader.PrismodResourceManager resources;
     private static FilterKey loaded;
     private static int width;
@@ -59,6 +63,13 @@ public final class WorldFilterRenderer {
         try {
             prepare(mc, main, key);
             intensity.set(selection.strength());
+            FilterDefinition definition = FilterRegistry.get().definition(key);
+            if (definition != null && definition.type() == FilterType.LUT3D) {
+                float[] min = definition.lutData().domainMin();
+                float[] max = definition.lutData().domainMax();
+                lutDomainMin.set(min[0], min[1], min[2]);
+                lutDomainMax.set(max[0], max[1], max[2]);
+            }
             RenderSystem.disableBlend();
             RenderSystem.disableDepthTest();
             RenderSystem.disableCull();
@@ -106,11 +117,18 @@ public final class WorldFilterRenderer {
         }
         if (chain == null || source != main || loaded != key) {
             releaseChain();
-            // 先取得空链的所有权，再加载可失败的资源，确保已创建的 FBO 能在 catch 中释放。
+            // 先取得资源管理器所有权，再加载清单声明的 PostChain；失败时由 catch 统一释放。
             resources = PrismodPackLoader.resources(mc.getResourceManager());
-            chain = new PostChain(mc.getTextureManager(), resources, main,
-                    ResourceLocation.fromNamespaceAndPath("prismod", "shaders/post/empty.json"));
-            ((PostChainAccessor) chain).prismod$load(mc.getTextureManager(), definition.postEffect());
+            if (definition.type() == FilterType.LUT3D) {
+                resources.registerVirtualResources(java.util.Map.of(
+                        ResourceLocation.fromNamespaceAndPath("prismod", "shaders/program/lut3d.json"),
+                        ResourceLocation.fromNamespaceAndPath("prismod", "runtime/program/lut3d.json"),
+                        ResourceLocation.fromNamespaceAndPath("prismod", "shaders/program/lut3d.fsh"),
+                        ResourceLocation.fromNamespaceAndPath("prismod", "runtime/program/lut3d.fsh"),
+                        ResourceLocation.fromNamespaceAndPath("prismod", "shaders/program/fullscreen.vsh"),
+                        ResourceLocation.fromNamespaceAndPath("prismod", "runtime/program/fullscreen.vsh")));
+            }
+            chain = new PostChain(mc.getTextureManager(), resources, main, definition.postEffect());
             if (((PostChainAccessor) chain).prismod$getPasses().size() != 1) {
                 throw new IllegalStateException("Prismod requires exactly one filter pass");
             }
@@ -123,6 +141,18 @@ public final class WorldFilterRenderer {
             }
             intensity = pass.getEffect().getUniform("Intensity");
             if (intensity == null) throw new IllegalStateException("Missing Intensity uniform");
+            lutDomainMin = pass.getEffect().getUniform("LutDomainMin");
+            lutDomainMax = pass.getEffect().getUniform("LutDomainMax");
+            if (definition.type() == FilterType.LUT3D) {
+                if (lutDomainMin == null || lutDomainMax == null) {
+                    throw new IllegalStateException("LUT shader is missing domain uniforms");
+                }
+                lutTexture = uploadLut(definition.lutData());
+                // The atlas stores the .cube file order as a 1024x32 2D texture:
+                // red is the least-significant coordinate, followed by green,
+                // while blue selects the row.  The shader samples the same layout.
+                pass.addAuxAsset("LutSampler", () -> lutTexture, 1024, 32);
+            }
             source = main;
             loaded = key;
             width = height = -1;
@@ -160,5 +190,26 @@ public final class WorldFilterRenderer {
         source = null;
         loaded = null;
         intensity = null;
+        lutDomainMin = null;
+        lutDomainMax = null;
+        if (lutTexture != 0) {
+            GL11.glDeleteTextures(lutTexture);
+            lutTexture = 0;
+        }
+    }
+
+    private static int uploadLut(Lut3dData lut) {
+        if (lut == null) throw new IllegalArgumentException("Missing LUT data");
+        int texture = GL11.glGenTextures();
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        java.nio.FloatBuffer buffer = org.lwjgl.BufferUtils.createFloatBuffer(lut.rgb().length);
+        buffer.put(lut.rgb()).flip();
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RGB16F, 1024, 32, 0, GL11.GL_RGB, GL11.GL_FLOAT, buffer);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+        return texture;
     }
 }

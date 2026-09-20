@@ -1,0 +1,1 @@
+{"targets":["swap"],"passes":[{"name":"prismod:night_vision","intarget":"minecraft:main","outtarget":"swap","uniforms":[{"name":"Intensity","type":"float","values":[1]}]}]}

@@ -46,11 +46,13 @@ strength_night_vision = 1.0
 自定义资源包是 Prismod 自己的模组资源包格式，不是 Minecraft 原版资源包：
 
 - 只扫描 `config/prismod/resourcepacks/` 的直接子目录和 `.zip` 文件。管理页支持将资源包直接拖入页面导入，也可以使用“打开资源包文件夹”按钮通过 Minecraft `Util.getPlatform().openFile(...)` 打开该目录；用户手动放入资源包后重新打开管理页即可刷新列表，目录无法自动打开时允许手动放置。
-- 根目录必须有 `prismod.meta.json`，至少包含合法且未保留的 `namespace`。
-- 除 `prismod.meta.json` 和元数据 namespace 对应的 `assets/<namespace>/...` 相对目录外的文件不会被 Prismod 读取；可以放置 README、文档或其它资源目录。
+- 根目录必须有 `prismod.pack.json`，且 `schema` 为 `prismod.resource_pack`、`format_version` 为 `1`。
+- 清单中的 `filters` 是滤镜唯一来源；每个条目必须声明合法 `id` 和 `assets/<namespace>/filters/` 下的目录，并包含 `filter.json`。
+- 资源包支持 `post_chain` 和 Adobe `lut3d`；未知滤镜类型只跳过对应条目。旧版 `prismod.meta.json` 和 `assets/<namespace>/shaders/...` 格式不兼容。
+- `src/main/resources/prismod.pack.json` 是随模组发布的内置 v1 清单；内置 GLSL 滤镜同样放在 `assets/prismod/filters/<id>/` 并走同一 `FilterManifest`/类型处理器。`assets/prismod/runtime/` 只存空链和 LUT 类型处理器的运行时辅助资源，不参与滤镜扫描。
 - 可选 `name` 只作为资源包在管理界面的显示名称。
 - 可选 `dependencies` 声明 Forge 模组版本范围。
-- 资源必须位于 `assets/<namespace>/...` 下；后处理 JSON 位于 `shaders/post/`，program JSON 和 GLSL 位于 `shaders/program/`。
+- `post_chain` 的 PostChain、program JSON 和 GLSL 位于当前滤镜目录；`lut3d` 的 `source` 指向同目录 `.cube` 文件。`.cube` 固定为 32³、32768 点、sRGB。
 - 不需要 `pack.mcmeta`，不读取原版 `resourcepacks/`，也不使用 Minecraft 原版资源包界面管理。
 - 同一 namespace 只接受按文件名升序扫描到的第一个有效资源包；导入时拒绝重复 namespace 和同名目标，不覆盖已有文件。
 
@@ -60,7 +62,7 @@ strength_night_vision = 1.0
 
 ```java
 FilterApi.setActiveFilter(FilterId.VINTAGE, 0.75F);
-FilterApi.setActiveFilter(ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"), 0.75F);
+FilterApi.setActiveFilter(ResourceLocation.fromNamespaceAndPath("example", "grayscale"), 0.75F);
 FilterApi.clearForcedFilter();
 FilterState state = FilterApi.getEffectiveState();
 FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEffect, metadata);
@@ -121,7 +123,7 @@ minecraft:main --(一个滤镜 pass)--> swap --(颜色 blit)--> minecraft:main
 
 - `FilterControllerTest`：状态优先级、循环、隐藏滤镜、强制状态、失败回退、线程安全快照。
 - `FilterOrderTest`、`FilterKeyTest`、`FilterStateTest`：ID 解析、顺序校验、强度规范化。
-- `FilterRegistryTest`、`PrismodPackLoaderTest`：资源来源限制、元数据、显示名、ZIP/目录扫描和重复 namespace。
+- `FilterRegistryTest`、`PrismodPackLoaderTest`：清单来源限制、显示名、ZIP/目录扫描、重复 ID 和 v1 版本校验。
 - `ShaderResourceTest`、`FilterShaderGlTest`：shader 资源关系、GLSL 编译、像素/alpha 和 OpenGL 渲染验证。
 
 普通测试命令：
@@ -199,4 +201,4 @@ FilterApi.setActiveFilter(FilterId.VINTAGE, 0.75F);
 FilterApi.clearForcedFilter();
 ```
 
-同时说明调用环境、线程要求、状态优先级、配置是否落盘、失败时的回退行为，以及一个用户可复现的操作路径。例如资源包功能必须写明放置目录、`prismod.meta.json` 最小内容、导入入口、启用/禁用位置和资源重载时机。
+同时说明调用环境、线程要求、状态优先级、配置是否落盘、失败时的回退行为，以及一个用户可复现的操作路径。例如资源包功能必须写明放置目录、`prismod.pack.json` 最小内容、导入入口、启用/禁用位置和资源重载时机。

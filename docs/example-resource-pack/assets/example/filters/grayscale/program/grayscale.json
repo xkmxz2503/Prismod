@@ -1,0 +1,7 @@
+{
+  "vertex": "example:fullscreen",
+  "fragment": "example:grayscale",
+  "attributes": ["Position"],
+  "samplers": [{"name":"DiffuseSampler"}],
+  "uniforms": [{"name":"Intensity","type":"float","count":1,"values":[1]}]
+}

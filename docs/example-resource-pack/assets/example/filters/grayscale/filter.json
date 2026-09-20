@@ -1,0 +1,8 @@
+{
+  "schema": "prismod.filter",
+  "format_version": 1,
+  "type": "post_chain",
+  "display_name": "filter.example.grayscale",
+  "source": "post.json",
+  "default_strength": 1.0
+}

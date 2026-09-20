@@ -1,0 +1,13 @@
+{
+  "schema": "prismod.resource_pack",
+  "format_version": 1,
+  "namespace": "prismod",
+  "name": "Prismod Built-in Filters",
+  "filters": [
+    {"id":"grayscale","path":"assets/prismod/filters/grayscale"},
+    {"id":"warm","path":"assets/prismod/filters/warm"},
+    {"id":"cool","path":"assets/prismod/filters/cool"},
+    {"id":"vintage","path":"assets/prismod/filters/vintage"},
+    {"id":"night_vision","path":"assets/prismod/filters/night_vision"}
+  ]
+}

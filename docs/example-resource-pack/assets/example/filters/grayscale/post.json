@@ -1,0 +1,4 @@
+{
+  "targets": ["swap"],
+  "passes": [{"name":"example:grayscale","intarget":"minecraft:main","outtarget":"swap","uniforms":[{"name":"Intensity","type":"float","values":[1]}]}]
+}
