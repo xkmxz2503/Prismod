@@ -188,6 +188,7 @@ public final class PrismodPackLoader {
             if (Files.isDirectory(sourceRoot)
                     && Files.isRegularFile(sourceRoot.resolve(MANIFEST_FILE))) {
                 copyTreeIfMissing(sourceRoot, target);
+                syncBundledRuntime(sourceRoot, target);
                 return;
             }
         }
@@ -201,6 +202,7 @@ public final class PrismodPackLoader {
         try {
             Path sourceRoot = java.nio.file.Paths.get(manifestUrl.toURI()).getParent();
             copyTreeIfMissing(sourceRoot, target);
+            syncBundledRuntime(sourceRoot, target);
         } catch (java.net.URISyntaxException exception) {
             throw new IOException("invalid bundled resource URL", exception);
         }
@@ -220,6 +222,27 @@ public final class PrismodPackLoader {
         if (Files.exists(target)) return;
         Files.createDirectories(target.toAbsolutePath().getParent());
         Files.copy(source, target, StandardCopyOption.COPY_ATTRIBUTES);
+    }
+
+    /**
+     * 运行时处理器属于模组实现，不是用户编辑的滤镜内容。默认包首次导出后仍保留
+     * 用户对 filters/lang 等目录的修改，但每次重载都同步 runtime，避免旧版本 shader
+     * 或 program 清单继续被配置目录副本遮蔽。
+     */
+    private static void syncBundledRuntime(Path sourceRoot, Path targetRoot) throws IOException {
+        Path source = sourceRoot.resolve("assets/prismod/runtime");
+        if (!Files.isDirectory(source)) return;
+        try (Stream<Path> paths = Files.walk(source)) {
+            for (Path path : paths.toList()) {
+                Path destination = targetRoot.resolve(sourceRoot.relativize(path).toString());
+                if (Files.isDirectory(path)) {
+                    Files.createDirectories(destination);
+                } else {
+                    Files.createDirectories(destination.toAbsolutePath().getParent());
+                    Files.copy(path, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+                }
+            }
+        }
     }
 
     /** @deprecated v1 has no legacy metadata parser; use {@link #parseManifest(JsonObject)}. */

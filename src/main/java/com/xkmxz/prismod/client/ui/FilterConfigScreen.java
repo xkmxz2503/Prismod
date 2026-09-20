@@ -2,6 +2,7 @@ package com.xkmxz.prismod.client.ui;
 
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import com.xkmxz.prismod.client.filter.*;
+import com.xkmxz.prismod.client.render.WorldFilterRenderer;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -91,8 +92,9 @@ public final class FilterConfigScreen extends Screen {
         int nameWidth = Math.min(132, panelWidth / 3);
         int nameLeft = panelLeft + 20;
         int sliderLeft = nameLeft + nameWidth + 2;
-        int sliderWidth = panelWidth - nameWidth - 62;
+        int sliderWidth = panelWidth - nameWidth - 108;
         int upLeft = panelLeft + panelWidth - 38;
+        int debugLeft = upLeft - 42;
 
         for (FilterKey id : draftOrder) {
             Button handle = addRenderableWidget(Button.builder(Component.literal("≡"), button -> {})
@@ -107,6 +109,12 @@ public final class FilterConfigScreen extends Screen {
                     .tooltip(Tooltip.create(Component.translatable("screen.prismod.select", filterName(id))))
                     .build());
             StrengthSlider strength = addRenderableWidget(new StrengthSlider(id, sliderLeft, listTop, sliderWidth));
+            Button debug = null;
+            FilterDefinition definition = FilterRegistry.get().definition(id);
+            if (definition != null && definition.type() == FilterType.LUT3D) {
+                debug = addRenderableWidget(Button.builder(Component.literal("调试"), button -> openLutDebug(id))
+                        .bounds(debugLeft, listTop, 38, 20).tooltip(Tooltip.create(Component.literal("打开 LUT 调试界面"))).build());
+            }
             Button up = addRenderableWidget(Button.builder(Component.literal("↑"), button -> move(id, -1))
                     .bounds(upLeft, listTop, 18, 20)
                     .tooltip(Tooltip.create(Component.translatable("screen.prismod.move_up", filterName(id))))
@@ -117,7 +125,7 @@ public final class FilterConfigScreen extends Screen {
                     .tooltip(Tooltip.create(Component.translatable("screen.prismod.move_down", filterName(id))))
                     .createNarration(supplier -> Component.translatable("screen.prismod.move_down", filterName(id)))
                     .build());
-            rows.put(id, new RowControls(handle, select, strength, up, down));
+            rows.put(id, new RowControls(handle, select, strength, debug, up, down));
         }
         arrangeRows();
 
@@ -128,6 +136,12 @@ public final class FilterConfigScreen extends Screen {
                 .bounds(panelLeft + buttonWidth + 4, listBottom + 18, buttonWidth, 20).build());
         save.setTabOrderGroup(100);
         cancel.setTabOrderGroup(100);
+    }
+
+    private void openLutDebug(FilterKey key) {
+        if (minecraft != null && minecraft.level != null) {
+            minecraft.setScreen(new LutDebugScreen(this, key));
+        }
     }
 
     private Component enabledLabel() {
@@ -259,9 +273,9 @@ public final class FilterConfigScreen extends Screen {
         super.render(graphics, mouseX, mouseY, partialTick);
     }
 
-    private record RowControls(Button handle, Button select, StrengthSlider strength, Button up, Button down) {
+    private record RowControls(Button handle, Button select, StrengthSlider strength, Button debug, Button up, Button down) {
         private List<AbstractWidget> widgets() {
-            return List.of(handle, select, strength, up, down);
+            return debug == null ? List.of(handle, select, strength, up, down) : List.of(handle, select, strength, debug, up, down);
         }
     }
 

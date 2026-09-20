@@ -50,7 +50,7 @@ strength_night_vision = 1.0
 - 清单中的 `filters` 是滤镜唯一来源；每个条目必须声明合法 `id` 和 `assets/<namespace>/filters/` 下的目录，并包含 `filter.json`。
 - 资源包支持 `post_chain` 和 Adobe `lut3d`；未知滤镜类型只跳过对应条目。旧版 `prismod.meta.json` 和 `assets/<namespace>/shaders/...` 格式不兼容。
 - `src/main/resources/assets/prismod/custom/prismod_default_filters/` 是随模组发布的内置 v1 默认包，目录内自包含 `prismod.pack.json`、`assets/prismod/filters/<id>/` 和 `assets/prismod/lang/`；其中 `assets/prismod/runtime/` 只存空链和 LUT 类型处理器的运行时辅助资源，不参与滤镜扫描。滤镜名称只从所属资源包的 `assets/<namespace>/lang/<语言>.json` 解析，模组外层 `assets/prismod/lang/` 只属于模组自身界面、按键和消息。
-- 内置包采用与 TACZ 默认枪包相同的导出方式：首次客户端资源重载时把上述完整目录导出到 `config/prismod/builtin/prismod_default_filters/`，之后作为普通目录资源包由 Prismod 私有资源管理器读取；只补齐缺失文件，不覆盖用户对默认包的编辑。它仍由包内的 `prismod.pack.json` 驱动，不调用 Minecraft 原版资源包管理器。
+- 内置包采用与 TACZ 默认枪包相同的导出方式：首次客户端资源重载时把上述完整目录导出到 `config/prismod/builtin/prismod_default_filters/`，之后作为普通目录资源包由 Prismod 私有资源管理器读取；`filters/` 和 `lang/` 中已有文件不覆盖用户编辑，但 `assets/prismod/runtime/` 运行时处理器会随模组版本同步更新，避免旧 shader 清单遮蔽实现。它仍由包内的 `prismod.pack.json` 驱动，不调用 Minecraft 原版资源包管理器。
 - 可选 `name` 只作为资源包在管理界面的显示名称。
 - 可选 `dependencies` 声明 Forge 模组版本范围。
 - `post_chain` 的 PostChain、program JSON 和 GLSL 位于当前滤镜目录；`lut3d` 的 `source` 指向同目录 `.cube` 文件。`.cube` 固定为 32³、32768 点、sRGB。
@@ -58,6 +58,8 @@ strength_night_vision = 1.0
 - 同一 namespace 只接受按文件名升序扫描到的第一个有效资源包；导入时拒绝重复 namespace 和同名目标，不覆盖已有文件。
 
 自定义滤镜名称通过资源包语言文件提供，例如 `assets/example/lang/zh_cn.json` 中为 `filter.example.debug` 提供翻译。资源包重载时 Prismod 将当前语言和 `en_us` 加载到私有显示翻译表，不注册到 Minecraft 全局 `LanguageManager`。当前语言缺失时回退 `en_us`；没有翻译时界面和 F8 提示必须显示 `example:debug`，不得回退为模组语言文件或内置滤镜名称。
+
+LUT 调试界面仅在世界内从 LUT 滤镜行进入，不改变 `FilterManager` 普通选择或 `custom_strengths`。它提供强度、曝光、对比度、高光、阴影、饱和度、色温、色调和伽马参数；处理顺序为预处理、LUT、后处理和强度混合。调试预设独立保存于 `config/prismod/config/lut-presets.json`，键为完整 `namespace:path`，未知字段会忽略，未知版本或损坏文件回退默认值。关闭页面、资源重载或渲染失败后恢复普通链路；失败时保留原始世界画面。普通 post_chain 和未知类型不显示 LUT 调试入口。
 
 公开客户端 API 位于 `com.xkmxz.prismod.api.client`：
 

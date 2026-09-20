@@ -1,6 +1,7 @@
 package com.xkmxz.prismod.client.render;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.shaders.Uniform;
 import com.mojang.blaze3d.shaders.BlendMode;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -13,6 +14,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.client.renderer.PostPass;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL20;
@@ -28,12 +30,25 @@ public final class WorldFilterRenderer {
     private static Uniform intensity;
     private static Uniform lutDomainMin;
     private static Uniform lutDomainMax;
+    private static Uniform exposure;
+    private static Uniform contrast;
+    private static Uniform highlights;
+    private static Uniform shadows;
+    private static Uniform saturation;
+    private static Uniform temperature;
+    private static Uniform tint;
+    private static Uniform gamma;
     private static int lutTexture;
     private static PrismodPackLoader.PrismodResourceManager resources;
     private static FilterKey loaded;
     private static int width;
     private static int height;
     private static final GpuFilterProfiler PROFILER = new GpuFilterProfiler();
+    private static FilterKey debugTarget;
+    private static LutDebugSettings debugSettings = LutDebugSettings.defaults();
+    private static TextureTarget debugOriginal;
+    private static TextureTarget debugProcessed;
+    private static String debugError;
 
     private WorldFilterRenderer() { }
 
@@ -42,9 +57,14 @@ public final class WorldFilterRenderer {
         Minecraft mc = Minecraft.getInstance();
         FilterSelection selection = FilterManager.get().effectiveSelection();
         FilterKey key = selection.key();
-        if (mc.level == null || key.isOriginal() || selection.strength() <= 0) return;
+        if (mc.level == null) return;
         RenderTarget main = mc.getMainRenderTarget();
         if (main.width <= 0 || main.height <= 0) return;
+        if (debugTarget != null) {
+            renderDebug(mc, main, partialTick);
+            return;
+        }
+        if (key.isOriginal() || selection.strength() <= 0) return;
 
         boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
         boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
@@ -69,6 +89,7 @@ public final class WorldFilterRenderer {
                 float[] max = definition.lutData().domainMax();
                 lutDomainMin.set(min[0], min[1], min[2]);
                 lutDomainMax.set(max[0], max[1], max[2]);
+                setLutAdjustments(LutDebugSettings.defaults());
             }
             RenderSystem.disableBlend();
             RenderSystem.disableDepthTest();
@@ -110,6 +131,73 @@ public final class WorldFilterRenderer {
         }
     }
 
+    private static void renderDebug(Minecraft mc, RenderTarget main, float partialTick) {
+        boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
+        boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+        int depthFunc = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
+        int srcRgb = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
+        int dstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
+        int srcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
+        int dstAlpha = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
+        int equationRgb = GL11.glGetInteger(GL20.GL_BLEND_EQUATION_RGB);
+        int equationAlpha = GL11.glGetInteger(GL20.GL_BLEND_EQUATION_ALPHA);
+        BlendMode previousBlendMode = BlendModeAccessor.prismod$getLastApplied();
+        try {
+            ensureDebugTargets(main.width, main.height);
+            copy(main, debugOriginal);
+            prepare(mc, main, debugTarget);
+            FilterDefinition definition = FilterRegistry.get().definition(debugTarget);
+            if (definition == null || definition.type() != FilterType.LUT3D || definition.lutData() == null) {
+                throw new IllegalStateException("Debug target is not a valid LUT filter");
+            }
+            intensity.set(debugSettings.intensity());
+            float[] min = definition.lutData().domainMin();
+            float[] max = definition.lutData().domainMax();
+            lutDomainMin.set(min[0], min[1], min[2]);
+            lutDomainMax.set(max[0], max[1], max[2]);
+            setLutAdjustments(debugSettings);
+            RenderSystem.disableBlend();
+            RenderSystem.disableDepthTest();
+            RenderSystem.disableCull();
+            RenderSystem.depthMask(false);
+            chain.process(partialTick);
+            copy(chain.getTempTarget("swap"), debugProcessed);
+            debugError = null;
+        } catch (Exception exception) {
+            debugError = exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
+            LOGGER.warn("Prismod LUT debug preview failed for {}", debugTarget == null ? "unknown" : debugTarget.serializedName(), exception);
+            releaseChain();
+        } finally {
+            main.bindWrite(true);
+            RenderSystem.depthFunc(depthFunc);
+            RenderSystem.depthMask(depthMask);
+            RenderSystem.blendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
+            GL20.glBlendEquationSeparate(equationRgb, equationAlpha);
+            BlendModeAccessor.prismod$setLastApplied(previousBlendMode);
+            if (blend) RenderSystem.enableBlend(); else RenderSystem.disableBlend();
+            if (depth) RenderSystem.enableDepthTest(); else RenderSystem.disableDepthTest();
+            if (cull) RenderSystem.enableCull(); else RenderSystem.disableCull();
+        }
+    }
+
+    private static void ensureDebugTargets(int targetWidth, int targetHeight) {
+        if (debugOriginal == null) debugOriginal = new TextureTarget(targetWidth, targetHeight, true, Minecraft.ON_OSX);
+        if (debugProcessed == null) debugProcessed = new TextureTarget(targetWidth, targetHeight, true, Minecraft.ON_OSX);
+        if (debugOriginal.width != targetWidth || debugOriginal.height != targetHeight) debugOriginal.resize(targetWidth, targetHeight, Minecraft.ON_OSX);
+        if (debugProcessed.width != targetWidth || debugProcessed.height != targetHeight) debugProcessed.resize(targetWidth, targetHeight, Minecraft.ON_OSX);
+    }
+
+    private static void copy(RenderTarget from, RenderTarget to) {
+        to.bindWrite(false);
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, from.frameBufferId);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, to.frameBufferId);
+        GL30.glBlitFramebuffer(0, 0, from.width, from.height, 0, 0, to.width, to.height,
+                GL11.GL_COLOR_BUFFER_BIT, GL11.GL_NEAREST);
+        to.bindWrite(false);
+    }
+
     private static void prepare(Minecraft mc, RenderTarget main, FilterKey key) throws Exception {
         FilterDefinition definition = FilterRegistry.get().definition(key);
         if (definition == null || definition.postEffect() == null) {
@@ -143,9 +231,19 @@ public final class WorldFilterRenderer {
             if (intensity == null) throw new IllegalStateException("Missing Intensity uniform");
             lutDomainMin = pass.getEffect().getUniform("LutDomainMin");
             lutDomainMax = pass.getEffect().getUniform("LutDomainMax");
+            exposure = pass.getEffect().getUniform("Exposure");
+            contrast = pass.getEffect().getUniform("Contrast");
+            highlights = pass.getEffect().getUniform("Highlights");
+            shadows = pass.getEffect().getUniform("Shadows");
+            saturation = pass.getEffect().getUniform("Saturation");
+            temperature = pass.getEffect().getUniform("Temperature");
+            tint = pass.getEffect().getUniform("Tint");
+            gamma = pass.getEffect().getUniform("Gamma");
             if (definition.type() == FilterType.LUT3D) {
-                if (lutDomainMin == null || lutDomainMax == null) {
-                    throw new IllegalStateException("LUT shader is missing domain uniforms");
+                if (lutDomainMin == null || lutDomainMax == null || exposure == null || contrast == null
+                        || highlights == null || shadows == null || saturation == null || temperature == null
+                        || tint == null || gamma == null) {
+                    throw new IllegalStateException("LUT shader is missing debug uniforms");
                 }
                 lutTexture = uploadLut(definition.lutData());
                 // The atlas stores the .cube file order as a 1024x32 2D texture:
@@ -172,11 +270,13 @@ public final class WorldFilterRenderer {
         releaseChain();
         PROFILER.close();
         FilterManager.get().setRenderAvailable(true);
+        debugError = null;
     }
 
     public static void close() {
         RenderSystem.assertOnRenderThread();
         releaseChain();
+        closeDebugTargets();
         PROFILER.close();
     }
 
@@ -194,10 +294,62 @@ public final class WorldFilterRenderer {
         intensity = null;
         lutDomainMin = null;
         lutDomainMax = null;
+        exposure = null;
+        contrast = null;
+        highlights = null;
+        shadows = null;
+        saturation = null;
+        temperature = null;
+        tint = null;
+        gamma = null;
         if (lutTexture != 0) {
             GL11.glDeleteTextures(lutTexture);
             lutTexture = 0;
         }
+    }
+
+    private static void setLutAdjustments(LutDebugSettings settings) {
+        if (exposure != null) exposure.set(settings.exposure());
+        if (contrast != null) contrast.set(settings.contrast());
+        if (highlights != null) highlights.set(settings.highlights());
+        if (shadows != null) shadows.set(settings.shadows());
+        if (saturation != null) saturation.set(settings.saturation());
+        if (temperature != null) temperature.set(settings.temperature());
+        if (tint != null) tint.set(settings.tint());
+        if (gamma != null) gamma.set(settings.gamma());
+    }
+
+    public static void beginDebugSession(FilterKey key, LutDebugSettings settings) {
+        RenderSystem.assertOnRenderThread();
+        FilterDefinition definition = key == null ? null : FilterRegistry.get().definition(key);
+        if (definition == null || definition.type() != FilterType.LUT3D) throw new IllegalArgumentException("Not a LUT filter");
+        debugTarget = key;
+        debugSettings = settings == null ? LutDebugSettings.defaults() : settings;
+        debugError = null;
+    }
+
+    public static void updateDebugSettings(LutDebugSettings settings) {
+        debugSettings = settings == null ? LutDebugSettings.defaults() : settings;
+    }
+
+    public static LutDebugSettings debugSettings() { return debugSettings; }
+    public static FilterKey debugTarget() { return debugTarget; }
+    public static String debugError() { return debugError; }
+    public static int debugOriginalTexture() { return debugOriginal == null ? 0 : debugOriginal.getColorTextureId(); }
+    public static int debugProcessedTexture() { return debugProcessed == null ? 0 : debugProcessed.getColorTextureId(); }
+
+    public static void endDebugSession() {
+        RenderSystem.assertOnRenderThread();
+        debugTarget = null;
+        debugSettings = LutDebugSettings.defaults();
+        debugError = null;
+        releaseChain();
+        closeDebugTargets();
+    }
+
+    private static void closeDebugTargets() {
+        if (debugOriginal != null) { debugOriginal.destroyBuffers(); debugOriginal = null; }
+        if (debugProcessed != null) { debugProcessed.destroyBuffers(); debugProcessed = null; }
     }
 
     private static int uploadLut(Lut3dData lut) {
@@ -208,9 +360,19 @@ public final class WorldFilterRenderer {
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        java.nio.FloatBuffer buffer = org.lwjgl.BufferUtils.createFloatBuffer(lut.rgb().length);
-        buffer.put(lut.rgb()).flip();
-        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RGB16F, 1024, 32, 0, GL11.GL_RGB, GL11.GL_FLOAT, buffer);
+        // Use normalized RGBA8 instead of RGB16F/FloatBuffer. The latter can enter
+        // a driver-specific native path that crashes on some NVIDIA/Oculus setups.
+        java.nio.ByteBuffer buffer = org.lwjgl.BufferUtils.createByteBuffer(Lut3dData.POINT_COUNT * 4);
+        float[] rgb = lut.rgb();
+        for (int point = 0; point < Lut3dData.POINT_COUNT; point++) {
+            int offset = point * 3;
+            buffer.put((byte) Math.round(Mth.clamp(rgb[offset], 0.0F, 1.0F) * 255.0F));
+            buffer.put((byte) Math.round(Mth.clamp(rgb[offset + 1], 0.0F, 1.0F) * 255.0F));
+            buffer.put((byte) Math.round(Mth.clamp(rgb[offset + 2], 0.0F, 1.0F) * 255.0F));
+            buffer.put((byte) 255);
+        }
+        buffer.flip();
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RGBA8, 1024, 32, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
         return texture;
     }
