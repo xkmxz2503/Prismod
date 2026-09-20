@@ -1,10 +1,5 @@
 {
   "filter.prismod.original": "Original",
-  "filter.prismod.grayscale": "Grayscale",
-  "filter.prismod.warm": "Warm",
-  "filter.prismod.cool": "Cool",
-  "filter.prismod.vintage": "Vintage",
-  "filter.prismod.night_vision": "Night Vision",
   "key.categories.prismod": "Prismod Filters",
   "key.prismod.cycle": "Cycle Filter",
   "message.prismod.render_failed": "Prismod filter rendering failed. Original view restored; reload resources to retry.",

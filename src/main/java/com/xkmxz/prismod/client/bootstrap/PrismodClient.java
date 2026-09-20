@@ -58,7 +58,6 @@ public final class PrismodClient {
         WorldFilterRenderer.reload();
         PrismodPackLoader.PrismodResourceManager resources = PrismodPackLoader.reload(vanilla);
         FilterRegistry.get().reload(resources);
-        Minecraft.getInstance().getLanguageManager().onResourceManagerReload(resources);
         PrismodClientConfig.appendDiscoveredFilters();
         PrismodClientConfig.removeHiddenAndUnavailableFromCycleOrder();
         FilterManager.get().refreshConfig();

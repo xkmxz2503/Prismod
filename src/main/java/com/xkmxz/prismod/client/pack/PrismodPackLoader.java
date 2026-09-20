@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.Minecraft;
 import net.minecraft.server.packs.AbstractPackResources;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackType;
@@ -38,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -54,6 +56,7 @@ public final class PrismodPackLoader {
     static final String ASSETS_DIRECTORY = "assets";
     private static final int FORMAT_VERSION = 1;
     private static final String RESOURCE_PACKS_DIRECTORY = "prismod/resourcepacks";
+    private static final String LANGUAGE_DIRECTORY = "assets/%s/lang/";
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Set<String> RESERVED_NAMESPACES = Set.of("minecraft", "prismod");
     /** 配置目录中的默认包，目录本身就是一个完整的 Prismod v1 资源包。 */
@@ -93,6 +96,14 @@ public final class PrismodPackLoader {
 
     public static synchronized PrismodResourceManager resources(ResourceManager vanilla) {
         return activeResources == null ? reload(vanilla) : activeResources;
+    }
+
+    /** Resolve a filter translation from its owning Prismod resource pack only. */
+    public static Optional<String> translate(ResourceLocation filterId, String packNamespace, String translationKey) {
+        PrismodResourceManager resources = activeResources;
+        if (resources == null || translationKey == null || translationKey.isBlank()) return Optional.empty();
+        String namespace = packNamespace == null ? filterId.getNamespace() : packNamespace;
+        return resources.translate(namespace, translationKey);
     }
 
     public static List<PackCandidate> scan(Path directory) {
@@ -349,6 +360,7 @@ public final class PrismodPackLoader {
             super(packIdForNamespace(candidate.metadata().namespace()), false);
             source = candidate.path(); namespace = candidate.metadata().namespace();
             Set<String> directories = new HashSet<>(candidate.metadata().filters().stream().map(entry -> entry.path() + "/").toList());
+            directories.add(String.format(Locale.ROOT, LANGUAGE_DIRECTORY, namespace));
             if (candidate.bundled()) directories.add("assets/prismod/runtime/");
             allowedDirectories = Set.copyOf(directories);
         }
@@ -409,6 +421,8 @@ public final class PrismodPackLoader {
         private final List<PrismodPackResources> packs;
         private final List<PackCandidate> candidates;
         private final Map<ResourceLocation, ResourceLocation> virtualResources = new HashMap<>();
+        /** Prismod 自己的显示翻译表，不注册到 Minecraft LanguageManager。 */
+        private final Map<String, Map<String, String>> translations = new HashMap<>();
 
         PrismodResourceManager(ResourceManager vanilla, List<PackCandidate> candidates) {
             this(vanilla, null, candidates);
@@ -421,9 +435,61 @@ public final class PrismodPackLoader {
             all.addAll(candidates);
             this.candidates = all.stream().filter(candidate -> candidate.bundled() || PrismodClientConfig.isPackEnabled(candidate.metadata().namespace())).toList();
             packs = this.candidates.stream().map(PrismodPackResources::new).toList();
+            loadTranslations();
         }
 
         public List<PackCandidate> candidates() { return candidates; }
+
+        private Optional<Resource> getPrivateResource(ResourceLocation id) {
+            for (PrismodPackResources pack : packs) {
+                if (!pack.namespace.equals(id.getNamespace())) continue;
+                IoSupplier<InputStream> supplier = pack.getResource(PackType.CLIENT_RESOURCES, id);
+                if (supplier != null) return Optional.of(new Resource(pack, supplier));
+            }
+            return Optional.empty();
+        }
+
+        public synchronized Optional<String> translate(String namespace, String key) {
+            if (namespace == null || namespace.isBlank() || key == null || key.isBlank()) return Optional.empty();
+            Map<String, String> language = translations.get(namespace);
+            return language == null ? Optional.empty() : Optional.ofNullable(language.get(key));
+        }
+
+        private void loadTranslations() {
+            String selected = selectedLanguage();
+            for (PrismodPackResources pack : packs) {
+                Map<String, String> merged = new HashMap<>(loadLanguage(pack.namespace, "en_us"));
+                if (!"en_us".equals(selected)) merged.putAll(loadLanguage(pack.namespace, selected));
+                translations.put(pack.namespace, Map.copyOf(merged));
+            }
+        }
+
+        private Map<String, String> loadLanguage(String namespace, String language) {
+            ResourceLocation id = ResourceLocation.fromNamespaceAndPath(namespace, "lang/" + language + ".json");
+            Optional<Resource> resource = getPrivateResource(id);
+            if (resource.isEmpty()) return Map.of();
+            try (Reader reader = resource.get().openAsReader()) {
+                JsonElement element = JsonParser.parseReader(reader);
+                if (!element.isJsonObject()) throw new IllegalArgumentException("language file must contain an object");
+                return parseLanguage(element.getAsJsonObject());
+            } catch (Exception exception) {
+                LOGGER.warn("Unable to load Prismod language file {}", id, exception);
+                return Map.of();
+            }
+        }
+
+        private static String selectedLanguage() {
+            try {
+                Minecraft minecraft = Minecraft.getInstance();
+                if (minecraft != null && minecraft.getLanguageManager() != null) {
+                    String selected = minecraft.getLanguageManager().getSelected();
+                    if (selected != null && !selected.isBlank()) return selected.toLowerCase(Locale.ROOT);
+                }
+            } catch (RuntimeException ignored) {
+                // Unit tests and early bootstrap can run without a Minecraft client.
+            }
+            return "en_us";
+        }
 
         public synchronized void registerVirtualResources(Map<ResourceLocation, ResourceLocation> mappings) {
             mappings.forEach((virtual, physical) -> { if (!virtual.getNamespace().equals(physical.getNamespace())) throw new IllegalArgumentException("virtual resource namespace mismatch"); virtualResources.put(virtual, physical); });
@@ -447,7 +513,17 @@ public final class PrismodPackLoader {
 
         @Override public Map<ResourceLocation, List<Resource>> listResourceStacks(String prefix, Predicate<ResourceLocation> filter) { return listResources(prefix, filter).entrySet().stream().collect(java.util.stream.Collectors.toUnmodifiableMap(Map.Entry::getKey, entry -> List.of(entry.getValue()))); }
         @Override public Stream<PackResources> listPacks() { return Stream.concat(vanilla.listPacks(), packs.stream().map(pack -> pack)); }
-        @Override public void close() { packs.forEach(PrismodPackResources::close); synchronized (this) { virtualResources.clear(); } }
+        @Override public void close() { packs.forEach(PrismodPackResources::close); synchronized (this) { virtualResources.clear(); translations.clear(); } }
+    }
+
+    static Map<String, String> parseLanguage(JsonObject object) {
+        Map<String, String> result = new HashMap<>();
+        for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+            if (entry.getKey().isBlank() || !entry.getValue().isJsonPrimitive()
+                    || !entry.getValue().getAsJsonPrimitive().isString()) continue;
+            result.put(entry.getKey(), entry.getValue().getAsString());
+        }
+        return Map.copyOf(result);
     }
 
     public record PackCandidate(Path path, PackMetadata metadata, boolean bundled) {

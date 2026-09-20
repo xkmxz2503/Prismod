@@ -87,14 +87,14 @@ public final class FilterRegistry {
             try (Reader reader = manager.getResource(source).orElseThrow().openAsReader()) { lut = LutCubeParser.parse(reader); }
         return new FilterDefinition(key, FilterType.LUT3D,
                     ResourceLocation.fromNamespaceAndPath("prismod", "runtime/lut3d.json"),
-                    source, manifest.displayName(), manifest.defaultStrength(), candidate.bundled(), candidate.bundled() ? null : namespace, lut);
+                    source, manifest.displayName(), manifest.defaultStrength(), candidate.bundled(), namespace, lut);
         }
         ResourceLocation virtualPost = ResourceLocation.fromNamespaceAndPath(namespace, "shaders/post/" + entry.id() + ".json");
         manager.registerVirtualResources(Map.of(virtualPost, source));
         JsonObject post = parse(manager.getResource(source).orElseThrow());
         mapPostChain(manager, namespace, root, post);
         validatePostChain(manager, virtualPost);
-        return new FilterDefinition(key, FilterType.POST_CHAIN, virtualPost, source, manifest.displayName(), manifest.defaultStrength(), candidate.bundled(), candidate.bundled() ? null : namespace, null);
+        return new FilterDefinition(key, FilterType.POST_CHAIN, virtualPost, source, manifest.displayName(), manifest.defaultStrength(), candidate.bundled(), namespace, null);
     }
 
     private static void mapPostChain(PrismodPackLoader.PrismodResourceManager manager, String namespace, String root, JsonObject post) {

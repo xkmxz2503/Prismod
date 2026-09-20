@@ -9,7 +9,8 @@ Minecraft **1.20.1 / Forge 47.3.32 / Java 17** 的客户端世界画面滤镜初
 - 在“模组 → Prismod → 配置”中选择当前滤镜、调整各预设的强度和循环顺序。拖动顺序项可以排序；保存后生效，取消/ESC 放弃本次编辑。通过独立的“资源包管理”和“滤镜管理”子页面分别管理资源包开关与滤镜展示状态。
 - 客户端配置存入 `config/prismod/config/prismod-client.toml`；每次启动从原色开始。原色或强度 0 跳过后处理。
 - Prismod 自定义模组资源包目录为 `config/prismod/resourcepacks/`，支持直接子目录和 `.zip`；资源包根目录必须包含 `prismod.pack.json`，使用统一资源包格式 v1。这是 Prismod 自己的资源包格式，不需要 `pack.mcmeta`，也不使用原版资源包界面管理。旧版 `prismod.meta.json` 与 `assets/<namespace>/shaders/...` 格式不再兼容。
-- 模组内置滤镜也使用同一套 v1 清单：完整默认包位于 `src/main/resources/assets/prismod/custom/prismod_default_filters/`，其中包含包内 `prismod.pack.json`、`assets/prismod/filters/<id>/` 和运行时辅助 shader。它不是散落在模组根资源中的特殊路径。
+- 模组内置滤镜也使用同一套 v1 清单：完整默认包位于 `src/main/resources/assets/prismod/custom/prismod_default_filters/`，其中包含包内 `prismod.pack.json`、`assets/prismod/filters/<id>/`、`assets/prismod/lang/` 和运行时辅助 shader。它不是散落在模组根资源中的特殊路径。
+- `filter.json` 的 `display_name` 必须由资源包自己的 `assets/<namespace>/lang/<语言>.json` 提供翻译；当前语言缺失时回退 `en_us`，仍缺失则显示完整 `namespace:path`。模组外层语言文件只负责 Prismod 自身界面和消息，不再提供默认滤镜名称。
 - 首次启动时，Prismod 会把上述完整默认包导出到 `config/prismod/builtin/prismod_default_filters/`，随后像 TACZ 的默认枪包一样按普通目录资源包读取；已存在的文件不会被启动过程覆盖，方便直接编辑默认滤镜。
 - 在 Prismod 的“资源包管理”页面可以直接将 ZIP 或资源包目录拖入窗口导入；也可以点击“打开资源包文件夹”手动放入上述目录。导入会执行清单、依赖、路径和重复项校验，成功后自动刷新列表，再单独保存启用/禁用设置。保存后由 Prismod 自己重新读取目录/ZIP，不会调用或修改 Minecraft 原版资源包管理。若系统无法自动打开目录，也可以在文件管理器中手动进入该路径。
 - 只处理世界（包括手持物品），HUD、聊天、容器、菜单保持原色。夜视只是画面调色，不赋予药水效果，也不能恢复全黑像素中不存在的细节。

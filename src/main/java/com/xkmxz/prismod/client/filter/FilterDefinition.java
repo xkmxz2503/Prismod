@@ -3,6 +3,9 @@ package com.xkmxz.prismod.client.filter;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import com.xkmxz.prismod.client.pack.PrismodPackLoader;
+
+import java.util.Optional;
 
 /** Runtime metadata for one filter resource. */
 public record FilterDefinition(
@@ -43,8 +46,11 @@ public record FilterDefinition(
     }
 
     public Component displayName() {
-        if (translationKey != null && !translationKey.isBlank() && I18n.exists(translationKey)) {
-            return Component.translatable(translationKey);
+        if (translationKey != null && !translationKey.isBlank()) {
+            Optional<String> packTranslation = PrismodPackLoader.translate(key.id(), packNamespace, translationKey);
+            if (packTranslation.isPresent()) return Component.literal(packTranslation.get());
+            // API 注册的滤镜没有 Prismod 资源包归属时，保留模组语言表兼容性。
+            if (packNamespace == null && I18n.exists(translationKey)) return Component.translatable(translationKey);
         }
         return Component.literal(key.serializedName());
     }

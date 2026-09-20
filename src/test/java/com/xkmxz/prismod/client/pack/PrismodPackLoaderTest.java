@@ -10,6 +10,8 @@ import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import static org.junit.jupiter.api.Assertions.*;
+import java.util.Map;
+import java.util.List;
 
 class PrismodPackLoaderTest {
     @TempDir Path temp;
@@ -46,6 +48,28 @@ class PrismodPackLoaderTest {
         Path old = Files.createDirectories(temp.resolve("old"));
         Files.writeString(old.resolve(PrismodPackLoader.META_FILE), "{\"namespace\":\"old\"}");
         assertTrue(PrismodPackLoader.scan(temp).isEmpty());
+    }
+
+    @Test void languageParserKeepsOnlyStringEntries() {
+        Map<String, String> translations = PrismodPackLoader.parseLanguage(JsonParser.parseString(
+                "{\"filter.example.gray\":\"黑白\",\"numeric\":1,\"nested\":{},\"\":\"ignored\"}").getAsJsonObject());
+        assertEquals(Map.of("filter.example.gray", "黑白"), translations);
+    }
+
+    @Test void resourceManagerLoadsPackLanguageIntoPrivateTable() throws IOException {
+        Path directory = Files.createDirectories(temp.resolve("language-pack"));
+        Files.writeString(directory.resolve(PrismodPackLoader.MANIFEST_FILE), manifest("example", "gray"));
+        Path filter = Files.createDirectories(directory.resolve("assets/example/filters/gray"));
+        Files.writeString(filter.resolve("filter.json"), "{}");
+        Path language = Files.createDirectories(directory.resolve("assets/example/lang"));
+        Files.writeString(language.resolve("en_us.json"), "{\"filter.example.gray\":\"Gray\"}");
+
+        PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseManifest(JsonParser.parseString(
+                manifest("example", "gray")).getAsJsonObject());
+        PrismodPackLoader.PrismodResourceManager manager = new PrismodPackLoader.PrismodResourceManager(
+                null, List.of(new PrismodPackLoader.PackCandidate(directory, metadata)));
+        assertEquals(java.util.Optional.of("Gray"), manager.translate("example", "filter.example.gray"));
+        manager.close();
     }
 
     private static String manifest(String namespace, String id) { return "{\"schema\":\"prismod.resource_pack\",\"format_version\":1,\"namespace\":\"" + namespace + "\",\"filters\":[{\"id\":\"" + id + "\",\"path\":\"assets/" + namespace + "/filters/" + id + "\"}]}"; }

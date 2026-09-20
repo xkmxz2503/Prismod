@@ -1,0 +1,7 @@
+{
+  "filter.prismod.grayscale": "Grayscale",
+  "filter.prismod.warm": "Warm",
+  "filter.prismod.cool": "Cool",
+  "filter.prismod.vintage": "Vintage",
+  "filter.prismod.night_vision": "Night Vision"
+}
