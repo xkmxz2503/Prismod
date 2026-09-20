@@ -15,7 +15,7 @@ Minecraft **1.20.1 / Forge 47.3.32 / Java 17** 的客户端世界画面滤镜初
 - 在 Prismod 的“资源包管理”页面可以直接将 ZIP 或资源包目录拖入窗口导入；也可以点击“打开资源包文件夹”手动放入上述目录。导入会执行清单、依赖、路径和重复项校验，成功后自动刷新列表，再单独保存启用/禁用设置。保存后由 Prismod 自己重新读取目录/ZIP，不会调用或修改 Minecraft 原版资源包管理。若系统无法自动打开目录，也可以在文件管理器中手动进入该路径。
 - 只处理世界（包括手持物品），HUD、聊天、容器、菜单保持原色。夜视只是画面调色，不赋予药水效果，也不能恢复全黑像素中不存在的细节。
 - F8 绑定冲突只提示，不擅自改动其他按键。打开界面时 F8 不切换。
-- 在世界内的滤镜配置页，`lut3d` 行提供“调试”入口，可调整曝光、对比度、高光、阴影、饱和度、色温、色调和伽马。调试预设独立保存到 `config/prismod/config/lut-presets.json`，不会修改 `.cube` 或普通滤镜强度。
+- 在世界内的滤镜配置页，支持统一调试契约的 LUT 和 `post_chain` 行提供“调试”入口，可调整 9 个参数。调试预设按资源包 namespace 和滤镜 ID 独立保存到 `config/prismod/config/resourcepacks/<namespace>/<filter-id>.json`；保存后正常渲染自动生效，普通滤镜强度与调试 `intensity` 相乘。旧 `lut-presets.json` 保留但不再读取。
 
 配置字段为顶层 `enabled`、`cycle_order`、`strength_original`、`strength_grayscale`、`strength_warm`、`strength_cool`、`strength_vintage`、`strength_night_vision`。顺序必须包含六个唯一 ID；非法列表整体回退默认顺序并记录警告。所有强度在 0.0–1.0 内。
 

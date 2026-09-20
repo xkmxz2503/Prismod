@@ -22,6 +22,7 @@ import java.util.Objects;
 
 /** Manifest-driven registry. New filter types are isolated behind FilterManifest parsing. */
 public final class FilterRegistry {
+    public static final List<String> DEBUG_UNIFORMS = List.of("Intensity", "Exposure", "Contrast", "Highlights", "Shadows", "Saturation", "Temperature", "Tint", "Gamma");
     private static final FilterRegistry INSTANCE = new FilterRegistry();
     private static final Logger LOGGER = LogUtils.getLogger();
     private final Map<FilterKey, FilterDefinition> definitions = new LinkedHashMap<>();
@@ -87,14 +88,14 @@ public final class FilterRegistry {
             try (Reader reader = manager.getResource(source).orElseThrow().openAsReader()) { lut = LutCubeParser.parse(reader); }
         return new FilterDefinition(key, FilterType.LUT3D,
                     ResourceLocation.fromNamespaceAndPath("prismod", "runtime/lut3d.json"),
-                    source, manifest.displayName(), manifest.defaultStrength(), candidate.bundled(), namespace, lut);
+                    source, manifest.displayName(), manifest.defaultStrength(), candidate.bundled(), namespace, lut, true);
         }
         ResourceLocation virtualPost = ResourceLocation.fromNamespaceAndPath(namespace, "shaders/post/" + entry.id() + ".json");
         manager.registerVirtualResources(Map.of(virtualPost, source));
         JsonObject post = parse(manager.getResource(source).orElseThrow());
         mapPostChain(manager, namespace, root, post);
-        validatePostChain(manager, virtualPost);
-        return new FilterDefinition(key, FilterType.POST_CHAIN, virtualPost, source, manifest.displayName(), manifest.defaultStrength(), candidate.bundled(), namespace, null);
+        boolean debugSupported = validatePostChain(manager, virtualPost);
+        return new FilterDefinition(key, FilterType.POST_CHAIN, virtualPost, source, manifest.displayName(), manifest.defaultStrength(), candidate.bundled(), namespace, null, debugSupported);
     }
 
     private static void mapPostChain(PrismodPackLoader.PrismodResourceManager manager, String namespace, String root, JsonObject post) {
@@ -158,7 +159,7 @@ public final class FilterRegistry {
         for (FilterId id : FilterId.values()) {
             FilterKey key = FilterKey.of(id);
             definitions.put(key, new FilterDefinition(key, FilterType.POST_CHAIN, null, null,
-                    id.translationKey(), 1.0F, true, null, null));
+                    id.translationKey(), 1.0F, true, null, null, false));
         }
     }
 
@@ -166,30 +167,36 @@ public final class FilterRegistry {
         if (postEffect == null) return null;
         FilterKey key = FilterKey.fromPostEffect(postEffect);
         try {
-            validatePostChain(manager, postEffect);
+            boolean debugSupported = validatePostChain(manager, postEffect);
             String translation = metadata != null && metadata.translationKey() != null ? metadata.translationKey() : generatedTranslationKey(key);
-            return new FilterDefinition(key, FilterType.POST_CHAIN, postEffect, postEffect, translation, metadata == null ? 1.0F : metadata.defaultStrength(), metadata == null, packNamespace, null);
+            return new FilterDefinition(key, FilterType.POST_CHAIN, postEffect, postEffect, translation, metadata == null ? 1.0F : metadata.defaultStrength(), metadata == null, packNamespace, null, debugSupported);
         } catch (Exception exception) {
             INSTANCE.failures.put(key, message(exception));
-            return new FilterDefinition(key, FilterType.POST_CHAIN, postEffect, postEffect, generatedTranslationKey(key), 1.0F, metadata == null, packNamespace, null);
+            return new FilterDefinition(key, FilterType.POST_CHAIN, postEffect, postEffect, generatedTranslationKey(key), 1.0F, metadata == null, packNamespace, null, false);
         }
     }
 
-    private static void validatePostChain(ResourceManager manager, ResourceLocation postEffect) throws Exception {
+    private static boolean validatePostChain(ResourceManager manager, ResourceLocation postEffect) throws Exception {
         JsonObject post = parse(manager.getResource(postEffect).orElseThrow(() -> new IllegalArgumentException("missing post resource")));
         JsonArray targets = post.getAsJsonArray("targets"); JsonArray passes = post.getAsJsonArray("passes");
         if (targets == null || targets.size() != 1 || !"swap".equals(targets.get(0).getAsString()) || passes == null || passes.size() != 1) throw new IllegalArgumentException("requires one swap target and one pass");
         JsonObject pass = passes.get(0).getAsJsonObject();
-        if (!"minecraft:main".equals(pass.get("intarget").getAsString()) || !"swap".equals(pass.get("outtarget").getAsString()) || !hasUniform(pass.getAsJsonArray("uniforms"), "Intensity")) throw new IllegalArgumentException("pass must be minecraft:main -> swap with Intensity");
+        if (!"minecraft:main".equals(pass.get("intarget").getAsString()) || !"swap".equals(pass.get("outtarget").getAsString())) throw new IllegalArgumentException("pass must be minecraft:main -> swap");
         ResourceLocation program = ResourceLocation.tryParse(pass.get("name").getAsString());
         if (program == null) throw new IllegalArgumentException("invalid program resource");
         JsonObject programJson = parse(manager.getResource(ResourceLocation.fromNamespaceAndPath(program.getNamespace(), "shaders/program/" + program.getPath() + ".json")).orElseThrow());
-        if (!hasFloatUniform(programJson.getAsJsonArray("uniforms"), "Intensity")) throw new IllegalArgumentException("program is missing Intensity");
+        boolean supported = true;
+        for (String uniform : DEBUG_UNIFORMS) {
+            if (!hasFloatUniform(pass.getAsJsonArray("uniforms"), uniform) || !hasFloatUniform(programJson.getAsJsonArray("uniforms"), uniform)) {
+                supported = false;
+                LOGGER.warn("Prismod filter {} does not support debug tuning: missing float uniform {}", postEffect, uniform);
+            }
+        }
+        return supported;
     }
 
     private static JsonObject parse(Resource resource) throws Exception { try (Reader reader = resource.openAsReader()) { return JsonParser.parseReader(reader).getAsJsonObject(); } }
-    private static boolean hasUniform(JsonArray uniforms, String name) { if (uniforms == null) return false; for (JsonElement e : uniforms) if (name.equals(e.getAsJsonObject().get("name").getAsString())) return true; return false; }
-    private static boolean hasFloatUniform(JsonArray uniforms, String name) { if (uniforms == null) return false; for (JsonElement e : uniforms) { JsonObject u = e.getAsJsonObject(); if (name.equals(u.get("name").getAsString())) return !u.has("type") || "float".equalsIgnoreCase(u.get("type").getAsString()); } return false; }
+    private static boolean hasFloatUniform(JsonArray uniforms, String name) { if (uniforms == null) return false; for (JsonElement e : uniforms) { JsonObject u = e.getAsJsonObject(); if (name.equals(u.get("name").getAsString())) return u.has("type") && "float".equalsIgnoreCase(u.get("type").getAsString()); } return false; }
     private static String generatedTranslationKey(FilterKey key) { return "filter." + key.id().getNamespace() + "." + key.id().getPath().replace('/', '.'); }
     private static String message(Exception error) { return error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage(); }
 

@@ -7,6 +7,7 @@ import com.mojang.blaze3d.shaders.BlendMode;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
 import com.xkmxz.prismod.client.filter.*;
+import com.xkmxz.prismod.client.config.FilterDebugPresetStore;
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import com.xkmxz.prismod.mixin.client.PostChainAccessor;
 import com.xkmxz.prismod.mixin.client.BlendModeAccessor;
@@ -45,7 +46,8 @@ public final class WorldFilterRenderer {
     private static int height;
     private static final GpuFilterProfiler PROFILER = new GpuFilterProfiler();
     private static FilterKey debugTarget;
-    private static LutDebugSettings debugSettings = LutDebugSettings.defaults();
+    private static FilterDebugSettings debugSettings = FilterDebugSettings.defaults();
+    private static final FilterDebugPresetStore DEBUG_PRESETS = FilterDebugPresetStore.createDefault();
     private static TextureTarget debugOriginal;
     private static TextureTarget debugProcessed;
     private static String debugError;
@@ -82,15 +84,16 @@ public final class WorldFilterRenderer {
         while (GL11.glGetError() != GL11.GL_NO_ERROR) { }
         try {
             prepare(mc, main, key);
-            intensity.set(selection.strength());
             FilterDefinition definition = FilterRegistry.get().definition(key);
+            FilterDebugSettings settings = debugSettingsFor(definition, key);
+            if (intensity != null) intensity.set(selection.strength() * settings.intensity());
             if (definition != null && definition.type() == FilterType.LUT3D) {
                 float[] min = definition.lutData().domainMin();
                 float[] max = definition.lutData().domainMax();
                 lutDomainMin.set(min[0], min[1], min[2]);
                 lutDomainMax.set(max[0], max[1], max[2]);
-                setLutAdjustments(LutDebugSettings.defaults());
             }
+            setAdjustments(settings);
             RenderSystem.disableBlend();
             RenderSystem.disableDepthTest();
             RenderSystem.disableCull();
@@ -149,15 +152,16 @@ public final class WorldFilterRenderer {
             copy(main, debugOriginal);
             prepare(mc, main, debugTarget);
             FilterDefinition definition = FilterRegistry.get().definition(debugTarget);
-            if (definition == null || definition.type() != FilterType.LUT3D || definition.lutData() == null) {
-                throw new IllegalStateException("Debug target is not a valid LUT filter");
+            if (definition == null || !definition.debugSupported()) throw new IllegalStateException("Filter does not support debug tuning");
+            if (intensity != null) intensity.set(debugSettings.intensity());
+            if (definition.type() == FilterType.LUT3D) {
+                if (definition.lutData() == null) throw new IllegalStateException("Missing LUT data");
+                float[] min = definition.lutData().domainMin();
+                float[] max = definition.lutData().domainMax();
+                lutDomainMin.set(min[0], min[1], min[2]);
+                lutDomainMax.set(max[0], max[1], max[2]);
             }
-            intensity.set(debugSettings.intensity());
-            float[] min = definition.lutData().domainMin();
-            float[] max = definition.lutData().domainMax();
-            lutDomainMin.set(min[0], min[1], min[2]);
-            lutDomainMax.set(max[0], max[1], max[2]);
-            setLutAdjustments(debugSettings);
+            setAdjustments(debugSettings);
             RenderSystem.disableBlend();
             RenderSystem.disableDepthTest();
             RenderSystem.disableCull();
@@ -228,7 +232,6 @@ public final class WorldFilterRenderer {
                 throw new IllegalStateException("Prismod shader link failed");
             }
             intensity = pass.getEffect().getUniform("Intensity");
-            if (intensity == null) throw new IllegalStateException("Missing Intensity uniform");
             lutDomainMin = pass.getEffect().getUniform("LutDomainMin");
             lutDomainMax = pass.getEffect().getUniform("LutDomainMax");
             exposure = pass.getEffect().getUniform("Exposure");
@@ -268,6 +271,7 @@ public final class WorldFilterRenderer {
     public static void reload() {
         RenderSystem.assertOnRenderThread();
         releaseChain();
+        DEBUG_PRESETS.clearCache();
         PROFILER.close();
         FilterManager.get().setRenderAvailable(true);
         debugError = null;
@@ -276,6 +280,7 @@ public final class WorldFilterRenderer {
     public static void close() {
         RenderSystem.assertOnRenderThread();
         releaseChain();
+        DEBUG_PRESETS.clearCache();
         closeDebugTargets();
         PROFILER.close();
     }
@@ -308,7 +313,7 @@ public final class WorldFilterRenderer {
         }
     }
 
-    private static void setLutAdjustments(LutDebugSettings settings) {
+    private static void setAdjustments(FilterDebugSettings settings) {
         if (exposure != null) exposure.set(settings.exposure());
         if (contrast != null) contrast.set(settings.contrast());
         if (highlights != null) highlights.set(settings.highlights());
@@ -319,20 +324,26 @@ public final class WorldFilterRenderer {
         if (gamma != null) gamma.set(settings.gamma());
     }
 
-    public static void beginDebugSession(FilterKey key, LutDebugSettings settings) {
+    private static FilterDebugSettings debugSettingsFor(FilterDefinition definition, FilterKey key) {
+        if (definition == null || !definition.debugSupported()) return FilterDebugSettings.defaults();
+        String namespace = definition.packNamespace() == null ? key.id().getNamespace() : definition.packNamespace();
+        return DEBUG_PRESETS.get(namespace, key.id().getPath());
+    }
+
+    public static void beginDebugSession(FilterKey key, FilterDebugSettings settings) {
         RenderSystem.assertOnRenderThread();
         FilterDefinition definition = key == null ? null : FilterRegistry.get().definition(key);
-        if (definition == null || definition.type() != FilterType.LUT3D) throw new IllegalArgumentException("Not a LUT filter");
+        if (definition == null || !definition.debugSupported()) throw new IllegalArgumentException("Filter does not support debug tuning");
         debugTarget = key;
-        debugSettings = settings == null ? LutDebugSettings.defaults() : settings;
+        debugSettings = settings == null ? FilterDebugSettings.defaults() : settings;
         debugError = null;
     }
 
-    public static void updateDebugSettings(LutDebugSettings settings) {
-        debugSettings = settings == null ? LutDebugSettings.defaults() : settings;
+    public static void updateDebugSettings(FilterDebugSettings settings) {
+        debugSettings = settings == null ? FilterDebugSettings.defaults() : settings;
     }
 
-    public static LutDebugSettings debugSettings() { return debugSettings; }
+    public static FilterDebugSettings debugSettings() { return debugSettings; }
     public static FilterKey debugTarget() { return debugTarget; }
     public static String debugError() { return debugError; }
     public static int debugOriginalTexture() { return debugOriginal == null ? 0 : debugOriginal.getColorTextureId(); }
@@ -341,7 +352,7 @@ public final class WorldFilterRenderer {
     public static void endDebugSession() {
         RenderSystem.assertOnRenderThread();
         debugTarget = null;
-        debugSettings = LutDebugSettings.defaults();
+        debugSettings = FilterDebugSettings.defaults();
         debugError = null;
         releaseChain();
         closeDebugTargets();

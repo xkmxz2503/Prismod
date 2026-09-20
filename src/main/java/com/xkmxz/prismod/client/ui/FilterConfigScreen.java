@@ -111,9 +111,9 @@ public final class FilterConfigScreen extends Screen {
             StrengthSlider strength = addRenderableWidget(new StrengthSlider(id, sliderLeft, listTop, sliderWidth));
             Button debug = null;
             FilterDefinition definition = FilterRegistry.get().definition(id);
-            if (definition != null && definition.type() == FilterType.LUT3D) {
-                debug = addRenderableWidget(Button.builder(Component.literal("调试"), button -> openLutDebug(id))
-                        .bounds(debugLeft, listTop, 38, 20).tooltip(Tooltip.create(Component.literal("打开 LUT 调试界面"))).build());
+            if (definition != null && definition.debugSupported()) {
+                debug = addRenderableWidget(Button.builder(Component.literal("调试"), button -> openFilterDebug(id))
+                        .bounds(debugLeft, listTop, 38, 20).tooltip(Tooltip.create(Component.literal("打开滤镜调试界面"))).build());
             }
             Button up = addRenderableWidget(Button.builder(Component.literal("↑"), button -> move(id, -1))
                     .bounds(upLeft, listTop, 18, 20)
@@ -138,7 +138,7 @@ public final class FilterConfigScreen extends Screen {
         cancel.setTabOrderGroup(100);
     }
 
-    private void openLutDebug(FilterKey key) {
+    private void openFilterDebug(FilterKey key) {
         if (minecraft != null && minecraft.level != null) {
             minecraft.setScreen(new LutDebugScreen(this, key));
         }

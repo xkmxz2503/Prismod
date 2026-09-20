@@ -17,23 +17,24 @@ public record FilterDefinition(
         float defaultStrength,
         boolean builtIn,
         String packNamespace,
-        Lut3dData lutData
+        Lut3dData lutData,
+        boolean debugSupported
 ) {
     public FilterDefinition(FilterKey key, ResourceLocation postEffect, String translationKey,
                             float defaultStrength, boolean builtIn) {
         this(key, postEffect == null ? FilterType.POST_CHAIN : FilterType.POST_CHAIN, postEffect,
-                postEffect, translationKey, defaultStrength, builtIn, null, null);
+                postEffect, translationKey, defaultStrength, builtIn, null, null, false);
     }
 
     public FilterDefinition(FilterKey key, ResourceLocation postEffect, String translationKey,
                             float defaultStrength, boolean builtIn, String packNamespace) {
         this(key, FilterType.POST_CHAIN, postEffect, postEffect, translationKey, defaultStrength,
-                builtIn, packNamespace, null);
+                builtIn, packNamespace, null, false);
     }
 
     public FilterDefinition(FilterKey key, FilterType type, ResourceLocation postEffect,
                             ResourceLocation source, String translationKey, float defaultStrength,
-                            boolean builtIn, String packNamespace, Lut3dData lutData) {
+                            boolean builtIn, String packNamespace, Lut3dData lutData, boolean debugSupported) {
         this.key = key;
         this.type = type;
         this.postEffect = postEffect;
@@ -43,6 +44,7 @@ public record FilterDefinition(
         this.builtIn = builtIn;
         this.packNamespace = packNamespace;
         this.lutData = lutData;
+        this.debugSupported = debugSupported;
     }
 
     public Component displayName() {

@@ -1,11 +1,12 @@
 package com.xkmxz.prismod.client.ui;
 
-import com.xkmxz.prismod.client.config.LutPresetStore;
+import com.xkmxz.prismod.client.config.FilterDebugPresetStore;
 import com.xkmxz.prismod.client.filter.FilterDefinition;
 import com.xkmxz.prismod.client.filter.FilterKey;
 import com.xkmxz.prismod.client.filter.FilterRegistry;
 import com.xkmxz.prismod.client.filter.Lut3dData;
-import com.xkmxz.prismod.client.filter.LutDebugSettings;
+import com.xkmxz.prismod.client.filter.FilterDebugSettings;
+import com.xkmxz.prismod.client.filter.FilterType;
 import com.xkmxz.prismod.client.render.WorldFilterRenderer;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -27,13 +28,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/** LUT 专用运行时预览与基础调色页面。普通滤镜选择和强度不会被此页修改。 */
+/** 通用滤镜运行时预览与基础调色页面。普通滤镜选择和强度不会被此页修改。 */
 public final class LutDebugScreen extends Screen {
     private final Screen parent;
     private final FilterKey key;
     private final FilterDefinition definition;
-    private final LutPresetStore presets = LutPresetStore.createDefault();
-    private LutDebugSettings settings;
+    private final FilterDebugPresetStore presets = FilterDebugPresetStore.createDefault();
+    private FilterDebugSettings settings;
     private final List<SettingSlider> sliders = new ArrayList<>();
     private int panelLeft;
     private int panelTop;
@@ -50,17 +51,18 @@ public final class LutDebugScreen extends Screen {
     private boolean draggingDivider;
 
     public LutDebugScreen(Screen parent, FilterKey key) {
-        super(Component.literal("LUT 调试"));
+        super(Component.literal("滤镜调试"));
         this.parent = parent;
         this.key = key;
         this.definition = FilterRegistry.get().definition(key);
-        this.settings = presets.get(key.serializedName());
+        String namespace = definition == null || definition.packNamespace() == null ? key.id().getNamespace() : definition.packNamespace();
+        this.settings = presets.get(namespace, key.id().getPath());
     }
 
     @Override
     protected void init() {
         sliders.clear();
-        if (minecraft == null || minecraft.level == null || definition == null || definition.lutData() == null) {
+        if (minecraft == null || minecraft.level == null || definition == null || !definition.debugSupported()) {
             onClose();
             return;
         }
@@ -127,16 +129,19 @@ public final class LutDebugScreen extends Screen {
         for (int i = 0; i < Math.min(sliders.size(), values.length); i++) {
             values[i] = sliders.get(i).current();
         }
-        settings = new LutDebugSettings(values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8]);
+        settings = new FilterDebugSettings(values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8]);
         WorldFilterRenderer.updateDebugSettings(settings);
     }
 
     private void savePreset() {
-        try { presets.put(key.serializedName(), settings); } catch (IOException ignored) { }
+        try {
+            String namespace = definition.packNamespace() == null ? key.id().getNamespace() : definition.packNamespace();
+            presets.put(namespace, key.id().getPath(), settings);
+        } catch (IOException ignored) { }
     }
 
     private void resetDefaults() {
-        settings = LutDebugSettings.defaults();
+        settings = FilterDebugSettings.defaults();
         for (SettingSlider slider : sliders) slider.resetFromSettings(settings);
         WorldFilterRenderer.updateDebugSettings(settings);
     }
@@ -147,13 +152,15 @@ public final class LutDebugScreen extends Screen {
 
     private String diagnostics() {
         Lut3dData lut = definition == null ? null : definition.lutData();
-        return "Prismod LUT 调试\n滤镜: " + key.serializedName()
+        String kind = definition != null && definition.type() == FilterType.LUT3D ? "LUT" : "PostChain";
+        return "Prismod 滤镜调试\n滤镜: " + key.serializedName()
+                + "\n类型: " + kind
                 + "\n资源包: " + (definition == null ? "unknown" : definition.packNamespace())
                 + "\n文件: " + (definition == null || definition.source() == null ? "unknown" : definition.source().getPath())
                 + "\nLUT_3D_SIZE: " + (lut == null ? "unknown" : Lut3dData.SIZE)
                 + "\n数据点: " + (lut == null ? "unknown" : Lut3dData.POINT_COUNT)
                 + "\n色彩空间: sRGB\nDOMAIN_MIN/MAX: " + domain(lut)
-                + "\n解析状态: " + (lut == null ? "失败" : "成功")
+                + "\n解析状态: " + (definition == null ? "失败" : kind.equals("LUT") ? (lut == null ? "失败" : "成功") : "成功")
                 + "\n纹理上传: " + (WorldFilterRenderer.debugProcessedTexture() == 0 ? "等待" : "成功")
                 + "\n最近错误: " + (WorldFilterRenderer.debugError() == null ? "无" : WorldFilterRenderer.debugError());
     }
@@ -212,7 +219,7 @@ public final class LutDebugScreen extends Screen {
         }
         graphics.fill(split - 1, previewTop, split + 1, previewBottom, 0xFFFFFFFF);
         graphics.drawString(font, Component.literal("原始"), previewLeft + 5, previewTop + 5, 0xFFFFFF);
-        graphics.drawString(font, Component.literal("LUT 预览"), Math.max(split + 5, previewLeft + 5), previewTop + 5, 0xFFFFFF);
+        graphics.drawString(font, Component.literal(definition != null && definition.type() == FilterType.LUT3D ? "LUT 预览" : "滤镜预览"), Math.max(split + 5, previewLeft + 5), previewTop + 5, 0xFFFFFF);
         graphics.drawString(font, Component.literal("拖动白线调整分屏"), previewLeft, previewBottom + 5, 0xAAAAAA);
     }
 
@@ -300,7 +307,7 @@ public final class LutDebugScreen extends Screen {
 
         float current() { return current; }
         void setCurrent(float value) { current = value; this.value = normalize(value, min, max); current = Mth.lerp((float) this.value, min, max); updateMessage(); }
-        void resetFromSettings(LutDebugSettings value) {
+        void resetFromSettings(FilterDebugSettings value) {
             float next = switch (name) {
                 case "预览强度" -> value.intensity(); case "曝光 EV" -> value.exposure(); case "对比度" -> value.contrast();
                 case "高光" -> value.highlights(); case "阴影" -> value.shadows(); case "饱和度" -> value.saturation();

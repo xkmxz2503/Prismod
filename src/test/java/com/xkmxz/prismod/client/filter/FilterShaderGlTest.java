@@ -242,6 +242,14 @@ class FilterShaderGlTest {
                 glUniform2f(uniform("ScreenSize"), width, height);
                 glUniform1i(uniform("DiffuseSampler"), 0);
                 intensity = uniform("Intensity");
+                glUniform1f(uniform("Exposure"), 0.0F);
+                glUniform1f(uniform("Contrast"), 0.0F);
+                glUniform1f(uniform("Highlights"), 0.0F);
+                glUniform1f(uniform("Shadows"), 0.0F);
+                glUniform1f(uniform("Saturation"), 1.0F);
+                glUniform1f(uniform("Temperature"), 0.0F);
+                glUniform1f(uniform("Tint"), 0.0F);
+                glUniform1f(uniform("Gamma"), 1.0F);
                 assertNoGlError(filter + " 初始化");
             } catch (IOException | RuntimeException | Error failure) {
                 close();

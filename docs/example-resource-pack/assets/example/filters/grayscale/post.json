@@ -1,4 +1,4 @@
 {
   "targets": ["swap"],
-  "passes": [{"name":"example:grayscale","intarget":"minecraft:main","outtarget":"swap","uniforms":[{"name":"Intensity","type":"float","values":[1]}]}]
+  "passes": [{"name":"example:grayscale","intarget":"minecraft:main","outtarget":"swap","uniforms":[{"name":"Intensity","type":"float","values":[1]},{"name":"Exposure","type":"float","values":[0]},{"name":"Contrast","type":"float","values":[0]},{"name":"Highlights","type":"float","values":[0]},{"name":"Shadows","type":"float","values":[0]},{"name":"Saturation","type":"float","values":[1]},{"name":"Temperature","type":"float","values":[0]},{"name":"Tint","type":"float","values":[0]},{"name":"Gamma","type":"float","values":[1]}]}]
 }

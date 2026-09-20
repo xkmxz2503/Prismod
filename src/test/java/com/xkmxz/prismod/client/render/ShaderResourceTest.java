@@ -40,12 +40,15 @@ public class ShaderResourceTest {
             String name = uniform.get("name").getAsString();
             assertNull(uniforms.put(name, uniform), "uniform 不应重名: " + name);
         }
-        assertEquals(Set.of("ProjMat", "OutSize", "ScreenSize", "Intensity"), uniforms.keySet());
+        assertEquals(Set.of("ProjMat", "OutSize", "ScreenSize", "Intensity", "Exposure", "Contrast", "Highlights", "Shadows", "Saturation", "Temperature", "Tint", "Gamma"), uniforms.keySet());
         assertUniform(uniforms.get("ProjMat"), "matrix4x4", 16);
         assertUniform(uniforms.get("OutSize"), "float", 2);
         assertUniform(uniforms.get("ScreenSize"), "float", 2);
         assertUniform(uniforms.get("Intensity"), "float", 1);
         assertEquals(1.0F, uniforms.get("Intensity").getAsJsonArray("values").get(0).getAsFloat());
+        for (String name : Set.of("Exposure", "Contrast", "Highlights", "Shadows", "Temperature", "Tint")) assertUniform(uniforms.get(name), "float", 1);
+        assertUniform(uniforms.get("Saturation"), "float", 1);
+        assertUniform(uniforms.get("Gamma"), "float", 1);
 
         JsonObject post = json("filters/" + filter + "/post.json");
         assertEquals(1, post.getAsJsonArray("targets").size());
@@ -57,11 +60,9 @@ public class ShaderResourceTest {
         assertEquals("minecraft:main", pass.get("intarget").getAsString());
         assertEquals("swap", pass.get("outtarget").getAsString());
         JsonArray passUniforms = pass.getAsJsonArray("uniforms");
-        assertEquals(1, passUniforms.size());
-        JsonObject intensity = passUniforms.get(0).getAsJsonObject();
-        assertEquals("Intensity", intensity.get("name").getAsString());
-        assertEquals(1, intensity.getAsJsonArray("values").size());
-        assertEquals(1.0F, intensity.getAsJsonArray("values").get(0).getAsFloat());
+        assertEquals(9, passUniforms.size());
+        assertEquals(Set.of("Intensity", "Exposure", "Contrast", "Highlights", "Shadows", "Saturation", "Temperature", "Tint", "Gamma"),
+                passUniforms.asList().stream().map(e -> e.getAsJsonObject().get("name").getAsString()).collect(java.util.stream.Collectors.toSet()));
     }
 
     private static void assertUniform(JsonObject uniform, String type, int count) {
