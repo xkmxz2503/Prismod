@@ -51,7 +51,7 @@ public final class LutDebugScreen extends Screen {
     private boolean draggingDivider;
 
     public LutDebugScreen(Screen parent, FilterKey key) {
-        super(Component.literal("滤镜调试"));
+        super(Component.translatable("screen.prismod.filter_debug.title"));
         this.parent = parent;
         this.key = key;
         this.definition = FilterRegistry.get().definition(key);
@@ -80,22 +80,22 @@ public final class LutDebugScreen extends Screen {
         settingsBottom = buttonY - 12;
         int sliderLeft = panelLeft + 12;
         int sliderWidth = Math.max(140, previewRight - sliderLeft);
-        addSetting("预览强度", 0, 1, settings.intensity(), sliderLeft, 0, sliderWidth);
-        addSetting("曝光 EV", -2, 2, settings.exposure(), sliderLeft, 0, sliderWidth);
-        addSetting("对比度", -1, 1, settings.contrast(), sliderLeft, 0, sliderWidth);
-        addSetting("高光", -1, 1, settings.highlights(), sliderLeft, 0, sliderWidth);
-        addSetting("阴影", -1, 1, settings.shadows(), sliderLeft, 0, sliderWidth);
-        addSetting("饱和度", 0, 2, settings.saturation(), sliderLeft, 0, sliderWidth);
-        addSetting("色温", -1, 1, settings.temperature(), sliderLeft, 0, sliderWidth);
-        addSetting("色调", -1, 1, settings.tint(), sliderLeft, 0, sliderWidth);
-        addSetting("伽马", 0.1F, 3, settings.gamma(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.intensity", 0, 1, settings.intensity(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.exposure", -2, 2, settings.exposure(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.contrast", -1, 1, settings.contrast(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.highlights", -1, 1, settings.highlights(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.shadows", -1, 1, settings.shadows(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.saturation", 0, 2, settings.saturation(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.temperature", -1, 1, settings.temperature(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.tint", -1, 1, settings.tint(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.gamma", 0.1F, 3, settings.gamma(), sliderLeft, 0, sliderWidth);
         arrangeSettings();
 
         int buttonWidth = (panelWidth - 28) / 4;
-        addRenderableWidget(Button.builder(Component.literal("保存预设"), button -> savePreset()).bounds(panelLeft + 12, buttonY, buttonWidth, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("恢复默认"), button -> resetDefaults()).bounds(panelLeft + 16 + buttonWidth, buttonY, buttonWidth, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("复制诊断"), button -> copyDiagnostics()).bounds(panelLeft + 20 + buttonWidth * 2, buttonY, buttonWidth, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("关闭"), button -> onClose()).bounds(panelLeft + 24 + buttonWidth * 3, buttonY, buttonWidth, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.filter_debug.save"), button -> savePreset()).bounds(panelLeft + 12, buttonY, buttonWidth, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.filter_debug.reset"), button -> resetDefaults()).bounds(panelLeft + 16 + buttonWidth, buttonY, buttonWidth, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.filter_debug.copy"), button -> copyDiagnostics()).bounds(panelLeft + 20 + buttonWidth * 2, buttonY, buttonWidth, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.close"), button -> onClose()).bounds(panelLeft + 24 + buttonWidth * 3, buttonY, buttonWidth, 20).build());
     }
 
     private void addSetting(String name, float min, float max, float value, int x, int y, int width) {
@@ -152,21 +152,35 @@ public final class LutDebugScreen extends Screen {
 
     private String diagnostics() {
         Lut3dData lut = definition == null ? null : definition.lutData();
-        String kind = definition != null && definition.type() == FilterType.LUT3D ? "LUT" : "PostChain";
-        return "Prismod 滤镜调试\n滤镜: " + key.serializedName()
-                + "\n类型: " + kind
-                + "\n资源包: " + (definition == null ? "unknown" : definition.packNamespace())
-                + "\n文件: " + (definition == null || definition.source() == null ? "unknown" : definition.source().getPath())
-                + "\nLUT_3D_SIZE: " + (lut == null ? "unknown" : Lut3dData.SIZE)
-                + "\n数据点: " + (lut == null ? "unknown" : Lut3dData.POINT_COUNT)
-                + "\n色彩空间: sRGB\nDOMAIN_MIN/MAX: " + domain(lut)
-                + "\n解析状态: " + (definition == null ? "失败" : kind.equals("LUT") ? (lut == null ? "失败" : "成功") : "成功")
-                + "\n纹理上传: " + (WorldFilterRenderer.debugProcessedTexture() == 0 ? "等待" : "成功")
-                + "\n最近错误: " + (WorldFilterRenderer.debugError() == null ? "无" : WorldFilterRenderer.debugError());
+        String kind = text(definition != null && definition.type() == FilterType.LUT3D
+                ? "screen.prismod.filter_debug.type_lut" : "screen.prismod.filter_debug.type_post_chain");
+        String displayName = definition == null ? key.serializedName() : definition.displayName().getString();
+        String unknown = text("screen.prismod.filter_debug.unknown");
+        String parsed = definition == null || (definition.type() == FilterType.LUT3D && lut == null)
+                ? text("screen.prismod.filter_debug.failed") : text("screen.prismod.filter_debug.success");
+        return text("screen.prismod.filter_debug.diagnostics_title")
+                + "\n" + text("screen.prismod.filter_debug.filter", key.serializedName())
+                + "\n" + text("screen.prismod.filter_debug.name", displayName)
+                + "\n" + text("screen.prismod.filter_debug.type", kind)
+                + "\n" + text("screen.prismod.filter_debug.pack", definition == null || definition.packNamespace() == null ? unknown : definition.packNamespace())
+                + "\n" + text("screen.prismod.filter_debug.file", definition == null || definition.source() == null ? unknown : definition.source().getPath())
+                + "\n" + text("screen.prismod.filter_debug.lut_size", lut == null ? unknown : Lut3dData.SIZE)
+                + "\n" + text("screen.prismod.filter_debug.data_points", lut == null ? unknown : Lut3dData.POINT_COUNT)
+                + "\n" + text("screen.prismod.filter_debug.color_space", text("screen.prismod.filter_debug.srgb"))
+                + "\n" + text("screen.prismod.filter_debug.domain", domain(lut))
+                + "\n" + text("screen.prismod.filter_debug.parse_status", parsed)
+                + "\n" + text("screen.prismod.filter_debug.texture_upload", WorldFilterRenderer.debugProcessedTexture() == 0
+                ? text("screen.prismod.filter_debug.waiting") : text("screen.prismod.filter_debug.success"))
+                + "\n" + text("screen.prismod.filter_debug.latest_error", WorldFilterRenderer.debugError() == null
+                ? text("screen.prismod.filter_debug.none") : WorldFilterRenderer.debugError());
+    }
+
+    private static String text(String key, Object... args) {
+        return Component.translatable(key, args).getString();
     }
 
     private static String domain(Lut3dData lut) {
-        if (lut == null) return "unknown";
+        if (lut == null) return text("screen.prismod.filter_debug.unknown");
         float[] min = lut.domainMin(), max = lut.domainMax();
         return "(" + min[0] + ", " + min[1] + ", " + min[2] + ") / (" + max[0] + ", " + max[1] + ", " + max[2] + ")";
     }
@@ -185,7 +199,7 @@ public final class LutDebugScreen extends Screen {
         graphics.fill(panelLeft, panelTop, panelLeft + panelWidth, panelTop + panelHeight, 0xDD101318);
         graphics.drawString(font, title, panelLeft + 12, panelTop + 10, 0xFFFFFF);
         drawPreview(graphics);
-        graphics.drawString(font, Component.literal("调色参数（滚动查看更多）"), panelLeft + 12, settingsTop - 16, 0xCCCCCC);
+        graphics.drawString(font, Component.translatable("screen.prismod.filter_debug.settings_hint"), panelLeft + 12, settingsTop - 16, 0xCCCCCC);
         graphics.fill(panelLeft + 4, settingsTop - 2, previewRight + 4, settingsBottom, 0x33111111);
         int contentHeight = sliders.size() * 23;
         int maxScroll = Math.max(0, contentHeight - Math.max(0, settingsBottom - settingsTop));
@@ -218,9 +232,10 @@ public final class LutDebugScreen extends Screen {
                     previewBottom - previewTop, divider, 1.0F, 1.0F, 0.0F);
         }
         graphics.fill(split - 1, previewTop, split + 1, previewBottom, 0xFFFFFFFF);
-        graphics.drawString(font, Component.literal("原始"), previewLeft + 5, previewTop + 5, 0xFFFFFF);
-        graphics.drawString(font, Component.literal(definition != null && definition.type() == FilterType.LUT3D ? "LUT 预览" : "滤镜预览"), Math.max(split + 5, previewLeft + 5), previewTop + 5, 0xFFFFFF);
-        graphics.drawString(font, Component.literal("拖动白线调整分屏"), previewLeft, previewBottom + 5, 0xAAAAAA);
+        graphics.drawString(font, Component.translatable("screen.prismod.filter_debug.original"), previewLeft + 5, previewTop + 5, 0xFFFFFF);
+        graphics.drawString(font, Component.translatable(definition != null && definition.type() == FilterType.LUT3D
+                ? "screen.prismod.filter_debug.lut_preview" : "screen.prismod.filter_debug.filter_preview"), Math.max(split + 5, previewLeft + 5), previewTop + 5, 0xFFFFFF);
+        graphics.drawString(font, Component.translatable("screen.prismod.filter_debug.split_hint"), previewLeft, previewBottom + 5, 0xAAAAAA);
     }
 
     private void drawDiagnostics(GuiGraphics graphics, int x, int y) {
@@ -293,28 +308,28 @@ public final class LutDebugScreen extends Screen {
     }
 
     private final class SettingSlider extends AbstractSliderButton {
-        private final String name;
+        private final String nameKey;
         private final float min;
         private final float max;
         private float current;
 
-        SettingSlider(String name, float min, float max, float value, int x, int y, int width) {
+        SettingSlider(String nameKey, float min, float max, float value, int x, int y, int width) {
             super(x, y, width, 20, Component.empty(), normalize(value, min, max));
-            this.name = name; this.min = min; this.max = max; this.current = value;
+            this.nameKey = nameKey; this.min = min; this.max = max; this.current = value;
             updateMessage();
-            setTooltip(Tooltip.create(Component.literal(name)));
+            setTooltip(Tooltip.create(Component.translatable(nameKey)));
         }
 
         float current() { return current; }
         void setCurrent(float value) { current = value; this.value = normalize(value, min, max); current = Mth.lerp((float) this.value, min, max); updateMessage(); }
         void resetFromSettings(FilterDebugSettings value) {
-            float next = switch (name) {
-                case "预览强度" -> value.intensity(); case "曝光 EV" -> value.exposure(); case "对比度" -> value.contrast();
-                case "高光" -> value.highlights(); case "阴影" -> value.shadows(); case "饱和度" -> value.saturation();
-                case "色温" -> value.temperature(); case "色调" -> value.tint(); default -> value.gamma();
+            float next = switch (nameKey) {
+                case "screen.prismod.filter_debug.intensity" -> value.intensity(); case "screen.prismod.filter_debug.exposure" -> value.exposure(); case "screen.prismod.filter_debug.contrast" -> value.contrast();
+                case "screen.prismod.filter_debug.highlights" -> value.highlights(); case "screen.prismod.filter_debug.shadows" -> value.shadows(); case "screen.prismod.filter_debug.saturation" -> value.saturation();
+                case "screen.prismod.filter_debug.temperature" -> value.temperature(); case "screen.prismod.filter_debug.tint" -> value.tint(); default -> value.gamma();
             }; setCurrent(next);
         }
-        @Override protected void updateMessage() { setMessage(Component.literal(name + "：" + String.format(java.util.Locale.ROOT, "%.2f", current))); }
+        @Override protected void updateMessage() { setMessage(Component.translatable("screen.prismod.filter_debug.slider_value", Component.translatable(nameKey), String.format(java.util.Locale.ROOT, "%.2f", current))); }
         @Override protected void applyValue() { current = Mth.lerp((float) value, min, max); updateMessage(); applySlider(); }
     }
 

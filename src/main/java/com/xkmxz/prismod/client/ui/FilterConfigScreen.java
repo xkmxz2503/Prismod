@@ -112,8 +112,8 @@ public final class FilterConfigScreen extends Screen {
             Button debug = null;
             FilterDefinition definition = FilterRegistry.get().definition(id);
             if (definition != null && definition.debugSupported()) {
-                debug = addRenderableWidget(Button.builder(Component.literal("调试"), button -> openFilterDebug(id))
-                        .bounds(debugLeft, listTop, 38, 20).tooltip(Tooltip.create(Component.literal("打开滤镜调试界面"))).build());
+                debug = addRenderableWidget(Button.builder(Component.translatable("screen.prismod.filter_debug.open"), button -> openFilterDebug(id))
+                        .bounds(debugLeft, listTop, 38, 20).tooltip(Tooltip.create(Component.translatable("screen.prismod.filter_debug.open_hint"))).build());
             }
             Button up = addRenderableWidget(Button.builder(Component.literal("↑"), button -> move(id, -1))
                     .bounds(upLeft, listTop, 18, 20)
@@ -153,7 +153,8 @@ public final class FilterConfigScreen extends Screen {
         FilterDefinition definition = FilterRegistry.get().definition(id);
         Component name = definition == null ? Component.literal(id.serializedName()) : definition.displayName();
         String failure = FilterRegistry.get().failure(id);
-        return definition != null && failure == null ? name : Component.literal(name.getString() + " (unavailable)");
+        return definition != null && failure == null ? name
+                : Component.translatable("screen.prismod.filter_unavailable", name);
     }
 
     private Component selectionLabel(FilterKey id) {
