@@ -4,6 +4,7 @@
   "namespace": "example",
   "name": "Example Filters",
   "filters": [
-    {"id": "grayscale", "path": "assets/example/filters/grayscale"}
+    {"id": "grayscale", "path": "assets/example/filters/grayscale"},
+    {"id": "cinematic", "path": "assets/example/filters/cinematic"}
   ]
 }

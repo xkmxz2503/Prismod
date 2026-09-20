@@ -72,6 +72,16 @@ class PrismodPackLoaderTest {
         manager.close();
     }
 
+    @Test void examplePostChainProvidesScreenCoordinateUniforms() throws IOException {
+        Path program = Path.of("docs/example-resource-pack/assets/example/filters/grayscale/program/grayscale.json");
+        Path vertex = Path.of("docs/example-resource-pack/assets/example/filters/grayscale/program/fullscreen.vsh");
+        com.google.gson.JsonObject json = JsonParser.parseString(Files.readString(program)).getAsJsonObject();
+        assertTrue(json.getAsJsonArray("uniforms").asList().stream()
+                .map(element -> element.getAsJsonObject().get("name").getAsString())
+                .toList().containsAll(List.of("ProjMat", "OutSize", "ScreenSize", "Intensity")));
+        assertTrue(Files.readString(vertex).contains("Position.xy / OutSize"));
+    }
+
     private static String manifest(String namespace, String id) { return "{\"schema\":\"prismod.resource_pack\",\"format_version\":1,\"namespace\":\"" + namespace + "\",\"filters\":[{\"id\":\"" + id + "\",\"path\":\"assets/" + namespace + "/filters/" + id + "\"}]}"; }
     private static void put(ZipOutputStream zip, String name, String content) throws IOException { zip.putNextEntry(new ZipEntry(name)); zip.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8)); zip.closeEntry(); }
 }

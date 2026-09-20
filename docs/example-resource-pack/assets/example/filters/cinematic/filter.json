@@ -1,0 +1,9 @@
+{
+  "schema": "prismod.filter",
+  "format_version": 1,
+  "type": "lut3d",
+  "display_name": "filter.example.cinematic",
+  "source": "lut.cube",
+  "color_space": "sRGB",
+  "default_strength": 1.0
+}
