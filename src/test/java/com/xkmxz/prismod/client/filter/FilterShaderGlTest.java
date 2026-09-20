@@ -348,7 +348,7 @@ class FilterShaderGlTest {
     private static final String[] FILTERS = {"grayscale", "warm", "cool", "vintage", "night_vision"};
 
     private static String resource(String name) throws IOException {
-        String path = "/assets/prismod/" + name;
+        String path = "/assets/prismod/custom/prismod_default_filters/assets/prismod/" + name;
         try (InputStream input = FilterShaderGlTest.class.getResourceAsStream(path)) {
             assertNotNull(input, "缺少资源: " + path);
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);

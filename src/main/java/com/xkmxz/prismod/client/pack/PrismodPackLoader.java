@@ -56,11 +56,10 @@ public final class PrismodPackLoader {
     private static final String RESOURCE_PACKS_DIRECTORY = "prismod/resourcepacks";
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Set<String> RESERVED_NAMESPACES = Set.of("minecraft", "prismod");
-    private static final String BUNDLED_DIRECTORY = "prismod/builtin";
-    private static final List<String> BUNDLED_RESOURCE_DIRECTORIES = List.of(
-            "assets/prismod/filters",
-            "assets/prismod/lang",
-            "assets/prismod/runtime");
+    /** 配置目录中的默认包，目录本身就是一个完整的 Prismod v1 资源包。 */
+    private static final String BUNDLED_DIRECTORY = "prismod/builtin/prismod_default_filters";
+    /** 模组 jar 中的 TACZ 风格自包含默认包。 */
+    private static final String BUNDLED_SOURCE_DIRECTORY = "assets/prismod/custom/prismod_default_filters";
     private static PrismodResourceManager activeResources;
 
     private PrismodPackLoader() { }
@@ -166,38 +165,31 @@ public final class PrismodPackLoader {
     }
 
     /**
-     * 与 TACZ 默认枪包相同：把模组内的默认包导出到配置目录，之后完全按目录资源包读取。
-     * 只补齐不存在的文件，避免重启时覆盖用户对默认滤镜包的编辑。
+     * 与 TACZ 默认枪包相同：把模组内 custom 目录中的完整默认包导出到配置目录，之后完全
+     * 按目录资源包读取。只补齐不存在的文件，避免重启时覆盖用户对默认滤镜包的编辑。
      */
     private static void exportBundledPack(Path target) throws IOException {
         IModFile modFile = ModList.get().getModContainerById("prismod")
                 .map(container -> container.getModInfo().getOwningFile().getFile())
                 .orElse(null);
         if (modFile != null) {
-            Path manifest = modFile.findResource(MANIFEST_FILE);
-            if (Files.isRegularFile(manifest)) {
-                Path sourceRoot = manifest.getParent();
-                copyIfMissing(manifest, target.resolve(MANIFEST_FILE));
-                for (String directory : BUNDLED_RESOURCE_DIRECTORIES) {
-                    Path source = sourceRoot.resolve(directory);
-                    if (Files.isDirectory(source)) copyTreeIfMissing(source, target.resolve(directory));
-                }
+            Path sourceRoot = modFile.findResource(BUNDLED_SOURCE_DIRECTORY);
+            if (Files.isDirectory(sourceRoot)
+                    && Files.isRegularFile(sourceRoot.resolve(MANIFEST_FILE))) {
+                copyTreeIfMissing(sourceRoot, target);
                 return;
             }
         }
 
-        // 开发环境或测试环境没有可查询的 Forge IModFile 时，回退到 classpath 文件资源。
-        java.net.URL manifestUrl = PrismodPackLoader.class.getResource("/" + MANIFEST_FILE);
+        // 开发环境或测试环境没有可查询的 Forge IModFile 时，仅用 classpath 找到默认包源目录。
+        java.net.URL manifestUrl = PrismodPackLoader.class.getResource(
+                "/" + BUNDLED_SOURCE_DIRECTORY + "/" + MANIFEST_FILE);
         if (manifestUrl == null || !"file".equalsIgnoreCase(manifestUrl.getProtocol())) {
-            throw new IOException("missing bundled prismod.pack.json source");
+            throw new IOException("missing bundled Prismod default pack source");
         }
         try {
             Path sourceRoot = java.nio.file.Paths.get(manifestUrl.toURI()).getParent();
-            copyIfMissing(sourceRoot.resolve(MANIFEST_FILE), target.resolve(MANIFEST_FILE));
-            for (String directory : BUNDLED_RESOURCE_DIRECTORIES) {
-                Path source = sourceRoot.resolve(directory);
-                if (Files.isDirectory(source)) copyTreeIfMissing(source, target.resolve(directory));
-            }
+            copyTreeIfMissing(sourceRoot, target);
         } catch (java.net.URISyntaxException exception) {
             throw new IOException("invalid bundled resource URL", exception);
         }
