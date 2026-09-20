@@ -8,12 +8,22 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.List;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.PackResources;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PrismodPackLoaderTest {
     @TempDir
@@ -112,6 +122,54 @@ class PrismodPackLoaderTest {
                 .resolve("other_namespace").resolve("filter.json"), "{}");
 
         PrismodPackLoader.validateContents(directoryPack, "custom_pack");
+    }
+
+    @Test
+    void privateResourceManagerReadsPackWithoutMinecraftRepository() throws Exception {
+        Path pack = temp.resolve("private-pack");
+        Path resource = pack.resolve("assets/example/shaders/post/debug.json");
+        Files.createDirectories(resource.getParent());
+        Files.writeString(resource, "{\"targets\":[\"swap\"]}");
+        PrismodPackLoader.PackCandidate candidate = new PrismodPackLoader.PackCandidate(
+                pack, new PrismodPackLoader.PackMetadata("example", null, Map.of()));
+
+        try (PrismodPackLoader.PrismodResourceManager manager =
+                     new PrismodPackLoader.PrismodResourceManager(emptyManager(), List.of(candidate))) {
+            ResourceLocation id = ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json");
+            Resource loaded = manager.getResource(id).orElseThrow();
+            assertEquals(PrismodPackLoader.packIdForNamespace("example"), loaded.sourcePackId());
+            try (var reader = loaded.openAsReader()) {
+                assertEquals("{\"targets\":[\"swap\"]}", reader.readLine());
+            }
+            assertTrue(manager.listResources("shaders/post", ignored -> true).containsKey(id));
+        }
+    }
+
+    private static ResourceManager emptyManager() {
+        return new ResourceManager() {
+            @Override
+            public Set<String> getNamespaces() { return Set.of(); }
+
+            @Override
+            public Optional<Resource> getResource(ResourceLocation id) { return Optional.empty(); }
+
+            @Override
+            public List<Resource> getResourceStack(ResourceLocation id) { return List.of(); }
+
+            @Override
+            public Map<ResourceLocation, Resource> listResources(String prefix, Predicate<ResourceLocation> filter) {
+                return Map.of();
+            }
+
+            @Override
+            public Map<ResourceLocation, List<Resource>> listResourceStacks(String prefix,
+                                                                              Predicate<ResourceLocation> filter) {
+                return Map.of();
+            }
+
+            @Override
+            public Stream<PackResources> listPacks() { return Stream.empty(); }
+        };
     }
 
     private static void putZipEntry(ZipOutputStream zip, String name, String content) throws IOException {

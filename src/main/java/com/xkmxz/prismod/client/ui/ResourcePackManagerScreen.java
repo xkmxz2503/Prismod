@@ -169,7 +169,7 @@ public final class ResourcePackManagerScreen extends Screen {
                 .toList();
         PrismodClientConfig.setDisabledPacks(disabled);
         PrismodClientConfig.SPEC.save();
-        PrismodClient.reloadResources();
+        PrismodClient.reloadPrismodResources();
         if (minecraft != null && parent instanceof FilterConfigScreen filterScreen) {
             minecraft.setScreen(new FilterConfigScreen(filterScreen.parentScreen()));
         } else {

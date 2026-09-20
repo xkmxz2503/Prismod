@@ -6,6 +6,7 @@ import com.mojang.blaze3d.shaders.BlendMode;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
 import com.xkmxz.prismod.client.filter.*;
+import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import com.xkmxz.prismod.mixin.client.PostChainAccessor;
 import com.xkmxz.prismod.mixin.client.BlendModeAccessor;
 import net.minecraft.client.Minecraft;
@@ -24,6 +25,7 @@ public final class WorldFilterRenderer {
     private static PostChain chain;
     private static RenderTarget source;
     private static Uniform intensity;
+    private static PrismodPackLoader.PrismodResourceManager resources;
     private static FilterKey loaded;
     private static int width;
     private static int height;
@@ -105,7 +107,8 @@ public final class WorldFilterRenderer {
         if (chain == null || source != main || loaded != key) {
             releaseChain();
             // 先取得空链的所有权，再加载可失败的资源，确保已创建的 FBO 能在 catch 中释放。
-            chain = new PostChain(mc.getTextureManager(), mc.getResourceManager(), main,
+            resources = PrismodPackLoader.resources(mc.getResourceManager());
+            chain = new PostChain(mc.getTextureManager(), resources, main,
                     ResourceLocation.fromNamespaceAndPath("prismod", "shaders/post/empty.json"));
             ((PostChainAccessor) chain).prismod$load(mc.getTextureManager(), definition.postEffect());
             if (((PostChainAccessor) chain).prismod$getPasses().size() != 1) {
@@ -151,7 +154,9 @@ public final class WorldFilterRenderer {
         if (chain != null) {
             try { chain.close(); } catch (Exception e) { LOGGER.warn("释放 Prismod 渲染资源失败", e); }
         }
+        if (resources != null) resources.close();
         chain = null;
+        resources = null;
         source = null;
         loaded = null;
         intensity = null;

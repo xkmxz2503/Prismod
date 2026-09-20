@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.xkmxz.prismod.api.client.CustomFilterMetadata;
 import com.xkmxz.prismod.api.client.FilterRegistration;
+import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.packs.resources.Resource;
@@ -68,6 +69,7 @@ public final class FilterRegistry {
             Resource resource = resources.get(id);
             if (resource == null || !PrismodPackLoader.isPrismodPackId(resource.sourcePackId())) return;
             String packNamespace = PrismodPackLoader.namespaceForPackId(resource.sourcePackId());
+            if (!PrismodClientConfig.isPackEnabled(packNamespace)) return;
             FilterDefinition definition = inspect(manager, id, false, null, packNamespace);
             if (definition != null && !definitions.containsKey(definition.key())) {
                 definitions.put(definition.key(), definition);

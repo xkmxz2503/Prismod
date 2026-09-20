@@ -90,11 +90,11 @@ FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEf
 - `client/ResourcePackManagerScreen.java`：独立资源包管理页，负责拖放或手动导入资源包、打开资源包目录、刷新资源包和资源包开关。
 - `client/FilterVisibilityManagerScreen.java`：独立滤镜管理页，只负责滤镜展示状态。
 
-F8 只在世界内、没有打开屏幕且没有强制状态时响应。按键冲突只提示，不修改玩家绑定。资源包管理页保存后写入配置并触发资源重载，取消和 Esc 放弃草稿。
+F8 只在世界内、没有打开屏幕且没有强制状态时响应。按键冲突只提示，不修改玩家绑定。资源包管理页保存后写入配置并触发 Prismod 自己的资源刷新，取消和 Esc 放弃草稿；不得调用 Minecraft 原版资源包仓库重载。
 
 ### 资源包和注册表
 
-- `client/PrismodPackLoader.java`：扫描、解析、校验、导入并为每个 namespace 创建独立资源包来源。
+- `client/PrismodPackLoader.java`：扫描、解析、校验、导入并为每个 namespace 创建 Prismod 私有资源管理器；目录和 ZIP 由 Prismod 直接读取，不注册到 Minecraft 原版资源包仓库。
 - `client/FilterRegistry.java`：从 Prismod 资源包发现后处理滤镜，验证 post JSON、program JSON 和 `Intensity` float uniform；记录资源包 namespace。
 - `client/PrismodClientConfig.java`：资源重载后补充新滤镜并清理禁用资源包中的滤镜。
 

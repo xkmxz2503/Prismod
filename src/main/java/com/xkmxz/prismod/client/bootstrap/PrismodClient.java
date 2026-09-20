@@ -10,9 +10,7 @@ import com.xkmxz.prismod.client.ui.FilterConfigScreen;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
-import net.minecraftforge.event.AddPackFindersEvent;
 import net.minecraftforge.client.ConfigScreenHandler;
 import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
@@ -41,7 +39,6 @@ public final class PrismodClient {
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         bus.addListener(PrismodClient::registerKeys);
         bus.addListener(PrismodClient::registerReload);
-        bus.addListener(PrismodClient::registerPackFinders);
         bus.addListener(PrismodClient::configChanged);
         PrismodPackLoader.ensureDirectories();
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, PrismodClientConfig.SPEC,
@@ -51,43 +48,41 @@ public final class PrismodClient {
         MinecraftForge.EVENT_BUS.addListener(PrismodClient::tick);
     }
 
-    public static CompletableFuture<Void> reloadResources() {
-        return Minecraft.getInstance().reloadResourcePacks();
+    public static CompletableFuture<Void> reloadPrismodResources() {
+        Minecraft minecraft = Minecraft.getInstance();
+        reloadPrismodResources(minecraft.getResourceManager());
+        return CompletableFuture.completedFuture(null);
+    }
+
+    public static void reloadPrismodResources(net.minecraft.server.packs.resources.ResourceManager vanilla) {
+        WorldFilterRenderer.reload();
+        PrismodPackLoader.PrismodResourceManager resources = PrismodPackLoader.reload(vanilla);
+        FilterRegistry.get().reload(resources);
+        Minecraft.getInstance().getLanguageManager().onResourceManagerReload(resources);
+        PrismodClientConfig.appendDiscoveredFilters();
+        PrismodClientConfig.removeHiddenAndUnavailableFromCycleOrder();
+        FilterManager.get().refreshConfig();
     }
 
     private static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(CYCLE);
     }
 
-    private static void registerPackFinders(AddPackFindersEvent event) {
-        if (event.getPackType() == PackType.CLIENT_RESOURCES) {
-            event.addRepositorySource(PrismodPackLoader.INSTANCE);
-        }
-    }
-
     private static void registerReload(RegisterClientReloadListenersEvent event) {
         event.registerReloadListener((ResourceManagerReloadListener) manager -> {
-            FilterRegistry.get().reload(manager);
-            PrismodClientConfig.appendDiscoveredFilters();
-            PrismodClientConfig.removeHiddenAndUnavailableFromCycleOrder();
-            WorldFilterRenderer.reload();
-            FilterManager.get().refreshConfig();
+            reloadPrismodResources(manager);
         });
     }
 
     private static void configChanged(ModConfigEvent event) {
         if (event.getConfig().getSpec() != PrismodClientConfig.SPEC || event instanceof ModConfigEvent.Unloading) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc != null) mc.execute(() -> FilterManager.get().refreshConfig());
+        if (mc != null) mc.execute(() -> reloadPrismodResources(mc.getResourceManager()));
     }
 
     private static void tick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getInstance();
-        if (PrismodPackLoader.configWasUnavailable() && PrismodClientConfig.isLoaded()) {
-            PrismodPackLoader.clearConfigUnavailable();
-            reloadResources();
-        }
         boolean inWorld = mc.level != null && mc.player != null;
         if (hadWorld && !inWorld) {
             FilterManager.get().resetSession();

@@ -5,20 +5,15 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
-import cpw.mods.jarhandling.SecureJar;
-import net.minecraft.SharedConstants;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.AbstractPackResources;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
-import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.PackSource;
-import net.minecraft.server.packs.repository.RepositorySource;
+import net.minecraft.server.packs.resources.IoSupplier;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.FMLPaths;
-import net.minecraftforge.resource.DelegatingPackResources;
-import net.minecraftforge.resource.PathPackResources;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.InvalidVersionSpecificationException;
 import org.apache.maven.artifact.versioning.VersionRange;
@@ -26,6 +21,7 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.FilterInputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
@@ -41,13 +37,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /** Discovers Prismod filter packs from config/prismod/resourcepacks. */
-public final class PrismodPackLoader implements RepositorySource {
-    public static final PrismodPackLoader INSTANCE = new PrismodPackLoader();
+public final class PrismodPackLoader {
     public static final String PACK_ID_PREFIX = "prismod_external_";
     /** Legacy aggregate ID retained for source compatibility with older integrations. */
     @Deprecated
@@ -58,11 +54,6 @@ public final class PrismodPackLoader implements RepositorySource {
     private static final String RESOURCE_PACKS_DIRECTORY = "prismod/resourcepacks";
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Set<String> RESERVED_NAMESPACES = Set.of("minecraft", "prismod");
-    private static boolean configWasUnavailable;
-
-    private PrismodPackLoader() {
-    }
-
     public static Path resourcePacksDirectory() {
         return FMLPaths.CONFIGDIR.get().resolve(RESOURCE_PACKS_DIRECTORY);
     }
@@ -89,37 +80,18 @@ public final class PrismodPackLoader implements RepositorySource {
         return isPrismodPackId(packId) ? packId.substring(PACK_ID_PREFIX.length()) : null;
     }
 
-    public static boolean configWasUnavailable() {
-        return configWasUnavailable;
-    }
+    private static PrismodResourceManager activeResources;
 
-    public static void clearConfigUnavailable() {
-        configWasUnavailable = false;
-    }
-
-    @Override
-    public void loadPacks(Consumer<Pack> onLoad) {
+    /** Rebuilds Prismod's private resource view without changing Minecraft's pack repository. */
+    public static synchronized PrismodResourceManager reload(ResourceManager vanilla) {
         ensureDirectories();
-        List<PackCandidate> candidates = scan(resourcePacksDirectory());
-        for (PackCandidate candidate : candidates) {
-            if (!PrismodClientConfig.isLoaded()) {
-                configWasUnavailable = true;
-            } else if (!PrismodClientConfig.isPackEnabled(candidate.metadata().namespace())) {
-                continue;
-            }
-            try {
-                Pack pack = Pack.readMetaAndCreate(packIdForNamespace(candidate.metadata().namespace()),
-                        Component.literal(candidate.metadata().displayName(candidate.fileName())), true,
-                        id -> new DelegatingPackResources(id, false,
-                                new PackMetadataSection(Component.literal(candidate.metadata().displayName(candidate.fileName())),
-                                        SharedConstants.getCurrentVersion().getPackVersion(PackType.CLIENT_RESOURCES)),
-                                List.of(createResources(candidate))), PackType.CLIENT_RESOURCES, Pack.Position.BOTTOM,
-                        PackSource.BUILT_IN);
-                if (pack != null) onLoad.accept(pack);
-            } catch (RuntimeException exception) {
-                LOGGER.warn("Skipping Prismod resource pack {}", candidate.path().getFileName(), exception);
-            }
-        }
+        if (activeResources != null) activeResources.close();
+        activeResources = new PrismodResourceManager(vanilla, scan(resourcePacksDirectory()));
+        return activeResources;
+    }
+
+    public static synchronized PrismodResourceManager resources(ResourceManager vanilla) {
+        return activeResources == null ? reload(vanilla) : activeResources;
     }
 
     public static List<PackCandidate> scan(Path directory) {
@@ -326,21 +298,176 @@ public final class PrismodPackLoader implements RepositorySource {
         return true;
     }
 
-    private static PackResources createResources(PackCandidate candidate) {
-        Path path = candidate.path();
-        if (Files.isDirectory(path)) {
-            return new PathPackResources(candidate.fileName(), false, path);
+    private static final class PrismodPackResources extends AbstractPackResources {
+        private final Path source;
+        private final String namespace;
+
+        private PrismodPackResources(PackCandidate candidate) {
+            super(packIdForNamespace(candidate.metadata().namespace()), false);
+            this.source = candidate.path();
+            this.namespace = candidate.metadata().namespace();
         }
-        SecureJar secureJar = SecureJar.from(path);
-        return new PathPackResources(candidate.fileName(), false, path) {
-            @Override
-            protected Path resolve(String... paths) {
-                if (paths.length == 0) {
-                    throw new IllegalArgumentException("Missing path");
-                }
-                return secureJar.getPath(String.join("/", paths));
+
+        @Override
+        public IoSupplier<InputStream> getRootResource(String... paths) {
+            if (paths.length == 0) return null;
+            String relative = String.join("/", paths);
+            if (Files.isDirectory(source)) {
+                Path file = source.resolve(relative).normalize();
+                return file.startsWith(source) && Files.isRegularFile(file) ? IoSupplier.create(file) : null;
             }
-        };
+            return zipSupplier(relative);
+        }
+
+        @Override
+        public IoSupplier<InputStream> getResource(PackType type, ResourceLocation id) {
+            if (type != PackType.CLIENT_RESOURCES || !namespace.equals(id.getNamespace())) return null;
+            String relative = "assets/" + namespace + "/" + id.getPath();
+            if (Files.isDirectory(source)) {
+                Path file = source.resolve(relative).normalize();
+                return file.startsWith(source) && Files.isRegularFile(file) ? IoSupplier.create(file) : null;
+            }
+            return zipSupplier(relative);
+        }
+
+        @Override
+        public void listResources(PackType type, String namespace, String prefix, ResourceOutput output) {
+            if (type != PackType.CLIENT_RESOURCES || !this.namespace.equals(namespace)) return;
+            String relativePrefix = "assets/" + namespace + "/" + prefix;
+            if (Files.isDirectory(source)) {
+                Path root = source.resolve(relativePrefix).normalize();
+                if (!root.startsWith(source) || !Files.isDirectory(root)) return;
+                try (var paths = Files.walk(root)) {
+                    paths.filter(Files::isRegularFile).forEach(path -> {
+                        String relative = source.relativize(path).toString().replace('\\', '/');
+                        output.accept(ResourceLocation.fromNamespaceAndPath(namespace,
+                                relative.substring(("assets/" + namespace + "/").length())), IoSupplier.create(path));
+                    });
+                } catch (IOException exception) {
+                    LOGGER.warn("Unable to list Prismod resources in {}", source, exception);
+                }
+                return;
+            }
+            try (ZipFile zip = new ZipFile(source.toFile())) {
+                var entries = zip.entries();
+                while (entries.hasMoreElements()) {
+                    ZipEntry entry = entries.nextElement();
+                    if (entry.isDirectory() || !entry.getName().startsWith(relativePrefix + "/")) continue;
+                    String path = entry.getName().substring(("assets/" + namespace + "/").length());
+                    output.accept(ResourceLocation.fromNamespaceAndPath(namespace, path), zipSupplier(entry.getName()));
+                }
+            } catch (IOException exception) {
+                LOGGER.warn("Unable to list Prismod resources in {}", source, exception);
+            }
+        }
+
+        @Override
+        public Set<String> getNamespaces(PackType type) {
+            return type == PackType.CLIENT_RESOURCES ? Set.of(namespace) : Set.of();
+        }
+
+        @Override
+        public void close() {
+        }
+
+        private IoSupplier<InputStream> zipSupplier(String entryName) {
+            try (ZipFile zip = new ZipFile(source.toFile())) {
+                ZipEntry entry = zip.getEntry(entryName);
+                if (entry == null || entry.isDirectory()) return null;
+            } catch (IOException exception) {
+                return null;
+            }
+            return () -> {
+                ZipFile zip = new ZipFile(source.toFile());
+                ZipEntry entry = zip.getEntry(entryName);
+                if (entry == null || entry.isDirectory()) {
+                    zip.close();
+                    throw new IOException("Missing ZIP entry " + entryName);
+                }
+                InputStream stream = zip.getInputStream(entry);
+                return new FilterInputStream(stream) {
+                    @Override
+                    public void close() throws IOException {
+                        try { super.close(); } finally { zip.close(); }
+                    }
+                };
+            };
+        }
+    }
+
+    public static final class PrismodResourceManager implements ResourceManager, AutoCloseable {
+        private final ResourceManager vanilla;
+        private final List<PrismodPackResources> packs;
+
+        PrismodResourceManager(ResourceManager vanilla, List<PackCandidate> candidates) {
+            this.vanilla = vanilla;
+            this.packs = candidates.stream().filter(candidate -> PrismodClientConfig.isPackEnabled(
+                    candidate.metadata().namespace())).map(PrismodPackResources::new).toList();
+        }
+
+        @Override
+        public Set<String> getNamespaces() {
+            Set<String> namespaces = new HashSet<>(vanilla.getNamespaces());
+            packs.forEach(pack -> namespaces.addAll(pack.getNamespaces(PackType.CLIENT_RESOURCES)));
+            return Set.copyOf(namespaces);
+        }
+
+        @Override
+        public java.util.Optional<Resource> getResource(ResourceLocation id) {
+            for (PrismodPackResources pack : packs) {
+                IoSupplier<InputStream> supplier = pack.getResource(PackType.CLIENT_RESOURCES, id);
+                if (supplier != null) return java.util.Optional.of(new Resource(pack, supplier));
+            }
+            return vanilla.getResource(id);
+        }
+
+        @Override
+        public List<Resource> getResourceStack(ResourceLocation id) {
+            List<Resource> result = new ArrayList<>();
+            for (PrismodPackResources pack : packs) {
+                IoSupplier<InputStream> supplier = pack.getResource(PackType.CLIENT_RESOURCES, id);
+                if (supplier != null) result.add(new Resource(pack, supplier));
+            }
+            result.addAll(vanilla.getResourceStack(id));
+            return List.copyOf(result);
+        }
+
+        @Override
+        public Map<ResourceLocation, Resource> listResources(String prefix, Predicate<ResourceLocation> filter) {
+            Map<ResourceLocation, Resource> result = new HashMap<>(vanilla.listResources(prefix, filter));
+            for (PrismodPackResources pack : packs) {
+                pack.listResources(PackType.CLIENT_RESOURCES, pack.namespace, prefix, (id, supplier) -> {
+                    if (filter.test(id)) result.put(id, new Resource(pack, supplier));
+                });
+            }
+            return Map.copyOf(result);
+        }
+
+        @Override
+        public Map<ResourceLocation, List<Resource>> listResourceStacks(String prefix,
+                                                                         Predicate<ResourceLocation> filter) {
+            Map<ResourceLocation, List<Resource>> result = new HashMap<>();
+            vanilla.listResourceStacks(prefix, filter).forEach((id, resources) ->
+                    result.put(id, new ArrayList<>(resources)));
+            for (PrismodPackResources pack : packs) {
+                pack.listResources(PackType.CLIENT_RESOURCES, pack.namespace, prefix, (id, supplier) -> {
+                    if (filter.test(id)) result.computeIfAbsent(id, ignored -> new ArrayList<>())
+                            .add(new Resource(pack, supplier));
+                });
+            }
+            return result.entrySet().stream().collect(java.util.stream.Collectors.toUnmodifiableMap(
+                    Map.Entry::getKey, entry -> List.copyOf(entry.getValue())));
+        }
+
+        @Override
+        public Stream<PackResources> listPacks() {
+            return Stream.concat(vanilla.listPacks(), packs.stream().map(pack -> pack));
+        }
+
+        @Override
+        public void close() {
+            packs.forEach(PrismodPackResources::close);
+        }
     }
 
     public record PackCandidate(Path path, PackMetadata metadata) {
