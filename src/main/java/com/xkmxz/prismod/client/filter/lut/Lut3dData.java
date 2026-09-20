@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.lut;
 
 /** Immutable Adobe 3D LUT data in file order. */
 public record Lut3dData(float[] rgb, float[] domainMin, float[] domainMax, String title) {

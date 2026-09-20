@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.lut;
 
 import java.io.BufferedReader;
 import java.io.IOException;

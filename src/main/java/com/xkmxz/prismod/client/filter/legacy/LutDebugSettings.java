@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.legacy;
 
 import com.google.gson.JsonObject;
 

@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.registry;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -7,6 +7,10 @@ import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
 import com.xkmxz.prismod.api.client.CustomFilterMetadata;
 import com.xkmxz.prismod.api.client.FilterRegistration;
+import com.xkmxz.prismod.client.filter.FilterId;
+import com.xkmxz.prismod.client.filter.FilterKey;
+import com.xkmxz.prismod.client.filter.lut.Lut3dData;
+import com.xkmxz.prismod.client.filter.lut.LutCubeParser;
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;

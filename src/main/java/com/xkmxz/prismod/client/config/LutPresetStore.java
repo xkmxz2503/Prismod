@@ -6,7 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
-import com.xkmxz.prismod.client.filter.LutDebugSettings;
+import com.xkmxz.prismod.client.filter.legacy.LutDebugSettings;
 import net.minecraftforge.fml.loading.FMLPaths;
 import org.slf4j.Logger;
 

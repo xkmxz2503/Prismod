@@ -2,6 +2,9 @@ package com.xkmxz.prismod.client.ui;
 
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import com.xkmxz.prismod.client.filter.*;
+import com.xkmxz.prismod.client.filter.registry.FilterDefinition;
+import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
+import com.xkmxz.prismod.client.filter.state.FilterManager;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;

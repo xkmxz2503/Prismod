@@ -2,6 +2,8 @@ package com.xkmxz.prismod.client.config;
 
 import com.mojang.logging.LogUtils;
 import com.xkmxz.prismod.client.filter.*;
+import com.xkmxz.prismod.client.filter.registry.FilterDefinition;
+import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import net.minecraftforge.common.ForgeConfigSpec;
 import org.slf4j.Logger;
 

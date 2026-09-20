@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.lut;
 
 import org.junit.jupiter.api.Test;
 import java.io.StringReader;

@@ -1,7 +1,7 @@
 package com.xkmxz.prismod.client.config;
 
 import com.google.gson.JsonParser;
-import com.xkmxz.prismod.client.filter.FilterDebugSettings;
+import com.xkmxz.prismod.client.filter.debug.FilterDebugSettings;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

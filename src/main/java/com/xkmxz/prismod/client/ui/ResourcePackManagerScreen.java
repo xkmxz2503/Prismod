@@ -1,9 +1,9 @@
 package com.xkmxz.prismod.client.ui;
 
 import com.xkmxz.prismod.client.bootstrap.PrismodClient;
-import com.xkmxz.prismod.client.filter.FilterDefinition;
-import com.xkmxz.prismod.client.filter.FilterManager;
-import com.xkmxz.prismod.client.filter.FilterRegistry;
+import com.xkmxz.prismod.client.filter.registry.FilterDefinition;
+import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
+import com.xkmxz.prismod.client.filter.state.FilterManager;
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import net.minecraft.Util;

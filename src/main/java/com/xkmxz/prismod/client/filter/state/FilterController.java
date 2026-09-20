@@ -1,4 +1,8 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.state;
+
+import com.xkmxz.prismod.client.filter.*;
+import com.xkmxz.prismod.client.filter.registry.FilterDefinition;
+import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 
 import java.util.ArrayList;
 import java.util.HashMap;

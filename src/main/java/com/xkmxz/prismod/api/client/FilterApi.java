@@ -1,10 +1,10 @@
 package com.xkmxz.prismod.api.client;
 
 import com.xkmxz.prismod.client.filter.FilterId;
-import com.xkmxz.prismod.client.filter.FilterManager;
+import com.xkmxz.prismod.client.filter.state.FilterManager;
 import com.xkmxz.prismod.client.filter.FilterKey;
 import com.xkmxz.prismod.client.filter.FilterState;
-import com.xkmxz.prismod.client.filter.FilterRegistry;
+import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.Minecraft;
 

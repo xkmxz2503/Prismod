@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.registry;
 
 /** Built-in v1 filter handlers. Unknown values are skipped by the registry. */
 public enum FilterType {

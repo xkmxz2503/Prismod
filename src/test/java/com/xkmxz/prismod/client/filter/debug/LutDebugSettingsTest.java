@@ -1,6 +1,7 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.debug;
 
 import com.google.gson.JsonParser;
+import com.xkmxz.prismod.client.filter.legacy.LutDebugSettings;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

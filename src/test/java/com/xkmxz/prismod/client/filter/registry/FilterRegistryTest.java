@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.registry;
 
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import net.minecraft.resources.ResourceLocation;

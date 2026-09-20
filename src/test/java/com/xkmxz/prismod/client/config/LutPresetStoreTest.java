@@ -1,6 +1,6 @@
 package com.xkmxz.prismod.client.config;
 
-import com.xkmxz.prismod.client.filter.LutDebugSettings;
+import com.xkmxz.prismod.client.filter.legacy.LutDebugSettings;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;

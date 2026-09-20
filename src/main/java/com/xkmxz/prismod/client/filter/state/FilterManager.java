@@ -1,6 +1,9 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.state;
 
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
+import com.xkmxz.prismod.client.filter.*;
+import com.xkmxz.prismod.client.filter.registry.FilterDefinition;
+import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 

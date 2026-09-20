@@ -1,5 +1,8 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.state;
 
+import com.xkmxz.prismod.client.filter.FilterId;
+import com.xkmxz.prismod.client.filter.FilterKey;
+import com.xkmxz.prismod.client.filter.FilterState;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 

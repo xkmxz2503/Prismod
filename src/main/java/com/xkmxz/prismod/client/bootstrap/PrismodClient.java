@@ -1,8 +1,8 @@
 package com.xkmxz.prismod.client.bootstrap;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import com.xkmxz.prismod.client.filter.FilterManager;
-import com.xkmxz.prismod.client.filter.FilterRegistry;
+import com.xkmxz.prismod.client.filter.state.FilterManager;
+import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import com.xkmxz.prismod.client.render.WorldFilterRenderer;
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;

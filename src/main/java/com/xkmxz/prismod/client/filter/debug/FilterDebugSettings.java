@@ -1,6 +1,7 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.debug;
 
 import com.google.gson.JsonObject;
+import com.xkmxz.prismod.client.filter.legacy.LutDebugSettings;
 
 /** 通用于 LUT 和 post_chain 滤镜的调参快照。 */
 public record FilterDebugSettings(

@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.registry;
 
 import com.google.gson.JsonObject;
 import net.minecraft.resources.ResourceLocation;

@@ -1,12 +1,12 @@
 package com.xkmxz.prismod.client.ui;
 
 import com.xkmxz.prismod.client.config.FilterDebugPresetStore;
-import com.xkmxz.prismod.client.filter.FilterDefinition;
 import com.xkmxz.prismod.client.filter.FilterKey;
-import com.xkmxz.prismod.client.filter.FilterRegistry;
-import com.xkmxz.prismod.client.filter.Lut3dData;
-import com.xkmxz.prismod.client.filter.FilterDebugSettings;
-import com.xkmxz.prismod.client.filter.FilterType;
+import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
+import com.xkmxz.prismod.client.filter.lut.Lut3dData;
+import com.xkmxz.prismod.client.filter.debug.FilterDebugSettings;
+import com.xkmxz.prismod.client.filter.registry.FilterDefinition;
+import com.xkmxz.prismod.client.filter.registry.FilterType;
 import com.xkmxz.prismod.client.render.WorldFilterRenderer;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;

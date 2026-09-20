@@ -1,5 +1,8 @@
-package com.xkmxz.prismod.client.filter;
+package com.xkmxz.prismod.client.filter.registry;
 
+import com.xkmxz.prismod.client.filter.FilterKey;
+import com.xkmxz.prismod.client.filter.FilterState;
+import com.xkmxz.prismod.client.filter.lut.Lut3dData;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
