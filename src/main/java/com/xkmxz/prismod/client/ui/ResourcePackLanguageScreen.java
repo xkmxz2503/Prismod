@@ -21,6 +21,7 @@ public final class ResourcePackLanguageScreen extends Screen {
     private final List<Button> languageButtons = new ArrayList<>();
     private final List<EditBox> nameBoxes = new ArrayList<>();
     private String language;
+    private String status;
 
     public ResourcePackLanguageScreen(Screen parent, ResourcePackEditorDraft draft) {
         super(Component.translatable("screen.prismod.language_editor_title"));
@@ -36,8 +37,12 @@ public final class ResourcePackLanguageScreen extends Screen {
         List<String> languages = languages();
         if (language == null || !languages.contains(language)) language = languages.isEmpty() ? null : languages.get(0);
         int left = 24;
-        int top = 32;
+        int top = 56;
         int languageWidth = 120;
+        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.create_language_zh_cn"), ignored -> createLanguage("zh_cn"))
+                .bounds(left, 30, languageWidth, 20).build()).active = !hasLanguage("zh_cn");
+        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.create_language_en_us"), ignored -> createLanguage("en_us"))
+                .bounds(left + languageWidth + 8, 30, languageWidth, 20).build()).active = !hasLanguage("en_us");
         for (int index = 0; index < languages.size(); index++) {
             String id = languages.get(index);
             Button button = addRenderableWidget(Button.builder(Component.literal(id), ignored -> {
@@ -50,6 +55,20 @@ public final class ResourcePackLanguageScreen extends Screen {
         if (language != null) buildFilterNames(left + languageWidth + 16, top);
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> onClose())
                 .bounds(width - 124, height - 40, 100, 20).build());
+    }
+
+    private boolean hasLanguage(String id) {
+        return draft.files().containsKey("assets/" + draft.namespace() + "/lang/" + id + ".json");
+    }
+
+    private void createLanguage(String id) {
+        if (draft.createLanguageFile(id)) {
+            language = id;
+            status = Component.translatable("screen.prismod.language_created", id).getString();
+            init();
+        } else {
+            status = Component.translatable("screen.prismod.language_exists", id).getString();
+        }
     }
 
     private List<String> languages() {
@@ -95,9 +114,16 @@ public final class ResourcePackLanguageScreen extends Screen {
         renderBackground(graphics);
         graphics.drawCenteredString(font, title, width / 2, 8, 0xFFFFFF);
         graphics.drawString(font, Component.translatable("screen.prismod.languages"), 24, 20, 0xAAAAAA);
-        if (language == null) graphics.drawString(font, Component.translatable("screen.prismod.no_language_files"), 170, 52, 0xFFCC66);
-        else graphics.drawString(font, Component.translatable("screen.prismod.language_names", language), 170, 20, 0xAAAAAA);
+        if (language == null) graphics.drawString(font, Component.translatable("screen.prismod.no_language_files"), 280, 52, 0xFFCC66);
+        else graphics.drawString(font, Component.translatable("screen.prismod.language_names", language), 280, 20, 0xAAAAAA);
+        if (status != null) graphics.drawString(font, limitedStatus(width - 48), 24, height - 58, 0xFFCC66);
         super.render(graphics, mouseX, mouseY, partialTick);
+    }
+
+    private Component limitedStatus(int maxWidth) {
+        if (font.width(status) <= maxWidth) return Component.literal(status);
+        int textWidth = Math.max(12, maxWidth - font.width("..."));
+        return Component.literal(font.plainSubstrByWidth(status, textWidth) + "...");
     }
 
     @Override

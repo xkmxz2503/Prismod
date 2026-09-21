@@ -59,7 +59,7 @@ public final class ResourcePackManagerScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("screen.prismod.import"), button -> openPackDirectory())
                 .bounds(panelLeft, panelTop + 18, half, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("screen.prismod.create_placeholder"), button ->
-                        status = Component.translatable("screen.prismod.create_coming_soon").getString())
+                        openCreateScreen())
                 .bounds(panelLeft + half + 4, panelTop + 18, half, 20).build());
 
         buildRows();
@@ -117,6 +117,28 @@ public final class ResourcePackManagerScreen extends Screen {
             if (minecraft != null) minecraft.setScreen(new ResourcePackEditorScreen(this, candidate));
         } catch (IOException exception) {
             status = exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
+        }
+    }
+
+    private void openCreateScreen() {
+        if (minecraft != null) minecraft.setScreen(new ResourcePackCreateScreen(this));
+    }
+
+    void openCreatedPack(String namespace) {
+        refreshCandidates();
+        PrismodPackLoader.PackCandidate candidate = candidates.stream()
+                .filter(value -> namespace.equals(value.metadata().namespace()))
+                .findFirst().orElse(null);
+        if (candidate == null) {
+            status = Component.translatable("screen.prismod.create_pack_failed").getString();
+            if (minecraft != null) minecraft.setScreen(this);
+            return;
+        }
+        try {
+            if (minecraft != null) minecraft.setScreen(new ResourcePackEditorScreen(this, candidate));
+        } catch (IOException exception) {
+            status = exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
+            if (minecraft != null) minecraft.setScreen(this);
         }
     }
 

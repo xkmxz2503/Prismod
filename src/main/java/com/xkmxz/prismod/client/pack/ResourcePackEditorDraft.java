@@ -180,6 +180,15 @@ public final class ResourcePackEditorDraft {
         }
     }
 
+    /** Adds an empty language template to the draft; the main editor saves it later. */
+    public boolean createLanguageFile(String language) {
+        if (!"zh_cn".equals(language) && !"en_us".equals(language)) return false;
+        String path = "assets/" + namespace + "/lang/" + language + ".json";
+        if (files.containsKey(path)) return false;
+        files.put(path, new GsonBuilder().setPrettyPrinting().create().toJson(new JsonObject()) + "\n");
+        return true;
+    }
+
     public Map<String, String> pendingFiles() {
         Map<String, String> pending = new LinkedHashMap<>(files);
         String stamp = String.valueOf(System.currentTimeMillis());

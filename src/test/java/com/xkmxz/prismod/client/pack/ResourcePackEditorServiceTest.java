@@ -122,6 +122,24 @@ class ResourcePackEditorServiceTest {
     }
 
     @Test
+    void createsChineseAndEnglishLanguageTemplatesInDraftOnly() throws Exception {
+        Path root = pack("example", "gray");
+        PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseManifest(
+                JsonParser.parseString(manifest("example", "gray")).getAsJsonObject());
+        ResourcePackEditorDraft draft = ResourcePackEditorDraft.open(
+                new PrismodPackLoader.PackCandidate(root, metadata));
+        assertTrue(draft.createLanguageFile("zh_cn"));
+        assertTrue(draft.createLanguageFile("en_us"));
+        assertFalse(draft.createLanguageFile("zh_cn"));
+        assertFalse(draft.createLanguageFile("ja_jp"));
+        assertEquals("{}", JsonParser.parseString(draft.files()
+                .get("assets/example/lang/zh_cn.json")).toString());
+        assertEquals("{}", JsonParser.parseString(draft.files()
+                .get("assets/example/lang/en_us.json")).toString());
+        assertFalse(Files.exists(root.resolve("assets/example/lang/zh_cn.json")));
+    }
+
+    @Test
     void savesVariableSizeLutWithinSupportedRange() throws Exception {
         Path root = Files.createDirectories(temp.resolve("lut-pack"));
         String manifest = "{\"schema\":\"prismod.resource_pack\",\"format_version\":1,\"namespace\":\"example\",\"filters\":[{\"id\":\"small\",\"path\":\"assets/example/filters/small\"}]}";
@@ -133,6 +151,65 @@ class ResourcePackEditorServiceTest {
         ResourcePackEditorService.Session session = ResourcePackEditorService.open(new PrismodPackLoader.PackCandidate(root, metadata));
         ResourcePackEditorService.SaveResult result = ResourcePackEditorService.save(session, "LUT Pack", "example", Map.of());
         assertTrue(result.success(), result.message());
+    }
+
+    @Test
+    void createsEmptyPackSkeletonWithOptionalReadme() throws Exception {
+        Path packs = Files.createDirectories(temp.resolve("resourcepacks"));
+        ResourcePackEditorService.CreatePackResult result = ResourcePackEditorService.createPack(
+                packs, new ResourcePackEditorService.CreatePackRequest("Example Pack", "newpack", true));
+        assertTrue(result.success(), result.message());
+        assertEquals(packs.resolve("newpack"), result.path());
+        JsonObject manifest = JsonParser.parseString(Files.readString(result.path().resolve(PrismodPackLoader.MANIFEST_FILE))).getAsJsonObject();
+        assertEquals("Example Pack", manifest.get("name").getAsString());
+        assertTrue(manifest.getAsJsonArray("filters").isEmpty());
+        assertTrue(Files.exists(result.path().resolve("README.md")));
+        assertTrue(PrismodPackLoader.scan(packs).stream().anyMatch(candidate ->
+                candidate.metadata().namespace().equals("newpack")));
+    }
+
+    @Test
+    void createsPackWithoutNameOrReadmeWhenDisabled() throws Exception {
+        Path packs = Files.createDirectories(temp.resolve("resourcepacks"));
+        ResourcePackEditorService.CreatePackResult result = ResourcePackEditorService.createPack(
+                packs, new ResourcePackEditorService.CreatePackRequest("", "empty_pack", false));
+        assertTrue(result.success(), result.message());
+        JsonObject manifest = JsonParser.parseString(Files.readString(result.path().resolve(PrismodPackLoader.MANIFEST_FILE))).getAsJsonObject();
+        assertFalse(manifest.has("name"));
+        assertFalse(Files.exists(result.path().resolve("README.md")));
+        try (var paths = Files.walk(result.path())) {
+            assertTrue(paths.noneMatch(path -> path.toString().contains("filters") || path.toString().endsWith(".fsh")));
+        }
+    }
+
+    @Test
+    void rejectsReservedInvalidDuplicateAndExistingPackDirectories() throws Exception {
+        Path packs = Files.createDirectories(temp.resolve("resourcepacks"));
+        assertFalse(ResourcePackEditorService.createPack(packs,
+                new ResourcePackEditorService.CreatePackRequest("", "minecraft", false)).success());
+        assertFalse(ResourcePackEditorService.createPack(packs,
+                new ResourcePackEditorService.CreatePackRequest("", "bad namespace", false)).success());
+        assertTrue(ResourcePackEditorService.createPack(packs,
+                new ResourcePackEditorService.CreatePackRequest("", "duplicate", false)).success());
+        assertFalse(ResourcePackEditorService.createPack(packs,
+                new ResourcePackEditorService.CreatePackRequest("", "duplicate", false)).success());
+        Path existing = Files.createDirectories(packs.resolve("existing"));
+        Files.writeString(existing.resolve("keep.txt"), "keep");
+        ResourcePackEditorService.CreatePackResult conflict = ResourcePackEditorService.createPack(packs,
+                new ResourcePackEditorService.CreatePackRequest("", "existing", false));
+        assertFalse(conflict.success());
+        assertEquals("keep", Files.readString(existing.resolve("keep.txt")));
+    }
+
+    @Test
+    void failedCreationLeavesNoTemporaryDirectory() throws Exception {
+        Path packs = Files.createDirectories(temp.resolve("resourcepacks"));
+        ResourcePackEditorService.CreatePackResult result = ResourcePackEditorService.createPack(
+                packs, new ResourcePackEditorService.CreatePackRequest("", "minecraft", true));
+        assertFalse(result.success());
+        try (var paths = Files.list(packs)) {
+            assertTrue(paths.noneMatch(path -> path.getFileName().toString().contains("prismod-create")));
+        }
     }
 
     private Path pack(String namespace, String id) throws Exception {

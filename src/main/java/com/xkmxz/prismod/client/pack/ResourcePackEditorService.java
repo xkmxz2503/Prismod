@@ -78,7 +78,7 @@ public final class ResourcePackEditorService {
             else manifest.addProperty("name", name.trim());
             files.put(PrismodPackLoader.MANIFEST_FILE,
                     new GsonBuilder().setPrettyPrinting().create().toJson(manifest));
-            Validation validation = validate(files, namespace);
+            Validation validation = validatePackFiles(files, namespace);
             if (!validation.valid()) return SaveResult.failure(validation.message());
 
             Path base = sourceRoot.getParent();
@@ -99,6 +99,49 @@ public final class ResourcePackEditorService {
             return SaveResult.success(target, validation.warnings());
         } catch (Exception exception) {
             return SaveResult.failure(exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
+        }
+    }
+
+    public static CreatePackResult createPack(CreatePackRequest request) {
+        PrismodPackLoader.ensureDirectories();
+        return createPack(PrismodPackLoader.resourcePacksDirectory(), request);
+    }
+
+    static CreatePackResult createPack(Path resourcePacksDirectory, CreatePackRequest request) {
+        if (request == null) return CreatePackResult.failure("创建参数不能为空");
+        String namespace = request.namespace() == null ? "" : request.namespace().trim();
+        if (!net.minecraft.resources.ResourceLocation.isValidNamespace(namespace)
+                || Set.of("minecraft", "prismod").contains(namespace)) {
+            return CreatePackResult.failure("namespace 无效或为保留名称");
+        }
+        if (resourcePacksDirectory == null) return CreatePackResult.failure("资源包目录不可用");
+        Path target = resourcePacksDirectory.resolve(namespace).normalize();
+        Path temp = resourcePacksDirectory.resolve("." + namespace + ".prismod-create-" + UUID.randomUUID());
+        try {
+            Files.createDirectories(resourcePacksDirectory);
+            if (Files.exists(target)) return CreatePackResult.failure("目标资源包目录已存在");
+            for (PrismodPackLoader.PackCandidate candidate : PrismodPackLoader.scan(resourcePacksDirectory)) {
+                if (namespace.equals(candidate.metadata().namespace())) {
+                    return CreatePackResult.failure("资源包 namespace 已存在");
+                }
+            }
+            Map<String, String> files = new LinkedHashMap<>();
+            files.put(PrismodPackLoader.MANIFEST_FILE, emptyPackManifest(
+                    namespace, request.name()));
+            if (request.includeReadme()) files.put("README.md", creationReadme(namespace));
+            Validation validation = validatePackFiles(files, namespace);
+            if (!validation.valid()) return CreatePackResult.failure(validation.message());
+            writeTree(temp, files);
+            moveWithoutReplace(temp, target);
+            return CreatePackResult.success(target);
+        } catch (Exception exception) {
+            return CreatePackResult.failure(exception.getMessage() == null
+                    ? exception.getClass().getSimpleName() : exception.getMessage());
+        } finally {
+            if (Files.exists(temp)) {
+                try { deleteTree(temp); }
+                catch (IOException ignored) { }
+            }
         }
     }
 
@@ -324,7 +367,7 @@ public final class ResourcePackEditorService {
         return "#version 150\nuniform sampler2D DiffuseSampler;\nuniform float Intensity;\nuniform float Exposure, Contrast, Highlights, Shadows, Saturation, Temperature, Tint, Gamma;\nin vec2 texCoord;\nout vec4 fragColor;\nvoid main() { vec4 source = texture(DiffuseSampler, texCoord); vec3 color = source.rgb * exp2(Exposure); color = (color - 0.5) * (1.0 + Contrast) + 0.5; color += vec3(Temperature * 0.1 + Tint * 0.05, 0.0, -Temperature * 0.1 + Tint * 0.05); float luma = dot(color, vec3(0.2126, 0.7152, 0.0722)); color = mix(vec3(luma), color, Saturation); color = pow(max(color, vec3(0.0)), vec3(1.0 / max(Gamma, 0.1))); fragColor = vec4(mix(source.rgb, color, clamp(Intensity, 0.0, 1.0)), source.a); }\n";
     }
 
-    private static Validation validate(Map<String, String> files, String namespace) {
+    private static Validation validatePackFiles(Map<String, String> files, String namespace) {
         try {
             JsonObject manifest = parseObject(files.get(PrismodPackLoader.MANIFEST_FILE), PrismodPackLoader.MANIFEST_FILE);
             PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseManifest(manifest);
@@ -343,6 +386,32 @@ public final class ResourcePackEditorService {
             return Validation.ok();
         } catch (Exception exception) {
             return Validation.error("校验失败：" + (exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage()));
+        }
+    }
+
+    private static String emptyPackManifest(String namespace, String name) {
+        JsonObject manifest = new JsonObject();
+        manifest.addProperty("schema", "prismod.resource_pack");
+        manifest.addProperty("format_version", 1);
+        manifest.addProperty("namespace", namespace);
+        if (name != null && !name.isBlank()) manifest.addProperty("name", name.trim());
+        manifest.add("filters", new JsonArray());
+        return new GsonBuilder().setPrettyPrinting().create().toJson(manifest) + "\n";
+    }
+
+    private static String creationReadme(String namespace) {
+        return "# Prismod 资源包\n\n"
+                + "这是一个 Prismod v1 自定义资源包，namespace 为 `" + namespace + "`。\n\n"
+                + "当前资源包尚未添加滤镜。请在 Prismod 资源包编辑器中使用“新建滤镜”或导入已有滤镜，"
+                + "然后保存资源包。\n\n"
+                + "本资源包使用 Prismod 私有资源包格式，不需要 `pack.mcmeta`。\n";
+    }
+
+    private static void moveWithoutReplace(Path source, Path target) throws IOException {
+        try {
+            Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException exception) {
+            Files.move(source, target);
         }
     }
 
@@ -417,6 +486,11 @@ public final class ResourcePackEditorService {
                           Map<String, String> files) {
         public Session { files = Map.copyOf(files); }
         public List<String> fileNames() { return files.keySet().stream().sorted().toList(); }
+    }
+    public record CreatePackRequest(String name, String namespace, boolean includeReadme) { }
+    public record CreatePackResult(boolean success, String message, Path path) {
+        public static CreatePackResult success(Path path) { return new CreatePackResult(true, "资源包已创建", path); }
+        public static CreatePackResult failure(String message) { return new CreatePackResult(false, message, null); }
     }
     public record FilterCreateRequest(String id, String type, float defaultStrength,
                                       Map<String, String> names, Map<String, String> importedFiles) {
