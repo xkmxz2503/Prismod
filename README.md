@@ -19,7 +19,7 @@ Minecraft **1.20.1 / Forge 47.3.32 / Java 17** 的客户端世界画面滤镜初
 - 在资源包编辑页点击“新建 PostChain”或“新建 LUT”会打开滤镜预设向导。向导允许填写滤镜 ID、默认强度，并按资源包语言分别填写显示名称；没有语言文件时会创建当前语言和 `en_us`。可将完整滤镜目录或 `.cube`、`post.json`、program JSON、GLSL 文件拖入向导。向导会自动补齐可运行模板：PostChain 生成完整 pass、program、顶点/片段 shader 和九个调试 uniform，LUT 默认生成有效的 32³ identity `.cube`。导入的 LUT 支持 `LUT_3D_SIZE` 为 1 到 64，并按实际尺寸校验和渲染；0 或超过 64 的尺寸不可渲染。导入内容只覆盖对应模板文件，引用缺失或 JSON、LUT、shader 契约校验失败时不会加入草稿。
 - 只处理世界（包括手持物品），HUD、聊天、容器、菜单保持原色。夜视只是画面调色，不赋予药水效果，也不能恢复全黑像素中不存在的细节。
 - F8 绑定冲突只提示，不擅自改动其他按键。打开界面时 F8 不切换。
-- 在世界内的滤镜配置页，支持统一调试契约的 LUT 和 `post_chain` 行提供“调试”入口，可调整 9 个参数。调试预设按资源包 namespace 和滤镜 ID 独立保存到 `config/prismod/config/resourcepacks/<namespace>/<filter-id>.json`；保存后正常渲染自动生效，普通滤镜强度与调试 `intensity` 相乘。旧 `lut-presets.json` 保留但不再读取。
+- 在世界内的滤镜配置页，支持统一调试契约的 LUT 和 `post_chain` 行提供“调试”入口，可调整 9 个参数。调试预设按资源包 namespace 和滤镜 ID 独立保存到 `config/prismod/config/resourcepacks/<namespace>/<filter-id>.json`；保存后正常渲染自动生效，普通滤镜强度与调试 `intensity` 相乘。调试预览每帧只处理一次；关闭页面、切换世界或资源重载会释放调试链、LUT 纹理和临时目标，上传/处理失败后停止逐帧重试。旧 `lut-presets.json` 保留但不再读取。
 
 配置字段为顶层 `enabled`、`cycle_order`、`custom_strengths`、`disabled_packs`、`hidden_filters` 以及内置滤镜强度字段。资源重载完成和配置页面保存时会清理已不再存在于注册表或资源包清单的自定义滤镜配置，不使用循环任务；暂时禁用的资源包和按滤镜保存的调试预设不参与此清理。所有强度在 0.0–1.0 内。
 
@@ -45,7 +45,7 @@ FilterApi.clearForcedFilter();
 
 在 `GameRenderer.render(FJZ)V` 完成世界及原版后处理、重新绑定主目标之后注入，早于 HUD。Prismod 自有 PostChain 使用 **一次滤镜绘制（main → swap）+ 一次颜色 blit（swap → main）**，不占用原版旁观者滤镜槽位。强度为零时两步都不执行。
 
-处理成功前保留主画面，资源或 GL 错误后停用本次滤镜并提示一次，F3+T 或重启后重试。resize 重设临时目标；资源重载/退出释放自有 GPU 资源。渲染失败期间 API 回报原色并保留 `forced` 标记。
+处理成功前保留主画面，资源或 GL 错误后停用本次滤镜并提示一次，F3+T 或重启后重试。resize 重设临时目标；资源重载/退出释放自有 GPU 资源。调试页面被外部替换时也会执行同样的清理，避免旧 framebuffer 或纹理继续提交。渲染失败期间 API 回报原色并保留 `forced` 标记。
 
 Oculus 是可选共存模组，不是依赖。本版在当前主画面上尝试叠加，不读取其私有 API。**Oculus 启用 shaderpack 的兼容性必须按具体版本/光影包实测**；成功构建不代表通过此项。OptiFine 与其他重写 GameRenderer 的模组同样不作未经测试的兼容承诺。
 

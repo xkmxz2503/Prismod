@@ -15,6 +15,7 @@
 - 当前实际生效滤镜来自某个资源包时，该资源包暂时不能禁用；被禁用资源包中的滤镜不会出现在管理页，也不能单独切换展示状态。
 - 隐藏滤镜不会出现在一级配置页或 F8 循环；取消隐藏后恢复其原有循环顺序。
 - 资源包加载失败、shader 编译失败或 OpenGL 状态异常时回退原色并提示；资源重载后允许重新尝试。
+- 调试预览每帧最多执行一次独立处理；渲染重入、调试界面被替换、世界切换或资源重载时会立即停止并释放 PostChain、LUT 纹理和临时 framebuffer。调试上传或处理失败后保留诊断信息但停止逐帧重试，必须重新打开调试页才会再次创建 GPU 资源。
 - 自定义滤镜通过客户端 API 注册时仍支持强制覆盖和动态注销。
 
 构建产物默认位于 `build/libs/prismod-1.0.jar`。当前工作区可能存在未提交的功能修改，修改时必须保留用户已有改动。
@@ -114,7 +115,7 @@ F8 只在世界内、没有打开屏幕且没有强制状态时响应。按键�
 
 ### 渲染层
 
-- `client/WorldFilterRenderer.java`：只在渲染线程运行，管理自有 `PostChain`、临时 framebuffer、resize、资源重载和失败降级。
+- `client/WorldFilterRenderer.java`：只在渲染线程运行，管理自有 `PostChain`、临时 framebuffer、resize、资源重载和失败降级；调试会话与调试页面绑定，页面消失、世界切换、资源重载或 native/GL 上传失败后立即失效并释放 GPU 资源，禁止同一帧重入或失败后每帧重复创建链。
 - `mixin/client/GameRendererMixin.java`：注入 `GameRenderer.render`，位置保持在世界和手持物品及原版后处理完成、HUD 开始之前。
 - `mixin/client/PostChainAccessor.java`：访问 `PostChain` 的 pass 列表和资源加载方法。
 - `mixin/client/BlendModeAccessor.java`：恢复 `BlendMode.lastApplied`，避免 HUD 状态污染。
@@ -125,7 +126,7 @@ F8 只在世界内、没有打开屏幕且没有强制状态时响应。按键�
 minecraft:main --(一个滤镜 pass)--> swap --(颜色 blit)--> minecraft:main
 ```
 
-成功处理前不得清空主目标。失败时保留原画面、停用当前滤镜并提示一次；必须恢复 blend、depth、cull、depth mask、blend factors、blend equations 和 `BlendMode.lastApplied`。原色或强度为零时不执行后处理。不得调用 Oculus 私有 API，Oculus 只能作为可选共存模组。
+成功处理前不得清空主目标。失败时保留原画面、停用当前滤镜并提示一次；必须恢复 blend、depth、cull、depth mask、blend factors、blend equations 和 `BlendMode.lastApplied`。原色或强度为零时不执行后处理。调试预览的 `main -> swap -> main` 只允许一次处理调用；页面不再存在时不得继续提交旧链或旧目标纹理。LUT 上传必须隔离并恢复像素解包状态，失败创建的纹理必须立即删除。不得调用 Oculus 私有 API，Oculus 只能作为可选共存模组。
 
 ## 测试和验证
 
