@@ -49,6 +49,7 @@ public final class LutDebugScreen extends Screen {
     private int previewBottom;
     private float divider = 0.5F;
     private boolean draggingDivider;
+    private boolean debugSessionEnded;
 
     public LutDebugScreen(Screen parent, FilterKey key) {
         super(Component.translatable("screen.prismod.filter_debug.title"));
@@ -188,9 +189,21 @@ public final class LutDebugScreen extends Screen {
     @Override
     public void onClose() {
         if (minecraft != null) {
-            WorldFilterRenderer.endDebugSession();
+            endDebugSessionOnce();
             minecraft.setScreen(parent);
         }
+    }
+
+    @Override
+    public void removed() {
+        endDebugSessionOnce();
+        super.removed();
+    }
+
+    private void endDebugSessionOnce() {
+        if (debugSessionEnded) return;
+        debugSessionEnded = true;
+        if (minecraft != null) WorldFilterRenderer.endDebugSession();
     }
 
     @Override

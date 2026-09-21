@@ -17,6 +17,7 @@ import com.xkmxz.prismod.client.filter.state.FilterManager;
 import com.xkmxz.prismod.client.filter.state.FilterSelection;
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;
+import com.xkmxz.prismod.client.ui.LutDebugScreen;
 import com.xkmxz.prismod.mixin.client.PostChainAccessor;
 import com.xkmxz.prismod.mixin.client.BlendModeAccessor;
 import net.minecraft.client.Minecraft;
@@ -28,6 +29,10 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
+import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL15;
+import org.lwjgl.opengl.GL21;
+import org.lwjgl.opengl.GL12;
 import org.slf4j.Logger;
 
 /** 拥有独立链，不占用原版的旁观者 postEffect 槽位。仅从渲染线程调用。 */
@@ -59,17 +64,35 @@ public final class WorldFilterRenderer {
     private static TextureTarget debugOriginal;
     private static TextureTarget debugProcessed;
     private static String debugError;
+    private static boolean rendering;
 
     private WorldFilterRenderer() { }
 
     public static void render(float partialTick) {
         RenderSystem.assertOnRenderThread();
+        if (rendering) return;
+        rendering = true;
+        try {
+            renderInternal(partialTick);
+        } finally {
+            rendering = false;
+        }
+    }
+
+    private static void renderInternal(float partialTick) {
         Minecraft mc = Minecraft.getInstance();
         FilterSelection selection = FilterManager.get().effectiveSelection();
         FilterKey key = selection.key();
         if (mc.level == null) return;
         RenderTarget main = mc.getMainRenderTarget();
         if (main.width <= 0 || main.height <= 0) return;
+        if (debugTarget != null && !(mc.screen instanceof LutDebugScreen)) {
+            // A screen can be replaced without invoking the old screen's close
+            // callback (world changes and external screen transitions do this).
+            // Never keep submitting the debug chain after its owner disappeared.
+            endDebugSession();
+            return;
+        }
         if (debugTarget != null) {
             renderDebug(mc, main, partialTick);
             return;
@@ -186,6 +209,10 @@ public final class WorldFilterRenderer {
         } catch (Exception exception) {
             debugError = exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
             LOGGER.warn("Prismod LUT debug preview failed for {}", debugTarget == null ? "unknown" : debugTarget.serializedName(), exception);
+            // Do not retry a failed native/resource setup every frame. The screen
+            // remains open so it can show the diagnostic, but rendering is disabled
+            // until the user starts a new debug session.
+            debugTarget = null;
             releaseChain();
         } finally {
             main.bindWrite(true);
@@ -285,7 +312,9 @@ public final class WorldFilterRenderer {
 
     public static void reload() {
         RenderSystem.assertOnRenderThread();
+        clearDebugSession();
         releaseChain();
+        closeDebugTargets();
         DEBUG_PRESETS.clearCache();
         PROFILER.close();
         FilterManager.get().setRenderAvailable(true);
@@ -294,6 +323,7 @@ public final class WorldFilterRenderer {
 
     public static void close() {
         RenderSystem.assertOnRenderThread();
+        clearDebugSession();
         releaseChain();
         DEBUG_PRESETS.clearCache();
         closeDebugTargets();
@@ -371,11 +401,15 @@ public final class WorldFilterRenderer {
 
     public static void endDebugSession() {
         RenderSystem.assertOnRenderThread();
+        clearDebugSession();
+        releaseChain();
+        closeDebugTargets();
+    }
+
+    private static void clearDebugSession() {
         debugTarget = null;
         debugSettings = FilterDebugSettings.defaults();
         debugError = null;
-        releaseChain();
-        closeDebugTargets();
     }
 
     private static void closeDebugTargets() {
@@ -385,28 +419,72 @@ public final class WorldFilterRenderer {
 
     private static int uploadLut(Lut3dData lut) {
         if (lut == null) throw new IllegalArgumentException("Missing LUT data");
-        int texture = GL11.glGenTextures();
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        // Use normalized RGBA8 instead of RGB16F/FloatBuffer. The latter can enter
-        // a driver-specific native path that crashes on some NVIDIA/Oculus setups.
         int pointCount = lut.pointCount();
-        java.nio.ByteBuffer buffer = org.lwjgl.BufferUtils.createByteBuffer(pointCount * 4);
-        float[] rgb = lut.rgb();
-        for (int point = 0; point < pointCount; point++) {
-            int offset = point * 3;
-            buffer.put((byte) Math.round(Mth.clamp(rgb[offset], 0.0F, 1.0F) * 255.0F));
-            buffer.put((byte) Math.round(Mth.clamp(rgb[offset + 1], 0.0F, 1.0F) * 255.0F));
-            buffer.put((byte) Math.round(Mth.clamp(rgb[offset + 2], 0.0F, 1.0F) * 255.0F));
-            buffer.put((byte) 255);
-        }
-        buffer.flip();
         int size = lut.size();
-        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RGBA8, size * size, size, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
-        return texture;
+        if (pointCount <= 0 || (long) size * size > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid LUT dimensions: " + size);
+        }
+        int previousActiveTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+        int previousTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        int previousUnpackBuffer = GL11.glGetInteger(GL21.GL_PIXEL_UNPACK_BUFFER_BINDING);
+        int previousUnpackAlignment = GL11.glGetInteger(GL11.GL_UNPACK_ALIGNMENT);
+        int previousUnpackRowLength = GL11.glGetInteger(GL12.GL_UNPACK_ROW_LENGTH);
+        int previousUnpackSkipPixels = GL11.glGetInteger(GL12.GL_UNPACK_SKIP_PIXELS);
+        int previousUnpackSkipRows = GL11.glGetInteger(GL12.GL_UNPACK_SKIP_ROWS);
+        int previousUnpackImageHeight = GL11.glGetInteger(GL12.GL_UNPACK_IMAGE_HEIGHT);
+        int previousUnpackSkipImages = GL11.glGetInteger(GL12.GL_UNPACK_SKIP_IMAGES);
+        int texture = 0;
+        try {
+            // Client-memory uploads must not inherit a PBO left bound by another
+            // renderer. With a PBO bound, the driver interprets the ByteBuffer
+            // address as an offset and some NVIDIA/Oculus combinations crash in
+            // native code instead of reporting a GL error.
+            GL13.glActiveTexture(GL13.GL_TEXTURE0);
+            GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0);
+            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+            GL11.glPixelStorei(GL12.GL_UNPACK_ROW_LENGTH, 0);
+            GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_PIXELS, 0);
+            GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_ROWS, 0);
+            GL11.glPixelStorei(GL12.GL_UNPACK_IMAGE_HEIGHT, 0);
+            GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_IMAGES, 0);
+            texture = GL11.glGenTextures();
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            // Use normalized RGBA8 instead of RGB16F/FloatBuffer. The latter can enter
+            // a driver-specific native path that crashes on some NVIDIA/Oculus setups.
+            java.nio.ByteBuffer buffer = org.lwjgl.BufferUtils.createByteBuffer(pointCount * 4);
+            float[] rgb = lut.rgb();
+            for (int point = 0; point < pointCount; point++) {
+                int offset = point * 3;
+                buffer.put((byte) Math.round(Mth.clamp(rgb[offset], 0.0F, 1.0F) * 255.0F));
+                buffer.put((byte) Math.round(Mth.clamp(rgb[offset + 1], 0.0F, 1.0F) * 255.0F));
+                buffer.put((byte) Math.round(Mth.clamp(rgb[offset + 2], 0.0F, 1.0F) * 255.0F));
+                buffer.put((byte) 255);
+            }
+            buffer.flip();
+            GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RGBA8, size * size, size, 0,
+                    GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
+            int error = GL11.glGetError();
+            if (error != GL11.GL_NO_ERROR) {
+                throw new IllegalStateException("LUT texture upload GL error: " + error);
+            }
+            return texture;
+        } catch (RuntimeException exception) {
+            if (texture != 0) GL11.glDeleteTextures(texture);
+            throw exception;
+        } finally {
+            GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, previousUnpackBuffer);
+            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
+            GL11.glPixelStorei(GL12.GL_UNPACK_ROW_LENGTH, previousUnpackRowLength);
+            GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_PIXELS, previousUnpackSkipPixels);
+            GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_ROWS, previousUnpackSkipRows);
+            GL11.glPixelStorei(GL12.GL_UNPACK_IMAGE_HEIGHT, previousUnpackImageHeight);
+            GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_IMAGES, previousUnpackSkipImages);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
+            GL13.glActiveTexture(previousActiveTexture);
+        }
     }
 }
