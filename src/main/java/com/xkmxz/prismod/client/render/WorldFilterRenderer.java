@@ -15,6 +15,7 @@ import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import com.xkmxz.prismod.client.filter.registry.FilterType;
 import com.xkmxz.prismod.client.filter.state.FilterManager;
 import com.xkmxz.prismod.client.filter.state.FilterSelection;
+import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import com.xkmxz.prismod.mixin.client.PostChainAccessor;
 import com.xkmxz.prismod.mixin.client.BlendModeAccessor;
@@ -93,7 +94,7 @@ public final class WorldFilterRenderer {
             prepare(mc, main, key);
             FilterDefinition definition = FilterRegistry.get().definition(key);
             FilterDebugSettings settings = debugSettingsFor(definition, key);
-            if (intensity != null) intensity.set(selection.strength() * settings.intensity());
+            if (intensity != null) intensity.set(combinedIntensity(selection.strength(), settings));
             if (definition != null && definition.type() == FilterType.LUT3D) {
                 float[] min = definition.lutData().domainMin();
                 float[] max = definition.lutData().domainMax();
@@ -160,7 +161,9 @@ public final class WorldFilterRenderer {
             prepare(mc, main, debugTarget);
             FilterDefinition definition = FilterRegistry.get().definition(debugTarget);
             if (definition == null || !definition.debugSupported()) throw new IllegalStateException("Filter does not support debug tuning");
-            if (intensity != null) intensity.set(debugSettings.intensity());
+            // The preview must use the same effective intensity as normal world
+            // rendering: the ordinary filter strength multiplied by debug intensity.
+            if (intensity != null) intensity.set(combinedIntensity(PrismodClientConfig.strength(debugTarget), debugSettings));
             if (definition.type() == FilterType.LUT3D) {
                 if (definition.lutData() == null) throw new IllegalStateException("Missing LUT data");
                 float[] min = definition.lutData().domainMin();
@@ -174,7 +177,11 @@ public final class WorldFilterRenderer {
             RenderSystem.disableCull();
             RenderSystem.depthMask(false);
             chain.process(partialTick);
-            copy(chain.getTempTarget("swap"), debugProcessed);
+            RenderTarget processed = chain.getTempTarget("swap");
+            copy(processed, debugProcessed);
+            // Keep the world behind the debug screen on the same processed image
+            // shown by the preview. HUD and screen rendering happen afterwards.
+            copy(processed, main);
             debugError = null;
         } catch (Exception exception) {
             debugError = exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
@@ -330,6 +337,11 @@ public final class WorldFilterRenderer {
         if (temperature != null) temperature.set(settings.temperature());
         if (tint != null) tint.set(settings.tint());
         if (gamma != null) gamma.set(settings.gamma());
+    }
+
+    private static float combinedIntensity(float ordinaryStrength, FilterDebugSettings settings) {
+        FilterDebugSettings safe = settings == null ? FilterDebugSettings.defaults() : settings;
+        return Mth.clamp(ordinaryStrength, 0.0F, 1.0F) * safe.intensity();
     }
 
     private static FilterDebugSettings debugSettingsFor(FilterDefinition definition, FilterKey key) {
