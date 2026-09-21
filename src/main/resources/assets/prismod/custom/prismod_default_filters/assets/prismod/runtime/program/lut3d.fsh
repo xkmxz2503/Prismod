@@ -24,9 +24,11 @@ void main() {
     color.b -= Temperature * 0.05;
     color.g += Tint * 0.05;
     color = pow(max(color, vec3(0.0)), vec3(1.0 / max(Gamma, 0.1)));
-    vec3 coordinate = clamp((color - LutDomainMin) / max(LutDomainMax - LutDomainMin, vec3(0.000001)), vec3(0.0), vec3(1.0)) * 31.0;
-    float x = (floor(coordinate.x) + floor(coordinate.y) * 32.0 + 0.5) / 1024.0;
-    float y = (floor(coordinate.z) + 0.5) / 32.0;
+    vec2 lutDimensions = vec2(textureSize(LutSampler, 0));
+    float lutSize = lutDimensions.y;
+    vec3 coordinate = clamp((color - LutDomainMin) / max(LutDomainMax - LutDomainMin, vec3(0.000001)), vec3(0.0), vec3(1.0)) * (lutSize - 1.0);
+    float x = (floor(coordinate.x) + floor(coordinate.y) * lutSize + 0.5) / (lutSize * lutSize);
+    float y = (floor(coordinate.z) + 0.5) / lutSize;
     vec3 lut = texture(LutSampler, vec2(x, y)).rgb;
     color = lut;
     color = (color - 0.5) * (1.0 + Contrast) + 0.5;

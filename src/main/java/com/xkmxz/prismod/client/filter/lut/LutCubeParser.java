@@ -15,7 +15,7 @@ public final class LutCubeParser {
         String title = null;
         float[] min = null;
         float[] max = null;
-        List<Float> values = new ArrayList<>(Lut3dData.POINT_COUNT * 3);
+        List<Float> values = new ArrayList<>();
         try (BufferedReader buffered = reader instanceof BufferedReader b ? b : new BufferedReader(reader)) {
             String line;
             int lineNumber = 0;
@@ -36,7 +36,9 @@ public final class LutCubeParser {
                         case "LUT_3D_SIZE" -> {
                             if (parts.length != 2 || size != -1) throw new IllegalArgumentException("invalid LUT_3D_SIZE");
                             size = Integer.parseInt(parts[1]);
-                            if (size != Lut3dData.SIZE) throw new IllegalArgumentException("LUT_3D_SIZE must be 32");
+                            if (size < Lut3dData.MIN_SIZE || size > Lut3dData.MAX_SIZE) {
+                                throw new IllegalArgumentException("LUT_3D_SIZE must be between 1 and 64");
+                            }
                         }
                         case "DOMAIN_MIN", "DOMAIN_MAX" -> {
                             if (parts.length != 4) throw new IllegalArgumentException("invalid " + directive);
@@ -61,14 +63,15 @@ public final class LutCubeParser {
                 }
             }
         }
-        if (size != Lut3dData.SIZE) throw new IOException("missing LUT_3D_SIZE 32");
-        if (values.size() != Lut3dData.POINT_COUNT * 3) throw new IOException("expected 32768 LUT data points");
+        if (size < Lut3dData.MIN_SIZE || size > Lut3dData.MAX_SIZE) throw new IOException("missing valid LUT_3D_SIZE (1-64)");
+        int expected = size * size * size * 3;
+        if (values.size() != expected) throw new IOException("expected " + (size * size * size) + " LUT data points");
         float[] rgb = new float[values.size()];
         for (int i = 0; i < rgb.length; i++) rgb[i] = values.get(i);
         float[] domainMin = min == null ? new float[] {0, 0, 0} : min;
         float[] domainMax = max == null ? new float[] {1, 1, 1} : max;
         for (int i = 0; i < 3; i++) if (!(domainMax[i] > domainMin[i])) throw new IOException("invalid LUT domain range");
-        return new Lut3dData(rgb, domainMin, domainMax, title);
+        return new Lut3dData(size, rgb, domainMin, domainMax, title);
     }
 
     private static float finite(String value) {

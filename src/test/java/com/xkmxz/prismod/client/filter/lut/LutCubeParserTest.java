@@ -12,14 +12,24 @@ class LutCubeParserTest {
     }
 
     @Test void parses32CubeAndDefaultsDomain() throws Exception {
-        Lut3dData data = LutCubeParser.parse(new StringReader(cube(32, Lut3dData.POINT_COUNT)));
+        Lut3dData data = LutCubeParser.parse(new StringReader(cube(32, 32 * 32 * 32)));
+        assertEquals(32, data.size());
         assertEquals(32768 * 3, data.rgb().length);
         assertArrayEquals(new float[] {0, 0, 0}, data.domainMin());
         assertArrayEquals(new float[] {1, 1, 1}, data.domainMax());
     }
 
+    @Test void acceptsVariableSizeWithinSupportedRange() throws Exception {
+        Lut3dData data = LutCubeParser.parse(new StringReader(cube(2, 8)));
+        assertEquals(2, data.size());
+        assertEquals(8, data.pointCount());
+        assertEquals(4096, LutCubeParser.parse(new StringReader(cube(16, 4096))).pointCount());
+        assertEquals(64, LutCubeParser.parse(new StringReader(cube(64, 64 * 64 * 64))).size());
+    }
+
     @Test void rejectsWrongSizePointCountUnknownDirectiveAndNonFiniteValues() {
-        assertThrows(Exception.class, () -> LutCubeParser.parse(new StringReader(cube(16, Lut3dData.POINT_COUNT))));
+        assertThrows(Exception.class, () -> LutCubeParser.parse(new StringReader(cube(0, 0))));
+        assertThrows(Exception.class, () -> LutCubeParser.parse(new StringReader(cube(65, 65 * 65 * 65))));
         assertThrows(Exception.class, () -> LutCubeParser.parse(new StringReader(cube(32, 1))));
         assertThrows(Exception.class, () -> LutCubeParser.parse(new StringReader("LUT_3D_SIZE 32\nUNKNOWN x\n")));
         assertThrows(Exception.class, () -> LutCubeParser.parse(new StringReader("LUT_3D_SIZE 32\nUNKNOWN 0 0\n")));

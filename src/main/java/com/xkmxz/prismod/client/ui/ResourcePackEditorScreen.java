@@ -59,9 +59,9 @@ public final class ResourcePackEditorScreen extends Screen {
                 Component.translatable("screen.prismod.namespace")));
         namespaceBox.setValue(draft.namespace());
 
-        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.new_post_filter"), button -> addFilter("post_chain"))
+        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.new_post_filter"), button -> openCreateFilter("post_chain"))
                 .bounds(panelLeft, panelTop + 98, (leftWidth - 4) / 2, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.new_lut_filter"), button -> addFilter("lut3d"))
+        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.new_lut_filter"), button -> openCreateFilter("lut3d"))
                 .bounds(panelLeft + (leftWidth + 4) / 2, panelTop + 98, (leftWidth - 4) / 2, 20).build());
 
         filterListLeft = right;
@@ -99,24 +99,14 @@ public final class ResourcePackEditorScreen extends Screen {
         if (minecraft != null) minecraft.setScreen(new ResourcePackFilterScreen(this, draft, id));
     }
 
-    private void addFilter(String type) {
+    private void openCreateFilter(String type) {
         syncMetadata();
-        String id = "new_filter";
-        int suffix = 2;
-        while (filterExists(id)) {
-            id = "new_filter_" + suffix++;
-        }
-        try {
-            draft.addFilter(type, id);
-            status = Component.translatable("screen.prismod.filter_added", id).getString();
-            init();
-        } catch (Exception exception) {
-            status = exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
-        }
+        if (minecraft != null) minecraft.setScreen(new ResourcePackFilterCreateScreen(this, draft, type));
     }
 
-    private boolean filterExists(String id) {
-        return draft.filters().stream().anyMatch(filter -> filter.id().equals(id));
+    public void filterCreated(String id) {
+        status = Component.translatable("screen.prismod.filter_added", id).getString();
+        init();
     }
 
     private void arrangeFilterRows() {

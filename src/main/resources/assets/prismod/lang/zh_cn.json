@@ -120,6 +120,17 @@
   "screen.prismod.filter_color_space": "色彩空间",
   "screen.prismod.filter_type": "类型：%s",
   "screen.prismod.filter_type_label": "滤镜类型",
+  "screen.prismod.filter_create_title": "新建滤镜",
+  "screen.prismod.filter_language_name": "显示名称",
+  "screen.prismod.filter_language_names": "各语言显示名称",
+  "screen.prismod.filter_import": "导入滤镜文件",
+  "screen.prismod.filter_import_hint": "请将滤镜文件夹或单个文件拖入此页面",
+  "screen.prismod.filter_imported": "已导入 %s 个文件",
+  "screen.prismod.filter_imported_files": "导入文件：%s",
+  "screen.prismod.filter_add_to_draft": "添加到草稿",
+  "screen.prismod.filter_create_invalid_id": "滤镜 ID 无效或已存在",
+  "screen.prismod.filter_create_invalid_strength": "默认强度必须是 0 到 1 之间的数字",
+  "screen.prismod.filter_create_name_required": "至少填写一种语言的显示名称",
   "screen.prismod.save_filter": "保存滤镜草稿",
   "screen.prismod.filter_saved": "滤镜草稿已更新，返回主页面后统一保存。"
 }

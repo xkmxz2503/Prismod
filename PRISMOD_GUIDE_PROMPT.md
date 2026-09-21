@@ -10,7 +10,7 @@
 - F8 按配置顺序循环；自定义滤镜使用 `namespace:path` 的 `FilterKey` 参与循环。
 - F8 提示使用当前 `FilterDefinition.displayName()`：优先显示翻译名称，没有翻译时显示真实自定义 ID，不得通过旧版 `FilterState.id()` 把自定义滤镜显示成原色。
 - 一级滤镜配置页：总开关、当前选择、滤镜强度、循环顺序、保存/取消/Esc。
-- 二级资源包管理页：支持将目录或 ZIP 直接拖入页面导入，也可打开 Prismod 专用资源包目录手动放置；导入后刷新并显示资源包、启用/禁用资源包、滚动列表、独立保存/取消。每个条目提供全屏编辑入口，可修改资源包元数据、滤镜清单和受支持文本资源；创建资源包入口暂作为后续向导占位。
+- 二级资源包管理页：支持将目录或 ZIP 直接拖入页面导入，也可打开 Prismod 专用资源包目录手动放置；导入后刷新并显示资源包、启用/禁用资源包、滚动列表、独立保存/取消。每个条目提供全屏编辑入口，可修改资源包元数据、滤镜清单和受支持文本资源。编辑页的新建 PostChain/LUT 按钮进入滤镜预设向导，支持填写 ID、默认强度、各语言名称，拖入完整滤镜目录或单个源文件，并在加入草稿前生成和校验可运行模板；创建资源包入口仍为后续向导占位。
 - 独立滤镜管理页：控制单个滤镜是否展示、滚动列表、独立保存/取消。
 - 当前实际生效滤镜来自某个资源包时，该资源包暂时不能禁用；被禁用资源包中的滤镜不会出现在管理页，也不能单独切换展示状态。
 - 隐藏滤镜不会出现在一级配置页或 F8 循环；取消隐藏后恢复其原有循环顺序。
@@ -53,7 +53,7 @@ strength_night_vision = 1.0
 - 内置包采用与 TACZ 默认枪包相同的导出方式：首次客户端资源重载时把上述完整目录导出到 `config/prismod/builtin/prismod_default_filters/`，之后作为普通目录资源包由 Prismod 私有资源管理器读取；`filters/` 和 `lang/` 中已有文件不覆盖用户编辑，但 `assets/prismod/runtime/` 运行时处理器会随模组版本同步更新，避免旧 shader 清单遮蔽实现。它仍由包内的 `prismod.pack.json` 驱动，不调用 Minecraft 原版资源包管理器。
 - 可选 `name` 只作为资源包在管理界面的显示名称。
 - 可选 `dependencies` 声明 Forge 模组版本范围。
-- `post_chain` 的 PostChain、program JSON 和 GLSL 位于当前滤镜目录；`lut3d` 的 `source` 指向同目录 `.cube` 文件。`.cube` 固定为 32³、32768 点、sRGB。支持调试的滤镜必须在 pass、program 和 GLSL 中声明 `Intensity`、`Exposure`、`Contrast`、`Highlights`、`Shadows`、`Saturation`、`Temperature`、`Tint`、`Gamma` 九个 float uniform。
+- `post_chain` 的 PostChain、program JSON 和 GLSL 位于当前滤镜目录；`lut3d` 的 `source` 指向同目录 `.cube` 文件。`.cube` 的 `LUT_3D_SIZE` 支持 1 到 64，数据点数量必须与尺寸的三次方一致，颜色空间为 sRGB；默认模板仍生成 32³ identity LUT。0 或超过 64 的尺寸没有可渲染数据而不可用。支持调试的滤镜必须在 pass、program 和 GLSL 中声明 `Intensity`、`Exposure`、`Contrast`、`Highlights`、`Shadows`、`Saturation`、`Temperature`、`Tint`、`Gamma` 九个 float uniform。
 - 不需要 `pack.mcmeta`，不读取原版 `resourcepacks/`，也不使用 Minecraft 原版资源包界面管理。
 - 同一 namespace 只接受按文件名升序扫描到的第一个有效资源包；导入时拒绝重复 namespace 和同名目标，不覆盖已有文件。
 
@@ -98,7 +98,7 @@ FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEf
 
 F8 只在世界内、没有打开屏幕且没有强制状态时响应。按键冲突只提示，不修改玩家绑定。资源包管理页保存后写入配置并触发 Prismod 自己的资源刷新，取消和 Esc 放弃草稿；不得调用 Minecraft 原版资源包仓库重载。
 
-资源包编辑器保存行为：目录包直接在临时目录校验后原子替换并保留 `.prismod-backup`；ZIP 包编辑时生成同名 `.editable` 目录并保留 ZIP；namespace 变更另存为新资源包，目标 namespace 冲突时阻止保存。删除滤镜内容写入包内 `.prismod-recycle/`，取消、关闭或窗口重建不会写入草稿。支持文件范围为 `prismod.pack.json`、滤镜 `filter.json`、PostChain/program JSON、GLSL、`.cube` 和资源包语言 JSON。
+资源包编辑器保存行为：目录包直接在临时目录校验后原子替换并保留 `.prismod-backup`；ZIP 包编辑时生成同名 `.editable` 目录并保留 ZIP；namespace 变更另存为新资源包，目标 namespace 冲突时阻止保存。删除滤镜内容写入包内 `.prismod-recycle/`，取消、关闭或窗口重建不会写入草稿。支持文件范围为 `prismod.pack.json`、滤镜 `filter.json`、PostChain/program JSON、GLSL、`.cube` 和资源包语言 JSON。新建向导生成的 PostChain 必须包含完整 pass 和九个调试 uniform；缺失显式 shader 引用、非法 JSON 或 LUT 数据点不匹配时阻止加入草稿。
 
 ### 资源包和注册表
 

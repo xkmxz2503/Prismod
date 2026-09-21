@@ -256,10 +256,11 @@ public final class WorldFilterRenderer {
                     throw new IllegalStateException("LUT shader is missing debug uniforms");
                 }
                 lutTexture = uploadLut(definition.lutData());
-                // The atlas stores the .cube file order as a 1024x32 2D texture:
+                // The atlas stores the .cube file order as a size^2 x size 2D texture:
                 // red is the least-significant coordinate, followed by green,
                 // while blue selects the row.  The shader samples the same layout.
-                pass.addAuxAsset("LutSampler", () -> lutTexture, 1024, 32);
+                int lutSize = definition.lutData().size();
+                pass.addAuxAsset("LutSampler", () -> lutTexture, lutSize * lutSize, lutSize);
             }
             source = main;
             loaded = key;
@@ -380,9 +381,10 @@ public final class WorldFilterRenderer {
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         // Use normalized RGBA8 instead of RGB16F/FloatBuffer. The latter can enter
         // a driver-specific native path that crashes on some NVIDIA/Oculus setups.
-        java.nio.ByteBuffer buffer = org.lwjgl.BufferUtils.createByteBuffer(Lut3dData.POINT_COUNT * 4);
+        int pointCount = lut.pointCount();
+        java.nio.ByteBuffer buffer = org.lwjgl.BufferUtils.createByteBuffer(pointCount * 4);
         float[] rgb = lut.rgb();
-        for (int point = 0; point < Lut3dData.POINT_COUNT; point++) {
+        for (int point = 0; point < pointCount; point++) {
             int offset = point * 3;
             buffer.put((byte) Math.round(Mth.clamp(rgb[offset], 0.0F, 1.0F) * 255.0F));
             buffer.put((byte) Math.round(Mth.clamp(rgb[offset + 1], 0.0F, 1.0F) * 255.0F));
@@ -390,7 +392,8 @@ public final class WorldFilterRenderer {
             buffer.put((byte) 255);
         }
         buffer.flip();
-        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RGBA8, 1024, 32, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
+        int size = lut.size();
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RGBA8, size * size, size, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
         return texture;
     }

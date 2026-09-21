@@ -120,6 +120,17 @@
   "screen.prismod.filter_color_space": "Color Space",
   "screen.prismod.filter_type": "Type: %s",
   "screen.prismod.filter_type_label": "Filter Type",
+  "screen.prismod.filter_create_title": "Create Filter",
+  "screen.prismod.filter_language_name": "Display Name",
+  "screen.prismod.filter_language_names": "Names by Language",
+  "screen.prismod.filter_import": "Import Filter Files",
+  "screen.prismod.filter_import_hint": "Drop a filter folder or individual files onto this page",
+  "screen.prismod.filter_imported": "Imported %s file(s)",
+  "screen.prismod.filter_imported_files": "Imported files: %s",
+  "screen.prismod.filter_add_to_draft": "Add to Draft",
+  "screen.prismod.filter_create_invalid_id": "The filter ID is invalid or already exists",
+  "screen.prismod.filter_create_invalid_strength": "Default strength must be a number between 0 and 1",
+  "screen.prismod.filter_create_name_required": "Enter a display name for at least one language",
   "screen.prismod.save_filter": "Save Filter Draft",
   "screen.prismod.filter_saved": "Filter draft updated; return to the main page to save all changes."
 }

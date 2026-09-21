@@ -107,7 +107,8 @@ public final class ResourcePackEditorDraft {
         }
         files.clear();
         files.putAll(renamed);
-        JsonArray filters = manifest().getAsJsonArray("filters");
+        JsonObject manifest = manifest();
+        JsonArray filters = manifest.getAsJsonArray("filters");
         for (var element : filters) {
             JsonObject item = element.getAsJsonObject();
             if (oldId.equals(item.get("id").getAsString())) {
@@ -115,7 +116,7 @@ public final class ResourcePackEditorDraft {
                 item.addProperty("path", newPrefix.substring(0, newPrefix.length() - 1));
             }
         }
-        writeManifest(manifest());
+        writeManifest(manifest);
     }
 
     public void deleteFilter(String id) {
@@ -123,28 +124,60 @@ public final class ResourcePackEditorDraft {
         for (String path : files.keySet().stream().filter(value -> value.startsWith(prefix)).toList()) {
             deletedFiles.put(path, files.remove(path));
         }
-        JsonArray filters = manifest().getAsJsonArray("filters");
+        JsonObject manifest = manifest();
+        JsonArray filters = manifest.getAsJsonArray("filters");
         for (int index = filters.size() - 1; index >= 0; index--) {
             if (id.equals(filters.get(index).getAsJsonObject().get("id").getAsString())) filters.remove(index);
         }
-        writeManifest(manifest());
+        writeManifest(manifest);
     }
 
     public ResourcePackEditorService.FilterCreation addFilter(String type, String id) throws java.io.IOException {
-        ResourcePackEditorService.FilterCreation creation = ResourcePackEditorService.createFilter(session, id, type);
+        return addFilter(new ResourcePackEditorService.FilterCreateRequest(id, type, 1.0F, Map.of(), Map.of()));
+    }
+
+    public ResourcePackEditorService.FilterCreation addFilter(ResourcePackEditorService.FilterCreateRequest request) throws java.io.IOException {
+        if (request == null || request.id() == null || request.id().isBlank()) throw new java.io.IOException("滤镜 ID 不能为空");
+        if (filters().stream().anyMatch(filter -> filter.id().equals(request.id()))) {
+            throw new java.io.IOException("滤镜 ID 已存在：" + request.id());
+        }
+        ResourcePackEditorService.FilterCreation creation = ResourcePackEditorService.createFilter(session, request);
         String oldNamespace = session.metadata().namespace();
         for (Map.Entry<String, String> entry : creation.files().entrySet()) {
             String path = entry.getKey().replace("assets/" + oldNamespace + "/", "assets/" + namespace + "/");
             String value = entry.getValue().replace("filter." + oldNamespace + ".", "filter." + namespace + ".");
             files.put(path, value);
         }
-        JsonArray filters = manifest().getAsJsonArray("filters");
+        JsonObject manifest = manifest();
+        JsonArray filters = manifest.getAsJsonArray("filters");
         JsonObject item = new JsonObject();
-        item.addProperty("id", id);
-        item.addProperty("path", "assets/" + namespace + "/filters/" + id);
+        item.addProperty("id", request.id());
+        item.addProperty("path", "assets/" + namespace + "/filters/" + request.id());
         filters.add(item);
-        writeManifest(manifest());
+        writeManifest(manifest);
+        String key = creation.displayNameKey().replace("filter." + oldNamespace + ".", "filter." + namespace + ".");
+        Map<String, String> names = creation.names();
+        for (Map.Entry<String, String> name : names.entrySet()) {
+            if (name.getKey() == null || name.getKey().isBlank()) continue;
+            String language = name.getKey().toLowerCase(java.util.Locale.ROOT);
+            if (!language.matches("[a-z]{2}_[a-z]{2}")) continue;
+            String path = "assets/" + namespace + "/lang/" + language + ".json";
+            JsonObject translations = languageObject(path);
+            if (name.getValue() == null || name.getValue().isBlank()) translations.remove(key);
+            else translations.addProperty(key, name.getValue());
+            files.put(path, new GsonBuilder().setPrettyPrinting().create().toJson(translations));
+        }
         return creation;
+    }
+
+    private JsonObject languageObject(String path) {
+        String text = files.get(path);
+        if (text == null || text.isBlank()) return new JsonObject();
+        try {
+            return JsonParser.parseString(text).getAsJsonObject();
+        } catch (RuntimeException exception) {
+            throw new IllegalArgumentException("语言文件 JSON 无效：" + path, exception);
+        }
     }
 
     public Map<String, String> pendingFiles() {
