@@ -16,7 +16,7 @@ import java.util.Map;
 public final class ResourcePackEditorDraft {
     private final ResourcePackEditorService.Session session;
     private final Map<String, String> files;
-    private final Map<String, String> deletedFiles = new LinkedHashMap<>();
+    private final List<Map<String, String>> deletedBatches = new ArrayList<>();
     private String name;
     private String namespace;
 
@@ -166,9 +166,11 @@ public final class ResourcePackEditorDraft {
             // filter.json 可能已经损坏；删除仍应移除目录并清理可解析的语言键。
             filter = new JsonObject();
         }
+        Map<String, String> deletedBatch = new LinkedHashMap<>();
         for (String path : files.keySet().stream().filter(value -> value.startsWith(prefix)).toList()) {
-            deletedFiles.put(path, files.remove(path));
+            deletedBatch.put(path, files.remove(path));
         }
+        if (!deletedBatch.isEmpty()) deletedBatches.add(Map.copyOf(deletedBatch));
 
         // 语言文件是共享资源，删除滤镜时只移除该滤镜的显示名称键，保留其他滤镜翻译。
         String displayKey = filter.has("display_name") && filter.get("display_name").isJsonPrimitive()
@@ -260,15 +262,21 @@ public final class ResourcePackEditorDraft {
     }
 
     public Map<String, String> pendingFiles() {
-        Map<String, String> pending = new LinkedHashMap<>(files);
-        String stamp = String.valueOf(System.currentTimeMillis());
-        for (Map.Entry<String, String> entry : deletedFiles.entrySet()) {
-            pending.put(".prismod-recycle/" + stamp + "/" + entry.getKey(), entry.getValue());
-        }
-        return pending;
+        return new LinkedHashMap<>(files);
+    }
+
+    /** 文件删除备份由保存服务写入资源包同级回收站，不再混入资源包草稿。 */
+    public Map<String, String> deletedFiles() {
+        Map<String, String> result = new LinkedHashMap<>();
+        for (Map<String, String> batch : deletedBatches) result.putAll(batch);
+        return Map.copyOf(result);
+    }
+
+    public List<Map<String, String>> deletedBatches() {
+        return deletedBatches.stream().map(Map::copyOf).toList();
     }
 
     public ResourcePackEditorService.SaveResult save() {
-        return ResourcePackEditorService.save(session, name, namespace, pendingFiles());
+        return ResourcePackEditorService.save(session, name, namespace, pendingFiles(), deletedBatches());
     }
 }

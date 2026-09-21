@@ -50,7 +50,7 @@ class ResourcePackEditorServiceTest {
     }
 
     @Test
-    void savesBackupIntoUnifiedBackupDirectory() throws Exception {
+    void savesVersionBackupOutsideResourcePackDirectory() throws Exception {
         Path root = pack("example", "gray");
         PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseManifest(
                 JsonParser.parseString(manifest("example", "gray")).getAsJsonObject());
@@ -59,10 +59,12 @@ class ResourcePackEditorServiceTest {
         ResourcePackEditorService.SaveResult result = ResourcePackEditorService.save(
                 session, "Updated", "example", Map.of());
         assertTrue(result.success(), result.message());
-        Path backup = temp.resolve(ResourcePackEditorService.BACKUP_DIRECTORY)
+        Path backup = temp.getParent().resolve(ResourcePackEditorService.BACKUP_ROOT_DIRECTORY)
+                .resolve(ResourcePackEditorService.BACKUP_DIRECTORY)
                 .resolve(root.getFileName().toString());
         assertTrue(Files.exists(backup.resolve(PrismodPackLoader.MANIFEST_FILE)));
         assertTrue(Files.exists(root.resolve(PrismodPackLoader.MANIFEST_FILE)));
+        assertFalse(Files.exists(root.resolve(".prismod-recycle")));
     }
 
     @Test
@@ -70,7 +72,8 @@ class ResourcePackEditorServiceTest {
         Path packs = Files.createDirectories(temp.resolve("resourcepacks"));
         Path normal = Files.createDirectories(packs.resolve("normal"));
         Files.writeString(normal.resolve("keep.txt"), "keep");
-        Path unified = Files.createDirectories(packs.resolve(ResourcePackEditorService.BACKUP_DIRECTORY).resolve("one"));
+        Path unified = Files.createDirectories(packs.getParent().resolve(ResourcePackEditorService.BACKUP_ROOT_DIRECTORY)
+                .resolve(ResourcePackEditorService.BACKUP_DIRECTORY).resolve("one"));
         Files.writeString(unified.resolve("old.txt"), "old");
         Path legacy = Files.createDirectories(packs.resolve("legacy.prismod-backup"));
         Files.writeString(legacy.resolve("old.txt"), "old");
@@ -78,6 +81,45 @@ class ResourcePackEditorServiceTest {
         assertTrue(Files.exists(normal.resolve("keep.txt")));
         assertFalse(Files.exists(unified));
         assertFalse(Files.exists(legacy));
+    }
+
+    @Test
+    void storesDeletedFilterBatchesOutsidePackAndManagesThemSeparately() throws Exception {
+        Path packs = Files.createDirectories(temp.resolve("resourcepacks"));
+        Path root = packAt(packs, "example", "gray");
+        PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseManifest(
+                JsonParser.parseString(manifest("example", "gray")).getAsJsonObject());
+        ResourcePackEditorDraft draft = ResourcePackEditorDraft.open(
+                new PrismodPackLoader.PackCandidate(root, metadata));
+        draft.deleteFilter("gray");
+
+        ResourcePackEditorService.SaveResult saved = draft.save();
+        assertTrue(saved.success(), saved.message());
+        Path recycleRoot = packs.getParent().resolve(ResourcePackEditorService.BACKUP_ROOT_DIRECTORY)
+                .resolve(".prismod-recycle").resolve("example");
+        try (var batches = Files.list(recycleRoot)) {
+            Path batch = batches.findFirst().orElseThrow();
+            assertTrue(Files.exists(batch.resolve("assets/example/filters/gray/filter.json")));
+        }
+        assertFalse(Files.exists(root.resolve(".prismod-recycle")));
+        assertFalse(PrismodPackLoader.scanForEditing(packs).stream()
+                .anyMatch(candidate -> candidate.path().startsWith(recycleRoot)));
+
+        ResourcePackEditorService.BackupSnapshot snapshot = ResourcePackEditorService.inspectBackups(packs);
+        assertEquals(1, snapshot.recycleBatches().size());
+        String batchName = snapshot.recycleBatches().get(0).batchName();
+        assertEquals(1, ResourcePackEditorService.clearRecycleBackups(packs, "example", batchName).recycleBatches());
+        assertTrue(Files.exists(root.resolve(PrismodPackLoader.MANIFEST_FILE)));
+    }
+
+    @Test
+    void rejectsBackupPathTraversalWithoutDeletingPacks() throws Exception {
+        Path packs = Files.createDirectories(temp.resolve("resourcepacks"));
+        Path normal = Files.createDirectories(packs.resolve("normal"));
+        Files.writeString(normal.resolve("keep.txt"), "keep");
+        assertThrows(java.io.IOException.class, () -> ResourcePackEditorService.clearRecycleBackups(packs, "../normal", null));
+        assertThrows(java.io.IOException.class, () -> ResourcePackEditorService.clearRecycleBackups(packs, "normal", "../batch"));
+        assertTrue(Files.exists(normal.resolve("keep.txt")));
     }
 
     @Test
@@ -285,7 +327,11 @@ class ResourcePackEditorServiceTest {
     }
 
     private Path pack(String namespace, String id) throws Exception {
-        Path root = Files.createDirectories(temp.resolve(namespace));
+        return packAt(temp, namespace, id);
+    }
+
+    private Path packAt(Path parent, String namespace, String id) throws Exception {
+        Path root = Files.createDirectories(parent.resolve(namespace));
         Files.writeString(root.resolve(PrismodPackLoader.MANIFEST_FILE), manifest(namespace, id));
         Path filter = Files.createDirectories(root.resolve("assets/" + namespace + "/filters/" + id));
         Files.writeString(filter.resolve("filter.json"), filter());

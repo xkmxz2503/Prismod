@@ -153,7 +153,8 @@ public final class ResourcePackEditorScreen extends Screen {
     private void save() {
         syncMetadata();
         ResourcePackEditorService.SaveResult result = ResourcePackEditorService.save(
-                draft.session(), nameBox.getValue(), namespaceBox.getValue(), draft.pendingFiles());
+                draft.session(), nameBox.getValue(), namespaceBox.getValue(),
+                draft.pendingFiles(), draft.deletedBatches());
         status = result.message();
         if (result.success()) {
             PrismodClient.reloadPrismodResources();

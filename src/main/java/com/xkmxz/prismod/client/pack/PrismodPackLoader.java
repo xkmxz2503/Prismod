@@ -57,6 +57,7 @@ public final class PrismodPackLoader {
     private static final int FORMAT_VERSION = 1;
     private static final String RESOURCE_PACKS_DIRECTORY = "prismod/resourcepacks";
     private static final String BACKUP_DIRECTORY_NAME = ".prismod-backup";
+    private static final String RECYCLE_DIRECTORY_NAME = ".prismod-recycle";
     private static final String LANGUAGE_DIRECTORY = "assets/%s/lang/";
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Set<String> RESERVED_NAMESPACES = Set.of("minecraft", "prismod");
@@ -124,7 +125,9 @@ public final class PrismodPackLoader {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
             for (Path path : stream) {
                 String fileName = path.getFileName().toString();
-                if (fileName.equals(BACKUP_DIRECTORY_NAME) || fileName.endsWith(".prismod-backup")) continue;
+                if (fileName.equals(BACKUP_DIRECTORY_NAME)
+                        || fileName.equals(RECYCLE_DIRECTORY_NAME)
+                        || fileName.endsWith(".prismod-backup")) continue;
                 if (Files.isDirectory(path) || (Files.isRegularFile(path)
                         && fileName.toLowerCase(Locale.ROOT).endsWith(".zip"))) entries.add(path);
             }

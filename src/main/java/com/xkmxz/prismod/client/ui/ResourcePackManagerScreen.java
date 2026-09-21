@@ -6,7 +6,6 @@ import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import com.xkmxz.prismod.client.filter.state.FilterManager;
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;
-import com.xkmxz.prismod.client.pack.ResourcePackEditorService;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -62,7 +61,7 @@ public final class ResourcePackManagerScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("screen.prismod.create_placeholder"), button ->
                         openCreateScreen())
                 .bounds(panelLeft + third + 4, panelTop + 18, third, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.clear_backups"), button -> clearBackups())
+        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.backup_manager"), button -> openBackupManager())
                 .bounds(panelLeft + (third + 4) * 2, panelTop + 18, third, 20).build());
 
         buildRows();
@@ -128,14 +127,8 @@ public final class ResourcePackManagerScreen extends Screen {
         if (minecraft != null) minecraft.setScreen(new ResourcePackCreateScreen(this));
     }
 
-    private void clearBackups() {
-        try {
-            int removed = ResourcePackEditorService.clearBackups();
-            status = Component.translatable("screen.prismod.clear_backups_done", removed).getString();
-        } catch (IOException exception) {
-            status = Component.translatable("screen.prismod.clear_backups_failed",
-                    exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage()).getString();
-        }
+    private void openBackupManager() {
+        if (minecraft != null) minecraft.setScreen(new ResourcePackBackupScreen(this));
     }
 
     void openCreatedPack(String namespace) {

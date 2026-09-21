@@ -29,6 +29,7 @@ import java.util.zip.ZipFile;
 /** 资源包编辑器的文件工作区、校验和原子保存实现。 */
 public final class ResourcePackEditorService {
     public static final String BACKUP_DIRECTORY = ".prismod-backup";
+    public static final String BACKUP_ROOT_DIRECTORY = "backup/resourcepacks";
     private static final Set<String> TEXT_EXTENSIONS = Set.of(".json", ".fsh", ".vsh", ".glsl", ".cube", ".txt", ".md");
     private static final String RECYCLE_DIRECTORY = ".prismod-recycle";
     private static final List<String> DEBUG_UNIFORMS = List.of(
@@ -62,6 +63,12 @@ public final class ResourcePackEditorService {
 
     public static SaveResult save(Session session, String name, String namespace,
                                   Map<String, String> editedFiles) {
+        return save(session, name, namespace, editedFiles, List.of());
+    }
+
+    public static SaveResult save(Session session, String name, String namespace,
+                                  Map<String, String> editedFiles,
+                                  List<Map<String, String>> deletedBatches) {
         if (session == null) return SaveResult.failure("编辑会话不存在");
         try {
             if (!net.minecraft.resources.ResourceLocation.isValidNamespace(namespace)
@@ -82,14 +89,16 @@ public final class ResourcePackEditorService {
             Validation validation = validatePackFiles(files, namespace);
             if (!validation.valid()) return SaveResult.failure(validation.message());
 
-            Path base = sourceRoot.getParent();
+            Path base = sourceRoot.getParent().toAbsolutePath().normalize();
             String sourceName = sourceRoot.getFileName().toString();
             Path target = oldNamespace.equals(namespace) ? sourceRoot : base.resolve(sourceName + "-" + namespace);
             if (!target.equals(sourceRoot) && Files.exists(target)) return SaveResult.failure("目标资源包目录已存在");
             Path temp = base.resolve("." + sourceName + ".prismod-tmp-" + UUID.randomUUID());
             writeTree(temp, files);
+            // 先写入与资源包本体隔离的删除备份，避免保存完成后才发现备份失败。
+            writeRecycleBatches(base, recyclePackName(session), deletedBatches);
             if (target.equals(sourceRoot)) {
-                Path backupRoot = sourceRoot.getParent().resolve(BACKUP_DIRECTORY);
+                Path backupRoot = backupRootFor(sourceRoot.getParent()).resolve(BACKUP_DIRECTORY);
                 Path backup = backupRoot.resolve(sourceName);
                 Files.createDirectories(backupRoot);
                 if (Files.exists(backup)) deleteTree(backup);
@@ -97,11 +106,45 @@ public final class ResourcePackEditorService {
                 try { moveWithoutReplace(temp, target); }
                 catch (Exception failure) { Files.move(backup, sourceRoot, StandardCopyOption.REPLACE_EXISTING); deleteTree(temp); throw failure; }
             } else {
-                Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE);
+                moveWithoutReplace(temp, target);
             }
             return SaveResult.success(target, validation.warnings());
         } catch (Exception exception) {
             return SaveResult.failure(exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
+        }
+    }
+
+    private static String recyclePackName(Session session) throws IOException {
+        Path original = session.originalPath();
+        String name = original.getFileName().toString();
+        if (Files.isRegularFile(original) && name.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+            name = name.substring(0, name.length() - 4);
+        }
+        if (name.endsWith(".editable")) name = name.substring(0, name.length() - ".editable".length());
+        if (name.isBlank() || name.equals(".") || name.equals("..") || name.contains("/") || name.contains("\\")) {
+            throw new IOException("删除备份资源包名称无效");
+        }
+        return name;
+    }
+
+    private static void writeRecycleBatches(Path resourcePacksDirectory, String sourceName,
+                                            List<Map<String, String>> deletedBatches) throws IOException {
+        if (deletedBatches == null || deletedBatches.isEmpty()) return;
+        Path root = resourcePacksDirectory.toAbsolutePath().normalize();
+        Path recycleBase = backupRootFor(root).resolve(RECYCLE_DIRECTORY).normalize();
+        Path recycleRoot = recycleBase.resolve(sourceName).normalize();
+        if (!recycleRoot.startsWith(recycleBase) || sourceName.contains("..")) {
+            throw new IOException("删除备份路径越界");
+        }
+        Files.createDirectories(recycleRoot);
+        for (Map<String, String> batch : deletedBatches) {
+            if (batch == null || batch.isEmpty()) continue;
+            Path batchDirectory;
+            long timestamp = System.currentTimeMillis();
+            do { batchDirectory = recycleRoot.resolve(Long.toString(timestamp++)).normalize(); }
+            while (Files.exists(batchDirectory));
+            if (!batchDirectory.startsWith(recycleRoot)) throw new IOException("删除备份批次路径越界");
+            writeTree(batchDirectory, batch);
         }
     }
 
@@ -113,17 +156,10 @@ public final class ResourcePackEditorService {
     static int clearBackups(Path resourcePacksDirectory) throws IOException {
         if (resourcePacksDirectory == null || !Files.isDirectory(resourcePacksDirectory)) return 0;
         int removed = 0;
-        Path backupRoot = resourcePacksDirectory.resolve(BACKUP_DIRECTORY);
-        if (Files.exists(backupRoot)) {
-            if (Files.isDirectory(backupRoot)) {
-                try (var paths = Files.list(backupRoot)) {
-                    removed += (int) paths.count();
-                }
-            } else {
-                removed++;
-            }
-            deleteTree(backupRoot);
-        }
+        Path backupRoot = backupRootFor(resourcePacksDirectory);
+        removed += clearBackupDirectory(backupRoot.resolve(BACKUP_DIRECTORY));
+        // 清理旧版本的完整备份目录；删除回收站从未公开写入资源包内部。
+        removed += clearBackupDirectory(resourcePacksDirectory.resolve(BACKUP_DIRECTORY));
         try (var paths = Files.list(resourcePacksDirectory)) {
             for (Path path : paths.toList()) {
                 String name = path.getFileName().toString();
@@ -134,6 +170,137 @@ public final class ResourcePackEditorService {
             }
         }
         return removed;
+    }
+
+    public static BackupSnapshot inspectBackups() throws IOException {
+        return inspectBackups(PrismodPackLoader.resourcePacksDirectory());
+    }
+
+    static BackupSnapshot inspectBackups(Path resourcePacksDirectory) throws IOException {
+        Path root = checkedResourcePacksRoot(resourcePacksDirectory);
+        Path backupRoot = backupRootFor(root);
+        List<BackupEntry> versions = listEntries(backupRoot.resolve(BACKUP_DIRECTORY), false);
+        List<BackupEntry> recycled = listEntries(backupRoot.resolve(RECYCLE_DIRECTORY), true);
+        return new BackupSnapshot(versions, recycled, List.of());
+    }
+
+    public static CleanupResult clearVersionBackups(String packName) throws IOException {
+        return clearVersionBackups(PrismodPackLoader.resourcePacksDirectory(), packName);
+    }
+
+    static CleanupResult clearVersionBackups(Path root, String packName) throws IOException {
+        return clearEntries(backupRootFor(checkedResourcePacksRoot(root)).resolve(BACKUP_DIRECTORY), packName, null, true);
+    }
+
+    public static CleanupResult clearRecycleBackups(String packName, String batchName) throws IOException {
+        return clearRecycleBackups(PrismodPackLoader.resourcePacksDirectory(), packName, batchName);
+    }
+
+    static CleanupResult clearRecycleBackups(Path root, String packName, String batchName) throws IOException {
+        Path resourceRoot = checkedResourcePacksRoot(root);
+        return clearEntries(backupRootFor(resourceRoot).resolve(RECYCLE_DIRECTORY), packName, batchName, false);
+    }
+
+    private static CleanupResult clearEntries(Path parent, String packName, String batchName, boolean versions) throws IOException {
+        if (packName != null && !isSafePathName(packName)) throw new IOException("资源包备份名称无效");
+        if (batchName != null && !isSafePathName(batchName)) throw new IOException("删除备份批次名称无效");
+        if (!Files.isDirectory(parent)) return new CleanupResult(0, 0, 0);
+        int count = 0;
+        try (var packs = Files.list(parent)) {
+            for (Path pack : packs.toList()) {
+                if (!Files.isDirectory(pack) || (packName != null && !packName.equals(pack.getFileName().toString()))) continue;
+                if (versions || batchName == null) {
+                    deleteTree(pack);
+                    count++;
+                } else {
+                    Path batch = pack.resolve(batchName).normalize();
+                    if (batch.startsWith(pack) && Files.isDirectory(batch)) {
+                        deleteTree(batch);
+                        count++;
+                    }
+                }
+            }
+        }
+        return versions ? new CleanupResult(count, 0, 0) : new CleanupResult(0, count, 0);
+    }
+
+    private static List<BackupEntry> listEntries(Path parent, boolean batches) throws IOException {
+        if (!Files.isDirectory(parent)) return List.of();
+        List<BackupEntry> result = new ArrayList<>();
+        try (var packs = Files.list(parent)) {
+            for (Path pack : packs.filter(Files::isDirectory).toList()) {
+                if (isSpecialDirectory(pack)) continue;
+                if (!batches) {
+                    result.add(entry(pack, pack.getFileName().toString(), null));
+                    continue;
+                }
+                try (var batchPaths = Files.list(pack)) {
+                    for (Path batch : batchPaths.filter(Files::isDirectory).toList()) {
+                        result.add(entry(batch, pack.getFileName().toString(), batch.getFileName().toString()));
+                    }
+                }
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private static BackupEntry entry(Path path, String packName, String batchName) throws IOException {
+        long bytes = 0;
+        int files = 0;
+        try (var paths = Files.walk(path)) {
+            for (Path child : paths.filter(Files::isRegularFile).toList()) {
+                files++;
+                bytes += Files.size(child);
+            }
+        }
+        long timestamp = batchName == null ? Files.getLastModifiedTime(path).toMillis() : parseTimestamp(batchName, Files.getLastModifiedTime(path).toMillis());
+        return new BackupEntry(packName, batchName, timestamp, files, bytes, path);
+    }
+
+    private static long parseTimestamp(String value, long fallback) {
+        try { return Long.parseLong(value); } catch (NumberFormatException ignored) { return fallback; }
+    }
+
+    private static Path checkedResourcePacksRoot(Path root) throws IOException {
+        if (root == null) throw new IOException("资源包目录不可用");
+        Path normalized = root.toAbsolutePath().normalize();
+        Files.createDirectories(normalized);
+        return normalized;
+    }
+
+    private static Path backupRootFor(Path resourcePacksDirectory) throws IOException {
+        Path root = resourcePacksDirectory.toAbsolutePath().normalize();
+        Path parent = root.getParent();
+        if (parent == null) throw new IOException("资源包目录不可用");
+        Path backupRoot = parent.resolve(BACKUP_ROOT_DIRECTORY).normalize();
+        Path expectedParent = parent.toAbsolutePath().normalize();
+        if (!backupRoot.startsWith(expectedParent) || backupRoot.equals(root)) {
+            throw new IOException("备份目录路径无效");
+        }
+        Files.createDirectories(backupRoot);
+        return backupRoot;
+    }
+
+    private static int clearBackupDirectory(Path path) throws IOException {
+        if (!Files.exists(path)) return 0;
+        int count = 1;
+        if (Files.isDirectory(path)) {
+            try (var entries = Files.list(path)) {
+                count = (int) entries.count();
+            }
+        }
+        deleteTree(path);
+        return count;
+    }
+
+    private static boolean isSpecialDirectory(Path path) {
+        String name = path.getFileName().toString();
+        return name.equals(BACKUP_DIRECTORY) || name.equals(RECYCLE_DIRECTORY) || name.endsWith(".prismod-backup");
+    }
+
+    private static boolean isSafePathName(String value) {
+        return value != null && !value.isBlank() && !value.equals(".") && !value.equals("..")
+                && !value.contains("/") && !value.contains("\\") && !value.contains("..") ;
     }
 
     public static CreatePackResult createPack(CreatePackRequest request) {
@@ -482,6 +649,9 @@ public final class ResourcePackEditorService {
 
     private static boolean isSupported(String path, String namespace) {
         if (path.equals(PrismodPackLoader.MANIFEST_FILE)) return true;
+        if (path.equals(RECYCLE_DIRECTORY) || path.startsWith(RECYCLE_DIRECTORY + "/")
+                || path.equals(BACKUP_DIRECTORY)
+                || path.startsWith(BACKUP_DIRECTORY + "/")) return false;
         if (namespace != null && !path.startsWith("assets/" + namespace + "/")) return false;
         String lower = path.toLowerCase(Locale.ROOT);
         return TEXT_EXTENSIONS.stream().anyMatch(lower::endsWith) && !path.contains("..") && !path.startsWith("/");
@@ -543,6 +713,19 @@ public final class ResourcePackEditorService {
     public record SaveResult(boolean success, String message, Path path, List<String> warnings) {
         public static SaveResult success(Path path, List<String> warnings) { return new SaveResult(true, "资源包已保存", path, List.copyOf(warnings)); }
         public static SaveResult failure(String message) { return new SaveResult(false, message, null, List.of()); }
+    }
+    public record BackupEntry(String packName, String batchName, long timestamp,
+                              int fileCount, long bytes, Path path) { }
+    public record BackupSnapshot(List<BackupEntry> versionBackups, List<BackupEntry> recycleBatches,
+                                 List<String> legacyRecyclePacks) {
+        public BackupSnapshot {
+            versionBackups = List.copyOf(versionBackups);
+            recycleBatches = List.copyOf(recycleBatches);
+            legacyRecyclePacks = List.copyOf(legacyRecyclePacks);
+        }
+    }
+    public record CleanupResult(int versionBackups, int recycleBatches, int legacyRecyclePacks) {
+        public int total() { return versionBackups + recycleBatches + legacyRecyclePacks; }
     }
     private record Validation(boolean valid, String message, List<String> warnings) {
         static Validation ok() { return new Validation(true, "", List.of()); }

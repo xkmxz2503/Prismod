@@ -75,6 +75,10 @@ FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEf
 
 ## 架构和模块职责
 
+资源包编辑器的完整版本备份位于 `config/prismod/backup/resourcepacks/.prismod-backup/<资源包目录>/`；删除滤镜的文件按时间批次位于 `config/prismod/backup/resourcepacks/.prismod-recycle/<资源包>/<时间戳>/`，两者都不进入 `config/prismod/resourcepacks/` 的资源包本体。资源包管理页的“备份管理”页面分别管理两类备份，不处理旧版资源包内部回收站。
+
+以上备份路径是当前实现的准确信息；下方早期示例中的旧 `.prismod-backup` 和包内 `.prismod-recycle` 路径已废弃。
+
 ### 状态与配置
 
 - `client/FilterKey.java`：内置和自定义滤镜的稳定 `ResourceLocation` 身份。

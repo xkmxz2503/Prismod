@@ -57,6 +57,12 @@ class PrismodPackLoaderTest {
         assertTrue(PrismodPackLoader.scanForEditing(temp).isEmpty());
     }
 
+    @Test void recycleDirectoryIsNotScannedAsResourcePack() throws IOException {
+        Path recycle = Files.createDirectories(temp.resolve(".prismod-recycle").resolve("pack").resolve("batch"));
+        Files.writeString(recycle.resolve(PrismodPackLoader.MANIFEST_FILE), manifest("recycle", "filter"));
+        assertTrue(PrismodPackLoader.scanForEditing(temp).isEmpty());
+    }
+
     @Test void oldPackIsNotScanned() throws IOException {
         Path old = Files.createDirectories(temp.resolve("old"));
         Files.writeString(old.resolve(PrismodPackLoader.META_FILE), "{\"namespace\":\"old\"}");
