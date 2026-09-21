@@ -93,7 +93,7 @@ FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEf
 - `client/PrismodClient.java`：注册 F8、客户端配置、资源包发现、资源重载监听和客户端 tick。
 - `client/FilterConfigScreen.java`：一级滤镜配置页。
 - `client/ResourcePackManagerScreen.java`：独立资源包管理页，负责拖放或手动导入资源包、打开资源包目录、刷新资源包和资源包开关。
-- `client/ResourcePackEditorScreen.java`：资源包常用编辑页，负责名称、namespace、抽象滤镜列表和草稿保存；README、滤镜结构、语言名称和原始文件分别进入独立子页面。`client/pack/ResourcePackEditorDraft.java` 在这些页面之间共享未保存内容，`client/pack/ResourcePackEditorService.java` 负责 ZIP `.editable` 工作区、白名单、校验、备份和原子保存。
+- `client/ResourcePackEditorScreen.java`：资源包常用编辑页，负责名称、namespace、抽象滤镜列表和草稿保存；README、滤镜结构、语言名称和原始文件分别进入独立子页面。高级文件编辑页使用三层文件树，按滤镜目录、语言文件和说明文件归类，展开到具体文件后编辑原始文本。`client/pack/ResourcePackEditorDraft.java` 在这些页面之间共享未保存内容，`client/pack/ResourcePackEditorService.java` 负责 ZIP `.editable` 工作区、白名单、校验、备份和原子保存。
 - `client/FilterVisibilityManagerScreen.java`：独立滤镜管理页，只负责滤镜展示状态。
 
 F8 只在世界内、没有打开屏幕且没有强制状态时响应。按键冲突只提示，不修改玩家绑定。资源包管理页保存后写入配置并触发 Prismod 自己的资源刷新，取消和 Esc 放弃草稿；不得调用 Minecraft 原版资源包仓库重载。
