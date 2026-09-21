@@ -2,6 +2,7 @@ package com.xkmxz.prismod.client.pack;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -152,9 +153,46 @@ public final class ResourcePackEditorDraft {
     }
 
     public void deleteFilter(String id) {
-        String prefix = "assets/" + namespace + "/filters/" + id + "/";
+        PrismodPackLoader.PackFilterEntry declaration = filters().stream()
+                .filter(filter -> filter.id().equals(id)).findFirst().orElse(null);
+        String filterPath = declaration == null
+                ? "assets/" + namespace + "/filters/" + id
+                : declaration.path();
+        String prefix = filterPath.endsWith("/") ? filterPath : filterPath + "/";
+        JsonObject filter;
+        try {
+            filter = filterManifest(id);
+        } catch (RuntimeException ignored) {
+            // filter.json 可能已经损坏；删除仍应移除目录并清理可解析的语言键。
+            filter = new JsonObject();
+        }
         for (String path : files.keySet().stream().filter(value -> value.startsWith(prefix)).toList()) {
             deletedFiles.put(path, files.remove(path));
+        }
+
+        // 语言文件是共享资源，删除滤镜时只移除该滤镜的显示名称键，保留其他滤镜翻译。
+        String displayKey = filter.has("display_name") && filter.get("display_name").isJsonPrimitive()
+                ? filter.get("display_name").getAsString() : null;
+        String canonicalKey = "filter." + namespace + "." + id.replace('/', '.');
+        String legacyKey = "filter." + namespace + "." + id;
+        String languagePrefix = "assets/" + namespace + "/lang/";
+        for (String path : files.keySet().stream()
+                .filter(value -> value.startsWith(languagePrefix) && value.toLowerCase(java.util.Locale.ROOT).endsWith(".json"))
+                .toList()) {
+            String text = files.get(path);
+            try {
+                JsonElement element = JsonParser.parseString(text);
+                if (!element.isJsonObject()) continue;
+                JsonObject translations = element.getAsJsonObject();
+                boolean changed = (displayKey != null && translations.remove(displayKey) != null)
+                        | (translations.remove(canonicalKey) != null)
+                        | (translations.remove(legacyKey) != null);
+                if (changed) {
+                    files.put(path, new GsonBuilder().setPrettyPrinting().create().toJson(translations));
+                }
+            } catch (RuntimeException ignored) {
+                // 非法语言 JSON 由保存校验报告，删除操作不应破坏原文件内容。
+            }
         }
         JsonObject manifest = manifest();
         JsonArray filters = manifest.getAsJsonArray("filters");

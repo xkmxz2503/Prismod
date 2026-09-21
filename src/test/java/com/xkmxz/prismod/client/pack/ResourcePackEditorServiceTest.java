@@ -190,6 +190,28 @@ class ResourcePackEditorServiceTest {
     }
 
     @Test
+    void deletingFilterRemovesFilesAndLanguageNamesFromDraft() throws Exception {
+        Path root = pack("example", "gray");
+        Path language = Files.createDirectories(root.resolve("assets/example/lang"));
+        Files.writeString(language.resolve("en_us.json"),
+                "{\"filter.example.gray\":\"Gray\",\"filter.example.other\":\"Other\"}");
+        PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseManifest(
+                JsonParser.parseString(manifest("example", "gray")).getAsJsonObject());
+        ResourcePackEditorDraft draft = ResourcePackEditorDraft.open(
+                new PrismodPackLoader.PackCandidate(root, metadata));
+
+        draft.deleteFilter("gray");
+
+        assertFalse(draft.files().containsKey("assets/example/filters/gray/filter.json"));
+        JsonObject translations = JsonParser.parseString(
+                draft.files().get("assets/example/lang/en_us.json")).getAsJsonObject();
+        assertFalse(translations.has("filter.example.gray"));
+        assertEquals("Other", translations.get("filter.example.other").getAsString());
+        assertTrue(JsonParser.parseString(draft.files().get(PrismodPackLoader.MANIFEST_FILE))
+                .getAsJsonObject().getAsJsonArray("filters").isEmpty());
+    }
+
+    @Test
     void savesVariableSizeLutWithinSupportedRange() throws Exception {
         Path root = Files.createDirectories(temp.resolve("lut-pack"));
         String manifest = "{\"schema\":\"prismod.resource_pack\",\"format_version\":1,\"namespace\":\"example\",\"filters\":[{\"id\":\"small\",\"path\":\"assets/example/filters/small\"}]}";

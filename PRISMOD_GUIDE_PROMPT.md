@@ -98,7 +98,7 @@ FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEf
 
 F8 只在世界内、没有打开屏幕且没有强制状态时响应。按键冲突只提示，不修改玩家绑定。资源包管理页保存后写入配置并触发 Prismod 自己的资源刷新，取消和 Esc 放弃草稿；不得调用 Minecraft 原版资源包仓库重载。
 
-资源包编辑器保存行为：目录包直接在临时目录校验后原子替换，并把旧版本保留到 `config/prismod/resourcepacks/.prismod-backup/<资源包目录>/`；ZIP 包编辑时生成同名 `.editable` 目录并保留 ZIP；namespace 变更另存为新资源包，目标 namespace 冲突时阻止保存。资源包管理页的“一键清除备份”只删除统一备份目录和旧版同级 `.prismod-backup` 目录，不删除正常资源包。编辑扫描允许清单声明缺失滤镜文件的包进入编辑器；主编辑页的“清理无效声明”只修改草稿，保存后才落盘并触发重载。删除滤镜内容写入包内 `.prismod-recycle/`，取消、关闭或窗口重建不会写入草稿。支持文件范围为 `prismod.pack.json`、滤镜 `filter.json`、PostChain/program JSON、GLSL、`.cube` 和资源包语言 JSON。新建向导生成的 PostChain 必须包含完整 pass 和九个调试 uniform；缺失显式 shader 引用、非法 JSON 或 LUT 数据点不匹配时阻止加入草稿。
+资源包编辑器保存行为：目录包直接在临时目录校验后原子替换，并把旧版本保留到 `config/prismod/resourcepacks/.prismod-backup/<资源包目录>/`；ZIP 包编辑时生成同名 `.editable` 目录并保留 ZIP；namespace 变更另存为新资源包，目标 namespace 冲突时阻止保存。资源包管理页的“一键清除备份”只删除统一备份目录和旧版同级 `.prismod-backup` 目录，不删除正常资源包。编辑扫描允许清单声明缺失滤镜文件的包进入编辑器；主编辑页的“清理无效声明”只修改草稿，保存后才落盘并触发重载。删除滤镜会同步移除清单声明、滤镜目录文件和资源包语言文件中的显示名称键；目录内容会写入包内 `.prismod-recycle/`，取消、关闭或窗口重建不会写入草稿。支持文件范围为 `prismod.pack.json`、滤镜 `filter.json`、PostChain/program JSON、GLSL、`.cube` 和资源包语言 JSON。新建向导生成的 PostChain 必须包含完整 pass 和九个调试 uniform；缺失显式 shader 引用、非法 JSON 或 LUT 数据点不匹配时阻止加入草稿。
 
 ### 资源包和注册表
 
