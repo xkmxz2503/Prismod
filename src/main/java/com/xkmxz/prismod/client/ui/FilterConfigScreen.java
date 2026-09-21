@@ -198,6 +198,7 @@ public final class FilterConfigScreen extends Screen {
         }
         PrismodClientConfig.setCycleOrder(order);
         draftStrengths.forEach(PrismodClientConfig::setStrength);
+        PrismodClientConfig.pruneRemovedFilterSettings();
         PrismodClientConfig.SPEC.save();
         FilterManager.get().refreshConfig();
         // select 仅更新玩家选择，不能覆盖其他模组正在强制使用的滤镜。

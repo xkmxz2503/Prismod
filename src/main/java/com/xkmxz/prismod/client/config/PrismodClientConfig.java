@@ -2,6 +2,7 @@ package com.xkmxz.prismod.client.config;
 
 import com.mojang.logging.LogUtils;
 import com.xkmxz.prismod.client.filter.*;
+import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import com.xkmxz.prismod.client.filter.registry.FilterDefinition;
 import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import net.minecraftforge.common.ForgeConfigSpec;
@@ -205,7 +206,70 @@ public final class PrismodClientConfig {
                             || isPackEnabled(definition.packNamespace()));
                 })
                 .toList();
-        if (!filtered.equals(cycleOrder())) setCycleOrder(filtered);
+        if (!filtered.equals(cycleOrder())) {
+            setCycleOrder(filtered);
+            if (isLoaded()) SPEC.save();
+        }
+    }
+
+    /**
+     * 删除已经不再被注册表或现存资源包清单提供的自定义滤镜配置。
+     * 调试预设不在这里处理：资源包暂时移除后仍应保留，待资源包重新出现时继续生效。
+     */
+    public static boolean pruneRemovedFilterSettings() {
+        // Forge 首次扫描资源包可能早于客户端 TOML 配置加载，此时延后到下一次资源重载。
+        if (!isLoaded()) return false;
+        Set<FilterKey> available = knownFilterKeys();
+        boolean changed = false;
+
+        List<FilterKey> order = cycleOrder();
+        List<FilterKey> prunedOrder = order.stream()
+                .filter(key -> key != null && (isBuiltIn(key) || available.contains(key)))
+                .toList();
+        if (!prunedOrder.equals(order)) {
+            setCycleOrder(prunedOrder);
+            changed = true;
+        }
+
+        Map<FilterKey, Float> strengths = customStrengths();
+        Map<FilterKey, Float> prunedStrengths = strengths.entrySet().stream()
+                .filter(entry -> available.contains(entry.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                        (first, ignored) -> first, LinkedHashMap::new));
+        if (!prunedStrengths.equals(strengths)) {
+            CUSTOM_STRENGTHS.set(prunedStrengths.entrySet().stream()
+                    .map(entry -> entry.getKey().serializedName() + "=" + entry.getValue())
+                    .toList());
+            changed = true;
+        }
+
+        Set<FilterKey> hidden = hiddenFilters();
+        Set<FilterKey> prunedHidden = hidden.stream()
+                .filter(key -> isBuiltIn(key) || available.contains(key))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (!prunedHidden.equals(hidden)) {
+            setHiddenFilters(prunedHidden);
+            changed = true;
+        }
+        return changed;
+    }
+
+    /** 当前注册表加上仍存在但暂时禁用的资源包清单中的滤镜身份。 */
+    private static Set<FilterKey> knownFilterKeys() {
+        Set<FilterKey> result = FilterRegistry.get().definitions().stream()
+                .map(FilterDefinition::key)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        try {
+            for (PrismodPackLoader.PackCandidate candidate : PrismodPackLoader.scan(PrismodPackLoader.resourcePacksDirectory())) {
+                for (PrismodPackLoader.PackFilterEntry filter : candidate.metadata().filters()) {
+                    result.add(new FilterKey(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+                            candidate.metadata().namespace(), filter.id())));
+                }
+            }
+        } catch (RuntimeException exception) {
+            LOGGER.debug("Unable to inspect Prismod resource pack manifests while pruning config", exception);
+        }
+        return result;
     }
 
     private static float defaultStrength(FilterKey key) {

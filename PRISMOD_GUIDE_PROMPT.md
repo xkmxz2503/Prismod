@@ -37,7 +37,7 @@ strength_vintage = 1.0
 strength_night_vision = 1.0
 ```
 
-`cycle_order` 使用 `FilterKey` 序列化值：内置滤镜继续接受短名称，自定义滤镜使用 `namespace:path`。解析时忽略非法项和重复项；如果解析后为空则回退内置默认顺序。资源重载会补充已发现滤镜，并移除不存在或已禁用资源包中的滤镜。隐藏状态不会从顺序配置中删除，以便取消隐藏后恢复原位置。
+`cycle_order` 使用 `FilterKey` 序列化值：内置滤镜继续接受短名称，自定义滤镜使用 `namespace:path`。解析时忽略非法项和重复项；如果解析后为空则回退内置默认顺序。资源重载完成时会补充已发现滤镜，并清理 `cycle_order`、`custom_strengths`、`hidden_filters` 中已经不再被注册表或现存资源包清单提供的滤镜；配置页面点击保存时也会执行一次同样的清理，不使用循环任务。暂时禁用的资源包仍在清单检查范围内，调试预设也不参与清理。
 
 `custom_strengths` 使用 `namespace:path=value` 字符串保存自定义滤镜强度；全部强度都会规范化到 `[0.0, 1.0]`，NaN 和无穷值按 `0.0` 处理。`disabled_packs` 保存资源包 namespace，`hidden_filters` 保存滤镜 ID。
 

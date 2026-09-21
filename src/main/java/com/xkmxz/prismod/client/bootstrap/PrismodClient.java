@@ -60,6 +60,7 @@ public final class PrismodClient {
         FilterRegistry.get().reload(resources);
         PrismodClientConfig.appendDiscoveredFilters();
         PrismodClientConfig.removeHiddenAndUnavailableFromCycleOrder();
+        if (PrismodClientConfig.pruneRemovedFilterSettings()) PrismodClientConfig.SPEC.save();
         FilterManager.get().refreshConfig();
     }
 

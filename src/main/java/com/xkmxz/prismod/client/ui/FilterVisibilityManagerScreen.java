@@ -89,6 +89,7 @@ public final class FilterVisibilityManagerScreen extends Screen {
 
     private void save() {
         PrismodClientConfig.setHiddenFilters(draftHiddenFilters);
+        PrismodClientConfig.pruneRemovedFilterSettings();
         PrismodClientConfig.SPEC.save();
         FilterManager.get().refreshConfig();
         if (minecraft != null && parent instanceof FilterConfigScreen filterScreen) {

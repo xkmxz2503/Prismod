@@ -21,7 +21,7 @@ Minecraft **1.20.1 / Forge 47.3.32 / Java 17** 的客户端世界画面滤镜初
 - F8 绑定冲突只提示，不擅自改动其他按键。打开界面时 F8 不切换。
 - 在世界内的滤镜配置页，支持统一调试契约的 LUT 和 `post_chain` 行提供“调试”入口，可调整 9 个参数。调试预设按资源包 namespace 和滤镜 ID 独立保存到 `config/prismod/config/resourcepacks/<namespace>/<filter-id>.json`；保存后正常渲染自动生效，普通滤镜强度与调试 `intensity` 相乘。旧 `lut-presets.json` 保留但不再读取。
 
-配置字段为顶层 `enabled`、`cycle_order`、`strength_original`、`strength_grayscale`、`strength_warm`、`strength_cool`、`strength_vintage`、`strength_night_vision`。顺序必须包含六个唯一 ID；非法列表整体回退默认顺序并记录警告。所有强度在 0.0–1.0 内。
+配置字段为顶层 `enabled`、`cycle_order`、`custom_strengths`、`disabled_packs`、`hidden_filters` 以及内置滤镜强度字段。资源重载完成和配置页面保存时会清理已不再存在于注册表或资源包清单的自定义滤镜配置，不使用循环任务；暂时禁用的资源包和按滤镜保存的调试预设不参与此清理。所有强度在 0.0–1.0 内。
 
 ## 客户端 API
 
