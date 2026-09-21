@@ -25,10 +25,6 @@ public final class FilterManager {
         return INSTANCE;
     }
 
-    public FilterState effectiveState() {
-        return controller.effectiveState();
-    }
-
     public void cycle() {
         controller.cycle();
     }
@@ -41,24 +37,24 @@ public final class FilterManager {
         controller.select(key);
     }
 
-    public void setForced(FilterId id, float strength) {
-        controller.setForced(id, strength);
-    }
-
     public void setForced(FilterKey key, float strength) {
         controller.setForced(key, strength);
+    }
+
+    public void setForced(net.minecraft.resources.ResourceLocation id, float strength) {
+        controller.setForced(new FilterKey(id), strength);
     }
 
     public void clearForced() {
         controller.clearForced();
     }
 
-    public FilterState selectedState() {
-        return controller.selectedState();
-    }
-
     public boolean isForced() {
         return controller.isForced();
+    }
+
+    public boolean isRenderAvailable() {
+        return controller.isRenderAvailable();
     }
 
     /** 配置加载、热重载或界面保存后，在客户端线程刷新全部配置与状态。 */

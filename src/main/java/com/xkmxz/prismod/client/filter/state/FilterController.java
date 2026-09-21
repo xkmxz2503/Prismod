@@ -27,14 +27,6 @@ final class FilterController {
         publish();
     }
 
-    FilterState selectedState() {
-        return legacyState(snapshot.selected());
-    }
-
-    FilterState effectiveState() {
-        return legacyState(snapshot.effective());
-    }
-
     FilterSelection selectedSelection() {
         return snapshot.selected();
     }
@@ -45,6 +37,10 @@ final class FilterController {
 
     boolean isForced() {
         return snapshot.effective().forced();
+    }
+
+    boolean isRenderAvailable() {
+        return renderAvailable;
     }
 
     void select(FilterId id) {
@@ -114,7 +110,7 @@ final class FilterController {
         for (FilterDefinition definition : FilterRegistry.get().definitions()) {
             Number value = configuredStrengths == null ? null : configuredStrengths.get(definition.key());
             strengths.put(definition.key(), value == null ? definition.defaultStrength()
-                    : FilterState.normalizeStrength(value.doubleValue()));
+                    : FilterStrength.normalize(value.doubleValue()));
         }
         if (selected == null) selected = FilterKey.of(FilterId.ORIGINAL);
         publish();
@@ -153,17 +149,6 @@ final class FilterController {
         List<FilterKey> keys = new ArrayList<>();
         for (FilterId id : FilterId.values()) keys.add(FilterKey.of(id));
         return List.copyOf(keys);
-    }
-
-    private static FilterState legacyState(FilterSelection selection) {
-        return new FilterState(toLegacyId(selection.key()), selection.strength(), selection.forced());
-    }
-
-    private static FilterId toLegacyId(FilterKey key) {
-        if (key != null && "prismod".equals(key.id().getNamespace())) {
-            return FilterId.fromSerialized(key.id().getPath());
-        }
-        return FilterId.ORIGINAL;
     }
 
     private record Snapshot(FilterSelection selected, FilterSelection effective) {

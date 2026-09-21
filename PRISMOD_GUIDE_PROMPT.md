@@ -62,17 +62,17 @@ strength_night_vision = 1.0
 
 滤镜调试界面在世界内从支持统一 uniform 契约的 LUT 或 `post_chain` 滤镜行进入，不改变 `FilterManager` 普通选择或 `custom_strengths`。它提供强度、曝光、对比度、高光、阴影、饱和度、色温、色调和伽马参数；处理顺序为预处理、滤镜处理、后处理和强度混合。调试预设独立保存于 `config/prismod/config/resourcepacks/<namespace>/<filter-id>.json`，文件包含 `schema: prismod.filter_debug`、`format_version: 1`、完整 `filter` 身份和 `settings`。保存按钮才写文件，取消/关闭/窗口重建不保存临时修改；未知版本、身份不匹配或损坏文件回退默认值。缺少任意 uniform 的普通 post_chain 仍可正常使用，但不显示调试入口并记录资源校验错误。旧 `lut-presets.json` 不读取，资源包暂时缺失时调参文件保留。
 
-公开客户端 API 位于 `com.xkmxz.prismod.api.client`：
+公开客户端 API 位于 `com.xkmxz.prismod.api.client`，外部模组不得依赖 `client.filter` 内部类：
 
 ```java
-FilterApi.setActiveFilter(FilterId.VINTAGE, 0.75F);
-FilterApi.setActiveFilter(ResourceLocation.fromNamespaceAndPath("example", "grayscale"), 0.75F);
+FilterApi.setForcedFilter(ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F);
 FilterApi.clearForcedFilter();
-FilterState state = FilterApi.getEffectiveState();
+FilterSnapshot effective = FilterApi.getEffectiveFilter();
+FilterSnapshot selected = FilterApi.getSelectedFilter();
 FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEffect, metadata);
 ```
 
-强制滤镜优先于玩家总开关、F8 和普通选择；重复设置会替换原强制状态，清除后恢复用户选择和最新配置。写 API 会调度到 Minecraft 客户端线程，读取返回最近一次已应用的不可变旧版快照。`FilterState` 只能表达内置 `FilterId`，自定义滤镜的完整身份通过内部 `FilterSelection`/`FilterKey` 保留。专用服务器不得加载 `api.client` 或任何 `net.minecraft.client` 类。
+`setForcedFilter` 只接受逻辑滤镜 ID：内置滤镜使用 `prismod:<name>`，自定义滤镜使用完整 `namespace:path`；注册 API 的 `postEffect` 才使用实际 PostChain 资源路径。强制滤镜优先于玩家总开关、F8 和普通选择；重复设置会替换原强制状态，清除后恢复用户选择和最新配置。写 API 会调度到 Minecraft 客户端线程，读取返回最近一次已应用的不可变 `FilterSnapshot`。`getEffectiveFilter()` 返回最终渲染状态，`getSelectedFilter()` 保留玩家选择；快照包含逻辑 ID、强度、forced 和 renderAvailable。专用服务器不得加载 `api.client` 或任何 `net.minecraft.client` 类。
 
 ## 架构和模块职责
 
@@ -85,7 +85,8 @@ FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEf
 - `client/FilterKey.java`：内置和自定义滤镜的稳定 `ResourceLocation` 身份。
 - `client/FilterDefinition.java`：后处理资源、翻译键、默认强度、内置标记和资源包 namespace；`displayName()` 是 UI/F8 的名称来源。
 - `client/FilterSelection.java`：内部动态选择，保留自定义 key、强度和 forced 标记。
-- `client/FilterState.java`：兼容旧 API 的内置状态快照。
+- `api/client/FilterSnapshot.java`：公开的不可变客户端状态快照；只使用 API 包和 Minecraft 基础值类型。
+- `client/FilterStrength.java`：内部强度规范化工具。
 - `client/FilterController.java`：纯 Java 状态机，维护选择、强制覆盖、总开关、循环、强度、可见性和渲染可用状态。
 - `client/FilterManager.java`：状态门面、配置刷新、资源失败处理和当前滤镜名称解析。
 - `client/PrismodClientConfig.java`：Forge 客户端配置、资源包禁用列表、隐藏滤镜列表、顺序和强度读写。
@@ -206,7 +207,10 @@ private void registerCommands(RegisterCommandsEvent event) {
 
 ```java
 // 在客户端入口调用：让 Prismod 临时使用复古滤镜，强度为 75%。
-FilterApi.setActiveFilter(FilterId.VINTAGE, 0.75F);
+FilterApi.setForcedFilter(ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F);
+
+FilterSnapshot effective = FilterApi.getEffectiveFilter();
+FilterSnapshot selected = FilterApi.getSelectedFilter();
 
 // 用完后解除强制状态，恢复玩家在配置界面中的选择。
 FilterApi.clearForcedFilter();

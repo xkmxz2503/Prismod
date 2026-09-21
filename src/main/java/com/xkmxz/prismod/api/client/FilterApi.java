@@ -1,21 +1,14 @@
 package com.xkmxz.prismod.api.client;
 
-import com.xkmxz.prismod.client.filter.FilterId;
 import com.xkmxz.prismod.client.filter.state.FilterManager;
-import com.xkmxz.prismod.client.filter.FilterKey;
-import com.xkmxz.prismod.client.filter.FilterState;
+import com.xkmxz.prismod.client.filter.state.FilterSelection;
 import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.Minecraft;
 
-/** 仅供客户端调用；写入会调度至客户端线程，读取返回最近一次已应用的不可变快照。 */
+/** Client-only API; writes are scheduled on the client thread and reads return immutable snapshots. */
 public final class FilterApi {
     private FilterApi() {
-    }
-
-    /** 设置单一强制覆盖；强度超界会截断，NaN 与无穷值按零处理。 */
-    public static void setActiveFilter(FilterId id, float strength) {
-        runOnClientThread(() -> FilterManager.get().setForced(id, strength));
     }
 
     public static FilterRegistration registerCustomFilter(String ownerId, ResourceLocation postEffect,
@@ -23,19 +16,30 @@ public final class FilterApi {
         return FilterRegistry.get().register(ownerId, postEffect, metadata);
     }
 
-    public static void setActiveFilter(ResourceLocation id, float strength) {
-        runOnClientThread(() -> FilterManager.get().setForced(
-                FilterKey.fromPostEffect(id), strength));
+    /** Sets one logical filter ID as the forced filter. */
+    public static void setForcedFilter(ResourceLocation filter, float strength) {
+        runOnClientThread(() -> FilterManager.get().setForced(filter, strength));
     }
 
-    /** 清除强制覆盖，并恢复当前用户选择、总开关及配置强度。 */
+    /** Clears the forced filter and restores the current user selection. */
     public static void clearForcedFilter() {
         runOnClientThread(FilterManager.get()::clearForced);
     }
 
-    /** 无需等待客户端线程；尚未执行的排队写操作不包含在此快照中。 */
-    public static FilterState getEffectiveState() {
-        return FilterManager.get().effectiveState();
+    /** Returns the final snapshot currently used by the renderer. */
+    public static FilterSnapshot getEffectiveFilter() {
+        FilterManager manager = FilterManager.get();
+        return snapshot(manager.effectiveSelection(), manager.isRenderAvailable());
+    }
+
+    /** Returns the user's selected snapshot, even when rendering currently falls back to original. */
+    public static FilterSnapshot getSelectedFilter() {
+        FilterManager manager = FilterManager.get();
+        return snapshot(manager.selectedSelection(), manager.isRenderAvailable());
+    }
+
+    private static FilterSnapshot snapshot(FilterSelection selection, boolean renderAvailable) {
+        return new FilterSnapshot(selection.key().id(), selection.strength(), selection.forced(), renderAvailable);
     }
 
     private static void runOnClientThread(Runnable action) {

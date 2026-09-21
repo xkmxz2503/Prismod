@@ -26,18 +26,18 @@ Minecraft **1.20.1 / Forge 47.3.32 / Java 17** 的客户端世界画面滤镜初
 ## 客户端 API
 
 ```java
+import com.xkmxz.prismod.api.client.FilterSnapshot;
 import com.xkmxz.prismod.api.client.FilterApi;
-import com.xkmxz.prismod.client.filter.FilterId;
-import com.xkmxz.prismod.client.filter.FilterState;
+import net.minecraft.resources.ResourceLocation;
 
-FilterApi.setActiveFilter(FilterId.VINTAGE, 0.75F);
-FilterState current = FilterApi.getEffectiveState();
+FilterApi.setForcedFilter(ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F);
+FilterSnapshot current = FilterApi.getEffectiveFilter();
 FilterApi.clearForcedFilter();
 ```
 
-`setActiveFilter` 设置一个临时强制覆盖，重复调用替换该覆盖；它优先于玩家总开关、F8 和配置。解除后恢复玩家选择以及最新的配置强度。离开世界清除强制覆盖，覆盖从不写入磁盘。
+`setForcedFilter` 的参数是逻辑滤镜 ID。内置滤镜使用 `prismod:<name>`，自定义滤镜使用完整 `namespace:path`；PostChain 文件路径只用于注册 API。强制覆盖优先于玩家总开关、F8 和普通选择，重复调用会替换当前覆盖。解除后恢复玩家选择以及最新配置强度，离开世界时自动清除且不写入磁盘。
 
-写入若来自其他线程会排入 Minecraft 客户端线程；异步调用后立即读取不保证看到尚未执行的修改。查询返回最近已应用的不可变快照。NaN、正负无穷强度归零，其他值钳制至 `[0,1]`；空 ID 按原色处理。
+`getEffectiveFilter()` 返回最终生效的 `FilterSnapshot`；`getSelectedFilter()` 返回玩家选择，即使渲染暂时回退原色也保留完整自定义 ID。快照只使用 `api.client` 类型，包含 `filter`、`strength`、`forced` 和 `renderAvailable`。写入若来自其他线程会排入 Minecraft 客户端线程；异步调用后立即读取不保证看到尚未执行的修改。强度会规范化到 `[0,1]`，NaN 和正负无穷按零处理。
 
 这些 API **仅可在物理客户端调用**。未来网络接收器需要在客户端分支调用它们；本版没有网络协议、服务器命令或强制策略。其他模组应通过自身的客户端入口引用 `api.client`，不要在专用服务器静态初始化中加载此包。
 

@@ -1,7 +1,7 @@
 package com.xkmxz.prismod.client.filter.registry;
 
 import com.xkmxz.prismod.client.filter.FilterKey;
-import com.xkmxz.prismod.client.filter.FilterState;
+import com.xkmxz.prismod.client.filter.FilterStrength;
 import com.xkmxz.prismod.client.filter.lut.Lut3dData;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
@@ -61,6 +61,6 @@ public record FilterDefinition(
     }
 
     public float defaultStrength() {
-        return FilterState.normalizeStrength(defaultStrength);
+        return FilterStrength.normalize(defaultStrength);
     }
 }

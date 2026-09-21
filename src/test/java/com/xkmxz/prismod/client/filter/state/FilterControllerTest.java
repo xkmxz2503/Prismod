@@ -2,7 +2,6 @@ package com.xkmxz.prismod.client.filter.state;
 
 import com.xkmxz.prismod.client.filter.FilterId;
 import com.xkmxz.prismod.client.filter.FilterKey;
-import com.xkmxz.prismod.client.filter.FilterState;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -20,9 +19,10 @@ class FilterControllerTest {
     @Test
     void startsWithOnlyOriginalSelected() {
         FilterController controller = new FilterController();
-        assertEquals(FilterId.ORIGINAL, controller.effectiveState().id());
-        assertEquals(controller.selectedState(), controller.effectiveState());
+        assertEquals(FilterKey.of(FilterId.ORIGINAL), controller.effectiveSelection().key());
+        assertEquals(controller.selectedSelection(), controller.effectiveSelection());
         assertFalse(controller.isForced());
+        assertTrue(controller.isRenderAvailable());
     }
 
     @Test
@@ -31,8 +31,10 @@ class FilterControllerTest {
         controller.select(FilterId.WARM);
         controller.refreshConfig(false, FilterId.defaultOrder(), Map.of(FilterId.COOL, 0.1F));
         controller.setForced(FilterId.COOL, 0.75F);
-        assertEquals(new FilterState(FilterId.COOL, 0.75F, true), controller.effectiveState());
-        assertEquals(FilterId.WARM, controller.selectedState().id());
+        assertEquals(FilterKey.of(FilterId.COOL), controller.effectiveSelection().key());
+        assertEquals(0.75F, controller.effectiveSelection().strength());
+        assertTrue(controller.effectiveSelection().forced());
+        assertEquals(FilterKey.of(FilterId.WARM), controller.selectedSelection().key());
     }
 
     @Test
@@ -41,9 +43,11 @@ class FilterControllerTest {
         controller.select(FilterId.VINTAGE);
         controller.setForced(FilterId.NIGHT_VISION, 0.9F);
         controller.refreshConfig(true, FilterId.defaultOrder(), Map.of(FilterId.VINTAGE, 0.25F));
-        assertEquals(0.9F, controller.effectiveState().strength());
+        assertEquals(0.9F, controller.effectiveSelection().strength());
         controller.clearForced();
-        assertEquals(new FilterState(FilterId.VINTAGE, 0.25F, false), controller.effectiveState());
+        assertEquals(FilterKey.of(FilterId.VINTAGE), controller.effectiveSelection().key());
+        assertEquals(0.25F, controller.effectiveSelection().strength());
+        assertFalse(controller.effectiveSelection().forced());
     }
 
     @Test
@@ -53,8 +57,8 @@ class FilterControllerTest {
         controller.refreshConfig(false, FilterId.defaultOrder(), Map.of());
         controller.setForced(FilterId.COOL, 0.5F);
         controller.clearForced();
-        assertEquals(new FilterState(FilterId.ORIGINAL, 0.0F, false), controller.effectiveState());
-        assertEquals(FilterId.GRAYSCALE, controller.selectedState().id());
+        assertEquals(FilterKey.of(FilterId.ORIGINAL), controller.effectiveSelection().key());
+        assertEquals(FilterKey.of(FilterId.GRAYSCALE), controller.selectedSelection().key());
     }
 
     @Test
@@ -62,8 +66,8 @@ class FilterControllerTest {
         FilterController controller = new FilterController();
         controller.select(FilterId.WARM);
         controller.refreshConfig(true, FilterId.defaultOrder(), Map.of(FilterId.WARM, 0.125F));
-        assertEquals(0.125F, controller.effectiveState().strength());
-        assertEquals(0.125F, controller.selectedState().strength());
+        assertEquals(0.125F, controller.effectiveSelection().strength());
+        assertEquals(0.125F, controller.selectedSelection().strength());
     }
 
     @Test
@@ -72,9 +76,10 @@ class FilterControllerTest {
         controller.select(FilterId.WARM);
         controller.setForced(FilterId.COOL, 0.2F);
         controller.setForced(FilterId.VINTAGE, 0.8F);
-        assertEquals(new FilterState(FilterId.VINTAGE, 0.8F, true), controller.effectiveState());
+        assertEquals(FilterKey.of(FilterId.VINTAGE), controller.effectiveSelection().key());
+        assertEquals(0.8F, controller.effectiveSelection().strength());
         controller.clearForced();
-        assertEquals(FilterId.WARM, controller.effectiveState().id());
+        assertEquals(FilterKey.of(FilterId.WARM), controller.effectiveSelection().key());
     }
 
     @Test
@@ -84,7 +89,7 @@ class FilterControllerTest {
         controller.setForced(FilterId.COOL, 0.5F);
         controller.cycle();
         controller.clearForced();
-        assertEquals(FilterId.WARM, controller.effectiveState().id());
+        assertEquals(FilterKey.of(FilterId.WARM), controller.effectiveSelection().key());
     }
 
     @Test
@@ -95,9 +100,9 @@ class FilterControllerTest {
         controller.refreshConfig(true, order, Map.of());
         controller.select(FilterId.NIGHT_VISION);
         controller.cycle();
-        assertEquals(FilterId.WARM, controller.effectiveState().id());
+        assertEquals(FilterKey.of(FilterId.WARM), controller.effectiveSelection().key());
         controller.cycle();
-        assertEquals(FilterId.COOL, controller.effectiveState().id());
+        assertEquals(FilterKey.of(FilterId.COOL), controller.effectiveSelection().key());
     }
 
     @Test
@@ -105,7 +110,7 @@ class FilterControllerTest {
         FilterController controller = new FilterController();
         controller.refreshConfig(true, List.of(FilterId.ORIGINAL), Map.of());
         controller.cycle();
-        assertEquals(FilterId.GRAYSCALE, controller.effectiveState().id());
+        assertEquals(FilterKey.of(FilterId.GRAYSCALE), controller.effectiveSelection().key());
     }
 
     @Test
@@ -118,9 +123,9 @@ class FilterControllerTest {
         order.clear();
         strengths.put(FilterId.WARM, 0.9F);
         controller.select(FilterId.WARM);
-        assertEquals(0.25F, controller.effectiveState().strength());
+        assertEquals(0.25F, controller.effectiveSelection().strength());
         controller.cycle();
-        assertEquals(FilterId.COOL, controller.effectiveState().id());
+        assertEquals(FilterKey.of(FilterId.COOL), controller.effectiveSelection().key());
     }
 
     @Test
@@ -128,10 +133,12 @@ class FilterControllerTest {
         FilterController controller = new FilterController();
         controller.setForced(FilterId.NIGHT_VISION, 0.7F);
         controller.setRenderAvailable(false);
-        assertEquals(new FilterState(FilterId.ORIGINAL, 0.0F, true), controller.effectiveState());
-        assertTrue(controller.isForced());
+        assertEquals(FilterKey.of(FilterId.ORIGINAL), controller.effectiveSelection().key());
+        assertEquals(0.0F, controller.effectiveSelection().strength());
+        assertTrue(controller.effectiveSelection().forced());
+        assertFalse(controller.isRenderAvailable());
         controller.setRenderAvailable(true);
-        assertEquals(new FilterState(FilterId.NIGHT_VISION, 0.7F, true), controller.effectiveState());
+        assertEquals(FilterKey.of(FilterId.NIGHT_VISION), controller.effectiveSelection().key());
     }
 
     @Test
@@ -139,8 +146,8 @@ class FilterControllerTest {
         FilterController controller = new FilterController();
         controller.select(FilterId.WARM);
         controller.setRenderAvailable(false);
-        assertEquals(new FilterState(FilterId.ORIGINAL, 0.0F, false), controller.effectiveState());
-        assertEquals(FilterId.WARM, controller.selectedState().id());
+        assertEquals(FilterKey.of(FilterId.ORIGINAL), controller.effectiveSelection().key());
+        assertEquals(FilterKey.of(FilterId.WARM), controller.selectedSelection().key());
     }
 
     @Test
@@ -150,17 +157,18 @@ class FilterControllerTest {
         controller.setForced(FilterId.GRAYSCALE, 0.4F);
         controller.resetSession();
         assertFalse(controller.isForced());
-        assertEquals(FilterId.COOL, controller.effectiveState().id());
+        assertEquals(FilterKey.of(FilterId.COOL), controller.effectiveSelection().key());
     }
 
     @Test
     void oldSnapshotsRemainUnchangedAfterFurtherSelections() {
         FilterController controller = new FilterController();
         controller.select(FilterId.WARM);
-        FilterState old = controller.effectiveState();
+        FilterSelection old = controller.effectiveSelection();
         controller.setForced(FilterId.COOL, 0.6F);
-        assertEquals(new FilterState(FilterId.WARM, 1.0F, false), old);
-        assertNotEquals(old, controller.effectiveState());
+        assertEquals(FilterKey.of(FilterId.WARM), old.key());
+        assertEquals(1.0F, old.strength());
+        assertNotEquals(old, controller.effectiveSelection());
     }
 
     @Test
@@ -168,7 +176,7 @@ class FilterControllerTest {
         FilterController controller = new FilterController();
         controller.select(FilterId.VINTAGE);
         controller.refreshConfig(true, FilterId.defaultOrder(), Map.of(FilterId.VINTAGE, Double.NaN));
-        assertEquals(0.0F, controller.effectiveState().strength());
+        assertEquals(0.0F, controller.effectiveSelection().strength());
     }
 
     @Test
@@ -177,26 +185,26 @@ class FilterControllerTest {
         controller.select(FilterId.WARM);
         Set<FilterKey> visible = Set.of(FilterKey.of(FilterId.ORIGINAL), FilterKey.of(FilterId.COOL));
         controller.refreshDynamicConfig(true, FilterId.defaultOrder().stream().map(FilterKey::of).toList(), Map.of(), visible);
-        assertEquals(FilterId.ORIGINAL, controller.effectiveState().id());
+        assertEquals(FilterKey.of(FilterId.ORIGINAL), controller.effectiveSelection().key());
         controller.select(FilterId.ORIGINAL);
         controller.cycle();
-        assertEquals(FilterId.COOL, controller.effectiveState().id());
+        assertEquals(FilterKey.of(FilterId.COOL), controller.effectiveSelection().key());
     }
 
     @Test
     @Timeout(5)
-    void backgroundReadsSeeCompleteImmutableStatesWithoutGameRuntime() throws InterruptedException {
+    void backgroundReadsSeeCompleteImmutableSelectionsWithoutGameRuntime() throws InterruptedException {
         FilterController controller = new FilterController();
-        FilterState warm = new FilterState(FilterId.WARM, 0.25F, true);
-        FilterState cool = new FilterState(FilterId.COOL, 0.75F, true);
-        controller.setForced(warm.id(), warm.strength());
+        FilterSelection warm = new FilterSelection(FilterKey.of(FilterId.WARM), 0.25F, true);
+        FilterSelection cool = new FilterSelection(FilterKey.of(FilterId.COOL), 0.75F, true);
+        controller.setForced(warm.key(), warm.strength());
         AtomicReference<Throwable> failure = new AtomicReference<>();
         CountDownLatch started = new CountDownLatch(1);
         Thread reader = new Thread(() -> {
             started.countDown();
             try {
                 for (int i = 0; i < 25_000; i++) {
-                    FilterState actual = controller.effectiveState();
+                    FilterSelection actual = controller.effectiveSelection();
                     assertTrue(actual.equals(warm) || actual.equals(cool));
                 }
             } catch (Throwable error) {
@@ -206,8 +214,8 @@ class FilterControllerTest {
         reader.start();
         started.await();
         for (int i = 0; i < 10_000; i++) {
-            FilterState next = i % 2 == 0 ? cool : warm;
-            controller.setForced(next.id(), next.strength());
+            FilterSelection next = i % 2 == 0 ? cool : warm;
+            controller.setForced(next.key(), next.strength());
         }
         reader.join();
         assertNull(failure.get(), () -> String.valueOf(failure.get()));

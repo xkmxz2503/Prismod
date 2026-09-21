@@ -1,6 +1,6 @@
 # Prismod Java API 调用说明
 
-Prismod API 位于 `com.xkmxz.prismod.api.client`，只应在客户端代码中调用。
+Prismod API 位于 `com.xkmxz.prismod.api.client`，只应在客户端代码中调用。专用服务器不得加载 `api.client` 或任何 `net.minecraft.client` 类。
 
 ## 1. 注册自定义滤镜
 
@@ -15,7 +15,7 @@ private FilterRegistration debugRegistration;
 public void registerDebugFilter() {
     debugRegistration = FilterApi.registerCustomFilter(
             "example-debug-mod",
-            ResourceLocation.fromNamespaceAndPath("example", "grayscale"),
+            ResourceLocation.fromNamespaceAndPath("example", "shaders/post/grayscale.json"),
             new CustomFilterMetadata("filter.example.debug", 0.75F)
     );
 }
@@ -23,16 +23,12 @@ public void registerDebugFilter() {
 
 参数说明：
 
-- `ownerId`：调用方的稳定标识。不能为空；同一个 owner 和资源 ID 重复注册会更新原条目。
-- `postEffect`：已有的后处理 JSON 资源。API 不接收运行时 GLSL 字符串。
-- `metadata.translationKey`：可选翻译键。为空或没有翻译时显示完整资源 ID。
-- `metadata.defaultStrength`：默认强度，会规范化到 `0.0` 到 `1.0`。
+- `ownerId` 是调用方的稳定标识，不能为空。同一个 owner 和同一个逻辑滤镜 ID 重复注册会替换旧注册。
+- `postEffect` 是实际的 PostChain JSON 资源路径，不是逻辑滤镜 ID。它必须能被 Prismod 校验和加载。
+- `metadata.translationKey` 是可选显示名称键；为空或没有翻译时显示完整 `namespace:path`。
+- `metadata.defaultStrength` 会规范化到 `0.0` 到 `1.0`；`NaN` 和无穷值按 `0.0` 处理。
 
-资源必须满足 Prismod 自定义模组资源包契约，否则会被登记为不可用；这不要求 Minecraft 原版 `pack.mcmeta`。
-
-## 2. 注销滤镜
-
-注册返回的句柄对应一次具体注册版本：
+注册返回的句柄负责注销：
 
 ```java
 if (debugRegistration != null) {
@@ -41,79 +37,70 @@ if (debugRegistration != null) {
 }
 ```
 
-句柄实现了 `AutoCloseable`，也可以使用：
+旧句柄不会删除同一个 owner 后续注册的新版本。注销后，逻辑滤镜会从可用列表和循环列表中移除。
+
+## 2. 强制使用滤镜
+
+强制 API 只接受逻辑滤镜 ID。内置滤镜使用 `prismod:<name>`，自定义滤镜使用资源包声明的完整 `namespace:path`：
 
 ```java
-try (FilterRegistration registration = FilterApi.registerCustomFilter(
-        "example-debug-mod",
-        ResourceLocation.fromNamespaceAndPath("example", "grayscale"),
-        CustomFilterMetadata.defaults())) {
-    // 注册期间使用滤镜
-}
-```
+import com.xkmxz.prismod.api.client.FilterApi;
+import net.minecraft.resources.ResourceLocation;
 
-旧句柄不会删除同一 `ownerId + resourceId` 后续注册的新版本。owner 注销后，滤镜会从可用列表和循环列表中移除。
+FilterApi.setForcedFilter(
+        ResourceLocation.fromNamespaceAndPath("prismod", "warm"),
+        0.8F
+);
 
-## 3. 强制使用滤镜
-
-保留旧版内置滤镜 API：
-
-```java
-import com.xkmxz.prismod.client.filter.FilterId;
-
-FilterApi.setActiveFilter(FilterId.WARM, 0.8F);
-```
-
-也可以通过后处理资源 ID 强制使用自定义滤镜：
-
-```java
-FilterApi.setActiveFilter(
+FilterApi.setForcedFilter(
         ResourceLocation.fromNamespaceAndPath("example", "grayscale"),
         0.8F
 );
 ```
 
-强制滤镜优先于普通选择和 F8 循环。强度会限制在 `0.0` 到 `1.0`；`NaN` 和无穷值按 `0.0` 处理。
-
-使用完毕后必须清除强制覆盖：
+强制滤镜优先于玩家总开关、普通选择和 F8 循环。重复设置会替换当前强制状态，不会叠加。使用完毕后清除：
 
 ```java
 FilterApi.clearForcedFilter();
 ```
 
-## 4. 查询当前状态
+强度会限制在 `[0.0, 1.0]`；`NaN` 和无穷值按 `0.0` 处理。离开世界时 Prismod 也会清除强制覆盖，但不会丢失玩家选择。
+
+## 3. 查询快照
+
+API 使用独立的不可变 `FilterSnapshot`，外部模组不需要依赖 Prismod 的内部状态类：
 
 ```java
-import com.xkmxz.prismod.client.filter.FilterState;
+import com.xkmxz.prismod.api.client.FilterApi;
+import com.xkmxz.prismod.api.client.FilterSnapshot;
 
-FilterState state = FilterApi.getEffectiveState();
-FilterId id = state.id();
-float strength = state.strength();
-boolean forced = state.forced();
+FilterSnapshot effective = FilterApi.getEffectiveFilter();
+FilterSnapshot selected = FilterApi.getSelectedFilter();
+
+ResourceLocation effectiveId = effective.filter();
+float strength = effective.strength();
+boolean forced = effective.forced();
+boolean renderAvailable = effective.renderAvailable();
 ```
 
-`getEffectiveState()` 保持旧版兼容，只能表达内置 `FilterId`。自定义滤镜通过旧状态查询时会回退为 `FilterId.ORIGINAL`；自定义滤镜的内部动态状态由 Prismod 客户端控制器使用。
+字段含义：
 
-## 5. 线程要求
+- `filter` 是完整逻辑滤镜 ID，始终保留 `namespace:path`。
+- `strength` 是规范化后的强度。
+- `forced` 表示快照是否来自有效强制覆盖。
+- `renderAvailable` 表示当前滤镜渲染器是否可用。
 
-`setActiveFilter` 和 `clearForcedFilter` 会自动切换到 Minecraft 客户端线程，可以从其他线程调用。
+`getEffectiveFilter()` 返回最终用于渲染的快照。渲染不可用、总开关关闭或滤镜不可用时，它可能暂时返回 `prismod:original`。`getSelectedFilter()` 返回玩家选择，即使最终渲染暂时回退原色，也保留用户选择的完整 ID。
 
-`registerCustomFilter` 访问客户端资源管理器，建议在客户端初始化、资源加载完成后或客户端线程中调用。不要在服务端类加载或服务端逻辑中引用这些 API。
+## 4. 线程与资源重载
 
-## 6. 资源重载行为
+`setForcedFilter` 和 `clearForcedFilter` 会自动调度到 Minecraft 客户端线程，可以从其他线程调用。调用后立即读取快照时，不保证已经观察到尚未执行的排队写操作。
 
-资源重载时 Prismod 会：
+`getEffectiveFilter` 和 `getSelectedFilter` 返回最近一次已发布的不可变快照，可安全跨线程读取。
 
-1. 重新读取所有 v1 资源包的 `prismod.pack.json`，只处理清单声明的滤镜。
-2. 重新校验 API 注册的资源。
-3. 释放旧的 post chain。
-4. 恢复当前仍然有效的滤镜。
+资源重载时 Prismod 会重新扫描 v1 资源包、重新校验 API 注册资源、释放旧 PostChain，并恢复仍然有效的滤镜。资源暂时缺失时，注册句柄和逻辑 ID 会保留，资源恢复并再次重载后自动重新可用。
 
-如果资源暂时不存在，注册记录和配置中的 ID 会保留；资源恢复并再次重载后会自动重新可用。
-
-## 7. 建议的生命周期
-
-推荐在客户端模组生命周期中保存句柄，并在模组卸载或功能关闭时关闭句柄：
+## 5. 完整生命周期示例
 
 ```java
 public final class DebugFilterClient {
@@ -123,19 +110,23 @@ public final class DebugFilterClient {
         if (registration == null) {
             registration = FilterApi.registerCustomFilter(
                     "example-debug-mod",
-                    ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"),
+                    ResourceLocation.fromNamespaceAndPath(
+                            "example", "shaders/post/debug.json"),
                     new CustomFilterMetadata("filter.example.debug", 0.75F));
         }
+        FilterApi.setForcedFilter(
+                ResourceLocation.fromNamespaceAndPath("example", "debug"),
+                0.75F);
     }
 
     public void disable() {
+        FilterApi.clearForcedFilter();
         if (registration != null) {
             registration.close();
             registration = null;
         }
-        FilterApi.clearForcedFilter();
     }
 }
 ```
 
-不要直接操作 `FilterRegistry`、`FilterController` 或 `WorldFilterRenderer`；这些属于 Prismod 内部实现，公开兼容入口是 `FilterApi`、`CustomFilterMetadata` 和 `FilterRegistration`。
+不要直接操作 `FilterRegistry`、`FilterController`、`FilterSelection`、`FilterKey` 或 `WorldFilterRenderer`。这些属于 Prismod 内部实现；稳定公开契约只有 `FilterApi`、`FilterSnapshot`、`CustomFilterMetadata` 和 `FilterRegistration`。

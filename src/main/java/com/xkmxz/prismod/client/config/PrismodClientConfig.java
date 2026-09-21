@@ -81,7 +81,7 @@ public final class PrismodClientConfig {
         if (key == null) return 0.0F;
         if ("prismod".equals(key.id().getNamespace())) {
             FilterId id = FilterId.fromSerialized(key.id().getPath());
-            if (id != null) return FilterState.normalizeStrength(STRENGTHS[id.ordinal()].get());
+            if (id != null) return FilterStrength.normalize(STRENGTHS[id.ordinal()].get());
         }
         return customStrengths().getOrDefault(key, defaultStrength(key));
     }
@@ -90,7 +90,7 @@ public final class PrismodClientConfig {
 
     public static void setStrength(FilterKey key, double value) {
         if (key == null) return;
-        float normalized = FilterState.normalizeStrength(value);
+        float normalized = FilterStrength.normalize(value);
         if ("prismod".equals(key.id().getNamespace()) && FilterId.fromSerialized(key.id().getPath()) != null) {
             STRENGTHS[FilterId.fromSerialized(key.id().getPath()).ordinal()].set((double) normalized);
             return;
@@ -120,7 +120,7 @@ public final class PrismodClientConfig {
                     LOGGER.warn("Ignoring invalid or built-in custom strength entry: {}", entry);
                     continue;
                 }
-                try { result.put(key, FilterState.normalizeStrength(Double.parseDouble(entry.substring(separator + 1)))); }
+                try { result.put(key, FilterStrength.normalize(Double.parseDouble(entry.substring(separator + 1)))); }
                 catch (NumberFormatException ignored) {
                     LOGGER.warn("Ignoring invalid Prismod custom strength value: {}", entry);
                 }
