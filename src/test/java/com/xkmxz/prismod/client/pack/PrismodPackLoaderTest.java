@@ -44,6 +44,19 @@ class PrismodPackLoaderTest {
         assertEquals(2, PrismodPackLoader.scan(temp).size());
     }
 
+    @Test void editingScanKeepsPackWithMissingDeclaredFilterFile() throws IOException {
+        Path directory = Files.createDirectories(temp.resolve("broken"));
+        Files.writeString(directory.resolve(PrismodPackLoader.MANIFEST_FILE), manifest("broken", "missing"));
+        assertTrue(PrismodPackLoader.scan(temp).isEmpty());
+        assertEquals(1, PrismodPackLoader.scanForEditing(temp).size());
+    }
+
+    @Test void backupDirectoryIsNotScannedAsResourcePack() throws IOException {
+        Path backups = Files.createDirectories(temp.resolve(".prismod-backup").resolve("pack"));
+        Files.writeString(backups.resolve(PrismodPackLoader.MANIFEST_FILE), manifest("backup", "filter"));
+        assertTrue(PrismodPackLoader.scanForEditing(temp).isEmpty());
+    }
+
     @Test void oldPackIsNotScanned() throws IOException {
         Path old = Files.createDirectories(temp.resolve("old"));
         Files.writeString(old.resolve(PrismodPackLoader.META_FILE), "{\"namespace\":\"old\"}");

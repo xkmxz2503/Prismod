@@ -63,6 +63,11 @@ public final class ResourcePackEditorScreen extends Screen {
                 .bounds(panelLeft, panelTop + 98, (leftWidth - 4) / 2, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("screen.prismod.new_lut_filter"), button -> openCreateFilter("lut3d"))
                 .bounds(panelLeft + (leftWidth + 4) / 2, panelTop + 98, (leftWidth - 4) / 2, 20).build());
+        Button clearInvalid = addRenderableWidget(Button.builder(
+                        Component.translatable("screen.prismod.clear_invalid_declarations"),
+                        button -> clearInvalidDeclarations())
+                .bounds(panelLeft, panelTop + 122, leftWidth, 20).build());
+        clearInvalid.active = !draft.missingFilterDeclarations().isEmpty();
 
         filterListLeft = right;
         filterListRight = right + rightWidth;
@@ -81,7 +86,7 @@ public final class ResourcePackEditorScreen extends Screen {
         }
         arrangeFilterRows();
 
-        int actionTop = panelTop + 134;
+        int actionTop = panelTop + 150;
         addRenderableWidget(Button.builder(Component.translatable("screen.prismod.readme_editor"), button -> openReadme())
                 .bounds(panelLeft, actionTop, (leftWidth - 4) / 2, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("screen.prismod.language_editor"), button -> openLanguages())
@@ -106,6 +111,16 @@ public final class ResourcePackEditorScreen extends Screen {
 
     public void filterCreated(String id) {
         status = Component.translatable("screen.prismod.filter_added", id).getString();
+        init();
+    }
+
+    private void clearInvalidDeclarations() {
+        syncMetadata();
+        List<String> removed = draft.clearMissingFilterDeclarations();
+        status = removed.isEmpty()
+                ? Component.translatable("screen.prismod.clear_invalid_declarations_none").getString()
+                : Component.translatable("screen.prismod.clear_invalid_declarations_done",
+                        String.join(", ", removed)).getString();
         init();
     }
 

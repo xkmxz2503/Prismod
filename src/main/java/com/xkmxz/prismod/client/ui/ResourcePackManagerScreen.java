@@ -6,6 +6,7 @@ import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import com.xkmxz.prismod.client.filter.state.FilterManager;
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;
+import com.xkmxz.prismod.client.pack.ResourcePackEditorService;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -55,16 +56,19 @@ public final class ResourcePackManagerScreen extends Screen {
         listTop = panelTop + 72;
         listBottom = panelTop + panelHeight - 44;
 
-        int half = (panelWidth - 4) / 2;
+        int third = (panelWidth - 8) / 3;
         addRenderableWidget(Button.builder(Component.translatable("screen.prismod.import"), button -> openPackDirectory())
-                .bounds(panelLeft, panelTop + 18, half, 20).build());
+                .bounds(panelLeft, panelTop + 18, third, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("screen.prismod.create_placeholder"), button ->
                         openCreateScreen())
-                .bounds(panelLeft + half + 4, panelTop + 18, half, 20).build());
+                .bounds(panelLeft + third + 4, panelTop + 18, third, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("screen.prismod.clear_backups"), button -> clearBackups())
+                .bounds(panelLeft + (third + 4) * 2, panelTop + 18, third, 20).build());
 
         buildRows();
         arrangeRows();
 
+        int half = (panelWidth - 4) / 2;
         Button save = addRenderableWidget(Button.builder(Component.translatable("screen.prismod.save"), button -> save())
                 .bounds(panelLeft, listBottom + 18, half, 20).build());
         Button cancel = addRenderableWidget(Button.builder(Component.translatable("gui.cancel"), button -> onClose())
@@ -74,7 +78,7 @@ public final class ResourcePackManagerScreen extends Screen {
     }
 
     private void refreshCandidates() {
-        candidates = PrismodPackLoader.scan(PrismodPackLoader.resourcePacksDirectory());
+        candidates = PrismodPackLoader.scanForEditing(PrismodPackLoader.resourcePacksDirectory());
         Set<String> namespaces = candidates.stream()
                 .map(candidate -> candidate.metadata().namespace())
                 .collect(java.util.stream.Collectors.toSet());
@@ -122,6 +126,16 @@ public final class ResourcePackManagerScreen extends Screen {
 
     private void openCreateScreen() {
         if (minecraft != null) minecraft.setScreen(new ResourcePackCreateScreen(this));
+    }
+
+    private void clearBackups() {
+        try {
+            int removed = ResourcePackEditorService.clearBackups();
+            status = Component.translatable("screen.prismod.clear_backups_done", removed).getString();
+        } catch (IOException exception) {
+            status = Component.translatable("screen.prismod.clear_backups_failed",
+                    exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage()).getString();
+        }
     }
 
     void openCreatedPack(String namespace) {

@@ -6,6 +6,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -71,6 +73,36 @@ public final class ResourcePackEditorDraft {
     public void writeManifest(JsonObject manifest) {
         files.put(PrismodPackLoader.MANIFEST_FILE,
                 new GsonBuilder().setPrettyPrinting().create().toJson(manifest));
+    }
+
+    /** 返回清单中缺少目录或 filter.json 的滤镜声明。 */
+    public List<String> missingFilterDeclarations() {
+        return filters().stream()
+                .filter(filter -> !files.containsKey(filter.path() + "/filter.json"))
+                .map(PrismodPackLoader.PackFilterEntry::id)
+                .toList();
+    }
+
+    /** 仅从当前编辑草稿清除失效声明，保存主页面后才会写入资源包。 */
+    public List<String> clearMissingFilterDeclarations() {
+        JsonObject manifest = manifest();
+        JsonArray declared = manifest.getAsJsonArray("filters");
+        if (declared == null) return List.of();
+        List<String> removed = new ArrayList<>();
+        for (int index = declared.size() - 1; index >= 0; index--) {
+            JsonObject item = declared.get(index).isJsonObject() ? declared.get(index).getAsJsonObject() : null;
+            if (item == null) continue;
+            String path = item.has("path") && item.get("path").isJsonPrimitive()
+                    ? item.get("path").getAsString() : "";
+            if (!files.containsKey(path + "/filter.json")) {
+                removed.add(item.has("id") ? item.get("id").getAsString() : path);
+                declared.remove(index);
+            }
+        }
+        if (removed.isEmpty()) return List.of();
+        writeManifest(manifest);
+        Collections.reverse(removed);
+        return List.copyOf(removed);
     }
 
     public List<PrismodPackLoader.PackFilterEntry> filters() {

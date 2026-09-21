@@ -56,6 +56,7 @@ public final class PrismodPackLoader {
     static final String ASSETS_DIRECTORY = "assets";
     private static final int FORMAT_VERSION = 1;
     private static final String RESOURCE_PACKS_DIRECTORY = "prismod/resourcepacks";
+    private static final String BACKUP_DIRECTORY_NAME = ".prismod-backup";
     private static final String LANGUAGE_DIRECTORY = "assets/%s/lang/";
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Set<String> RESERVED_NAMESPACES = Set.of("minecraft", "prismod");
@@ -107,11 +108,25 @@ public final class PrismodPackLoader {
     }
 
     public static List<PackCandidate> scan(Path directory) {
+        return scanInternal(directory, true);
+    }
+
+    /**
+     * 扫描资源包编辑候选。此扫描只校验清单本身，不要求清单声明的滤镜文件已存在，
+     * 这样编辑器可以打开并清理失效声明；正常运行仍使用 {@link #scan(Path)} 的严格扫描。
+     */
+    public static List<PackCandidate> scanForEditing(Path directory) {
+        return scanInternal(directory, false);
+    }
+
+    private static List<PackCandidate> scanInternal(Path directory, boolean validateContents) {
         List<Path> entries = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
             for (Path path : stream) {
+                String fileName = path.getFileName().toString();
+                if (fileName.equals(BACKUP_DIRECTORY_NAME) || fileName.endsWith(".prismod-backup")) continue;
                 if (Files.isDirectory(path) || (Files.isRegularFile(path)
-                        && path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".zip"))) entries.add(path);
+                        && fileName.toLowerCase(Locale.ROOT).endsWith(".zip"))) entries.add(path);
             }
         } catch (IOException exception) {
             LOGGER.warn("Unable to scan Prismod resource pack directory {}", directory, exception);
@@ -122,7 +137,9 @@ public final class PrismodPackLoader {
         Set<String> namespaces = new HashSet<>();
         for (Path path : entries) {
             try {
-                PackMetadata metadata = Files.isDirectory(path) ? readDirectoryManifest(path) : readZipManifest(path);
+                PackMetadata metadata = Files.isDirectory(path)
+                        ? readDirectoryManifest(path, false, validateContents)
+                        : readZipManifest(path, validateContents);
                 if (!dependenciesMatch(metadata.dependencies())) continue;
                 if (!namespaces.add(metadata.namespace())) {
                     LOGGER.warn("Skipping Prismod resource pack {} because namespace {} is already used", path.getFileName(), metadata.namespace());
@@ -327,26 +344,34 @@ public final class PrismodPackLoader {
     }
 
     private static PackMetadata readDirectoryManifest(Path path) throws IOException {
-        return readDirectoryManifest(path, false);
+        return readDirectoryManifest(path, false, true);
     }
 
     private static PackMetadata readDirectoryManifest(Path path, boolean bundled) throws IOException {
+        return readDirectoryManifest(path, bundled, true);
+    }
+
+    private static PackMetadata readDirectoryManifest(Path path, boolean bundled, boolean validateContents) throws IOException {
         Path manifest = path.resolve(MANIFEST_FILE);
         if (!Files.isRegularFile(manifest)) throw new IOException("missing " + MANIFEST_FILE);
         try (Reader reader = Files.newBufferedReader(manifest, StandardCharsets.UTF_8)) {
             PackMetadata metadata = parseManifest(JsonParser.parseReader(reader).getAsJsonObject(), bundled);
-            validateContents(path, metadata);
+            if (validateContents) validateContents(path, metadata);
             return metadata;
         }
     }
 
     private static PackMetadata readZipManifest(Path path) throws IOException {
+        return readZipManifest(path, true);
+    }
+
+    private static PackMetadata readZipManifest(Path path, boolean validateContents) throws IOException {
         try (ZipFile zip = new ZipFile(path.toFile())) {
             ZipEntry entry = zip.getEntry(MANIFEST_FILE);
             if (entry == null || entry.isDirectory()) throw new IOException("missing " + MANIFEST_FILE);
             try (InputStream stream = zip.getInputStream(entry); Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 PackMetadata metadata = parseManifest(JsonParser.parseReader(reader).getAsJsonObject());
-                validateContents(path, metadata);
+                if (validateContents) validateContents(path, metadata);
                 return metadata;
             }
         }

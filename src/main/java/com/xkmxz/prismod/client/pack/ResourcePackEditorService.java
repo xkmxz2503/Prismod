@@ -28,6 +28,7 @@ import java.util.zip.ZipFile;
 
 /** 资源包编辑器的文件工作区、校验和原子保存实现。 */
 public final class ResourcePackEditorService {
+    public static final String BACKUP_DIRECTORY = ".prismod-backup";
     private static final Set<String> TEXT_EXTENSIONS = Set.of(".json", ".fsh", ".vsh", ".glsl", ".cube", ".txt", ".md");
     private static final String RECYCLE_DIRECTORY = ".prismod-recycle";
     private static final List<String> DEBUG_UNIFORMS = List.of(
@@ -87,11 +88,13 @@ public final class ResourcePackEditorService {
             if (!target.equals(sourceRoot) && Files.exists(target)) return SaveResult.failure("目标资源包目录已存在");
             Path temp = base.resolve("." + sourceName + ".prismod-tmp-" + UUID.randomUUID());
             writeTree(temp, files);
-            Path backup = sourceRoot.resolveSibling(sourceName + ".prismod-backup");
             if (target.equals(sourceRoot)) {
+                Path backupRoot = sourceRoot.getParent().resolve(BACKUP_DIRECTORY);
+                Path backup = backupRoot.resolve(sourceName);
+                Files.createDirectories(backupRoot);
                 if (Files.exists(backup)) deleteTree(backup);
-                Files.move(sourceRoot, backup, StandardCopyOption.REPLACE_EXISTING);
-                try { Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE); }
+                moveWithoutReplace(sourceRoot, backup);
+                try { moveWithoutReplace(temp, target); }
                 catch (Exception failure) { Files.move(backup, sourceRoot, StandardCopyOption.REPLACE_EXISTING); deleteTree(temp); throw failure; }
             } else {
                 Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE);
@@ -100,6 +103,37 @@ public final class ResourcePackEditorService {
         } catch (Exception exception) {
             return SaveResult.failure(exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
         }
+    }
+
+    /** 清除统一备份目录及历史版本留下的同级备份目录。 */
+    public static int clearBackups() throws IOException {
+        return clearBackups(PrismodPackLoader.resourcePacksDirectory());
+    }
+
+    static int clearBackups(Path resourcePacksDirectory) throws IOException {
+        if (resourcePacksDirectory == null || !Files.isDirectory(resourcePacksDirectory)) return 0;
+        int removed = 0;
+        Path backupRoot = resourcePacksDirectory.resolve(BACKUP_DIRECTORY);
+        if (Files.exists(backupRoot)) {
+            if (Files.isDirectory(backupRoot)) {
+                try (var paths = Files.list(backupRoot)) {
+                    removed += (int) paths.count();
+                }
+            } else {
+                removed++;
+            }
+            deleteTree(backupRoot);
+        }
+        try (var paths = Files.list(resourcePacksDirectory)) {
+            for (Path path : paths.toList()) {
+                String name = path.getFileName().toString();
+                if (!name.equals(BACKUP_DIRECTORY) && name.endsWith(".prismod-backup")) {
+                    deleteTree(path);
+                    removed++;
+                }
+            }
+        }
+        return removed;
     }
 
     public static CreatePackResult createPack(CreatePackRequest request) {

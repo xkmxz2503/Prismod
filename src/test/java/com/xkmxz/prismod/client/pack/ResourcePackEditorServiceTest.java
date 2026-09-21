@@ -50,6 +50,37 @@ class ResourcePackEditorServiceTest {
     }
 
     @Test
+    void savesBackupIntoUnifiedBackupDirectory() throws Exception {
+        Path root = pack("example", "gray");
+        PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseManifest(
+                JsonParser.parseString(manifest("example", "gray")).getAsJsonObject());
+        ResourcePackEditorService.Session session = ResourcePackEditorService.open(
+                new PrismodPackLoader.PackCandidate(root, metadata));
+        ResourcePackEditorService.SaveResult result = ResourcePackEditorService.save(
+                session, "Updated", "example", Map.of());
+        assertTrue(result.success(), result.message());
+        Path backup = temp.resolve(ResourcePackEditorService.BACKUP_DIRECTORY)
+                .resolve(root.getFileName().toString());
+        assertTrue(Files.exists(backup.resolve(PrismodPackLoader.MANIFEST_FILE)));
+        assertTrue(Files.exists(root.resolve(PrismodPackLoader.MANIFEST_FILE)));
+    }
+
+    @Test
+    void clearsUnifiedAndLegacyBackupsWithoutRemovingPacks() throws Exception {
+        Path packs = Files.createDirectories(temp.resolve("resourcepacks"));
+        Path normal = Files.createDirectories(packs.resolve("normal"));
+        Files.writeString(normal.resolve("keep.txt"), "keep");
+        Path unified = Files.createDirectories(packs.resolve(ResourcePackEditorService.BACKUP_DIRECTORY).resolve("one"));
+        Files.writeString(unified.resolve("old.txt"), "old");
+        Path legacy = Files.createDirectories(packs.resolve("legacy.prismod-backup"));
+        Files.writeString(legacy.resolve("old.txt"), "old");
+        assertEquals(2, ResourcePackEditorService.clearBackups(packs));
+        assertTrue(Files.exists(normal.resolve("keep.txt")));
+        assertFalse(Files.exists(unified));
+        assertFalse(Files.exists(legacy));
+    }
+
+    @Test
     void rejectsMalformedFilterJson() throws Exception {
         Path root = pack("example", "gray");
         PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseManifest(JsonParser.parseString(manifest("example", "gray")).getAsJsonObject());
@@ -137,6 +168,25 @@ class ResourcePackEditorServiceTest {
         assertEquals("{}", JsonParser.parseString(draft.files()
                 .get("assets/example/lang/en_us.json")).toString());
         assertFalse(Files.exists(root.resolve("assets/example/lang/zh_cn.json")));
+    }
+
+    @Test
+    void clearsMissingFilterDeclarationsInDraftOnly() throws Exception {
+        Path root = Files.createDirectories(temp.resolve("broken-pack"));
+        String manifest = "{\"schema\":\"prismod.resource_pack\",\"format_version\":1,\"namespace\":\"example\",\"filters\":["
+                + "{\"id\":\"missing\",\"path\":\"assets/example/filters/missing\"},"
+                + "{\"id\":\"valid\",\"path\":\"assets/example/filters/valid\"}]}";
+        Files.writeString(root.resolve(PrismodPackLoader.MANIFEST_FILE), manifest);
+        Path valid = Files.createDirectories(root.resolve("assets/example/filters/valid"));
+        Files.writeString(valid.resolve("filter.json"), "{}");
+        PrismodPackLoader.PackMetadata metadata = PrismodPackLoader.parseManifest(
+                JsonParser.parseString(manifest).getAsJsonObject());
+        ResourcePackEditorDraft draft = ResourcePackEditorDraft.open(
+                new PrismodPackLoader.PackCandidate(root, metadata));
+        assertEquals(List.of("missing"), draft.missingFilterDeclarations());
+        assertEquals(List.of("missing"), draft.clearMissingFilterDeclarations());
+        assertEquals(List.of("valid"), draft.filters().stream().map(PrismodPackLoader.PackFilterEntry::id).toList());
+        assertTrue(Files.readString(root.resolve(PrismodPackLoader.MANIFEST_FILE)).contains("missing"));
     }
 
     @Test
