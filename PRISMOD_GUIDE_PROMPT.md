@@ -10,7 +10,7 @@
 - F8 按配置顺序循环；自定义滤镜使用 `namespace:path` 的 `FilterKey` 参与循环。
 - F8 提示使用当前 `FilterDefinition.displayName()`：优先显示翻译名称，没有翻译时显示真实自定义 ID，不得通过旧版 `FilterState.id()` 把自定义滤镜显示成原色。
 - 一级滤镜配置页：总开关、当前选择、滤镜强度、循环顺序、保存/取消/Esc。
-- 二级资源包管理页：支持将目录或 ZIP 直接拖入页面导入，也可打开 Prismod 专用资源包目录手动放置；导入后刷新并显示资源包、启用/禁用资源包、滚动列表、独立保存/取消。
+- 二级资源包管理页：支持将目录或 ZIP 直接拖入页面导入，也可打开 Prismod 专用资源包目录手动放置；导入后刷新并显示资源包、启用/禁用资源包、滚动列表、独立保存/取消。每个条目提供全屏编辑入口，可修改资源包元数据、滤镜清单和受支持文本资源；创建资源包入口暂作为后续向导占位。
 - 独立滤镜管理页：控制单个滤镜是否展示、滚动列表、独立保存/取消。
 - 当前实际生效滤镜来自某个资源包时，该资源包暂时不能禁用；被禁用资源包中的滤镜不会出现在管理页，也不能单独切换展示状态。
 - 隐藏滤镜不会出现在一级配置页或 F8 循环；取消隐藏后恢复其原有循环顺序。
@@ -93,9 +93,12 @@ FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEf
 - `client/PrismodClient.java`：注册 F8、客户端配置、资源包发现、资源重载监听和客户端 tick。
 - `client/FilterConfigScreen.java`：一级滤镜配置页。
 - `client/ResourcePackManagerScreen.java`：独立资源包管理页，负责拖放或手动导入资源包、打开资源包目录、刷新资源包和资源包开关。
+- `client/ResourcePackEditorScreen.java`：资源包常用编辑页，负责名称、namespace、抽象滤镜列表和草稿保存；README、滤镜结构、语言名称和原始文件分别进入独立子页面。`client/pack/ResourcePackEditorDraft.java` 在这些页面之间共享未保存内容，`client/pack/ResourcePackEditorService.java` 负责 ZIP `.editable` 工作区、白名单、校验、备份和原子保存。
 - `client/FilterVisibilityManagerScreen.java`：独立滤镜管理页，只负责滤镜展示状态。
 
 F8 只在世界内、没有打开屏幕且没有强制状态时响应。按键冲突只提示，不修改玩家绑定。资源包管理页保存后写入配置并触发 Prismod 自己的资源刷新，取消和 Esc 放弃草稿；不得调用 Minecraft 原版资源包仓库重载。
+
+资源包编辑器保存行为：目录包直接在临时目录校验后原子替换并保留 `.prismod-backup`；ZIP 包编辑时生成同名 `.editable` 目录并保留 ZIP；namespace 变更另存为新资源包，目标 namespace 冲突时阻止保存。删除滤镜内容写入包内 `.prismod-recycle/`，取消、关闭或窗口重建不会写入草稿。支持文件范围为 `prismod.pack.json`、滤镜 `filter.json`、PostChain/program JSON、GLSL、`.cube` 和资源包语言 JSON。
 
 ### 资源包和注册表
 

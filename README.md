@@ -13,6 +13,7 @@ Minecraft **1.20.1 / Forge 47.3.32 / Java 17** 的客户端世界画面滤镜初
 - `filter.json` 的 `display_name` 必须由资源包自己的 `assets/<namespace>/lang/<语言>.json` 提供翻译；当前语言缺失时回退 `en_us`，仍缺失则显示完整 `namespace:path`。模组外层语言文件只负责 Prismod 自身界面和消息，不再提供默认滤镜名称。
 - 首次启动时，Prismod 会把上述完整默认包导出到 `config/prismod/builtin/prismod_default_filters/`，随后像 TACZ 的默认枪包一样按普通目录资源包读取；滤镜和语言文件的已有编辑不会被覆盖，包内 `assets/prismod/runtime/` 运行时处理器则会随模组版本同步更新。
 - 在 Prismod 的“资源包管理”页面可以直接将 ZIP 或资源包目录拖入窗口导入；也可以点击“打开资源包文件夹”手动放入上述目录。导入会执行清单、依赖、路径和重复项校验，成功后自动刷新列表，再单独保存启用/禁用设置。保存后由 Prismod 自己重新读取目录/ZIP，不会调用或修改 Minecraft 原版资源包管理。若系统无法自动打开目录，也可以在文件管理器中手动进入该路径。
+- 资源包列表中的“编辑”按钮会打开常用编辑页，可修改显示名称、namespace 和抽象滤镜信息；README、按语言分类的滤镜显示名称和原始文件编辑分别位于独立子页面。“高级文件编辑”才会显示文件树和原始内容。所有子页面只修改草稿，主页面点击保存后才校验、备份、原子替换并触发 Prismod 私有资源重载。ZIP 编辑会保留原 ZIP，并解压到同名 `.editable` 目录；修改 namespace 会另存为新资源包，不覆盖原包。当前“创建资源包”按钮仅作为后续创建向导入口。
 - 只处理世界（包括手持物品），HUD、聊天、容器、菜单保持原色。夜视只是画面调色，不赋予药水效果，也不能恢复全黑像素中不存在的细节。
 - F8 绑定冲突只提示，不擅自改动其他按键。打开界面时 F8 不切换。
 - 在世界内的滤镜配置页，支持统一调试契约的 LUT 和 `post_chain` 行提供“调试”入口，可调整 9 个参数。调试预设按资源包 namespace 和滤镜 ID 独立保存到 `config/prismod/config/resourcepacks/<namespace>/<filter-id>.json`；保存后正常渲染自动生效，普通滤镜强度与调试 `intensity` 相乘。旧 `lut-presets.json` 保留但不再读取。
