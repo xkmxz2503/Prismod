@@ -1,4 +1,4 @@
-name: Release Build
+name: Build and publish Minecraft mod
 
 on:
   release:
@@ -6,6 +6,7 @@ on:
 
 jobs:
   build:
+    name: Build Prismod
     runs-on: ubuntu-latest
     permissions:
       contents: write
