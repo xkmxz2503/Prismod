@@ -17,6 +17,11 @@ plugins {
 
 apply plugin: 'org.spongepowered.mixin'
 
+// ▼ 新增：定义仅客户端运行时使用的配置
+configurations {
+    clientRuntimeOnly
+}
+
 group = mod_group_id
 version = mod_version
 
@@ -177,9 +182,10 @@ dependencies {
         testRuntimeOnly 'org.lwjgl:lwjgl-glfw:3.3.1:natives-windows'
         testRuntimeOnly 'org.lwjgl:lwjgl-opengl:3.3.1:natives-windows'
     }
-    runtimeOnly fg.deobf("curse.maven:oculus-581495:6020952")
-    runtimeOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
 
+    // 仅客户端运行时依赖：这些模组只会在 runClient 时加载
+    clientRuntimeOnly fg.deobf("curse.maven:oculus-581495:6020952")
+    clientRuntimeOnly fg.deobf("maven.modrinth:embeddium:0.3.31+mc1.20.1")
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.
@@ -223,4 +229,9 @@ tasks.withType(JavaCompile).configureEach {
 tasks.named('test', Test).configure {
     useJUnitPlatform()
     systemProperty 'prismod.renderTests', project.hasProperty('prismodRenderTests').toString()
+}
+
+// 将 clientRuntimeOnly 配置的依赖仅添加到 runClient 任务的类路径中
+tasks.matching { it.name == 'runClient' }.configureEach {
+    classpath += configurations.clientRuntimeOnly
 }

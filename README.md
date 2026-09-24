@@ -8,10 +8,10 @@
 ![Forge 47.3.32](https://img.shields.io/badge/Forge-47.3.32-orange?style=flat-square)
 ![Version 1.1](https://img.shields.io/badge/version-1.1-4C9AFF?style=flat-square)
 ![Java 17](https://img.shields.io/badge/Java-17-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
-![Client Only](https://img.shields.io/badge/side-client--only-6C63FF?style=flat-square)
+![Client + Server](https://img.shields.io/badge/side-client%20%2B%20optional%20server-6C63FF?style=flat-square)
 
-**Prismod 1.1** 是一个面向 Minecraft Java Edition 1.20.1 的 Forge 客户端滤镜模组。
-它只处理世界画面和手持物品，不修改服务端逻辑，也不会把 HUD、聊天、菜单或容器加入滤镜链。
+**Prismod 1.1** 是一个面向 Minecraft Java Edition 1.20.1 的 Forge 客户端滤镜模组，并包含可选的服务端基础框架。
+客户端只处理世界画面和手持物品，不会把 HUD、聊天、菜单或容器加入滤镜链；服务端部分只提供 API、命令和协议基础设施。
 
 </div>
 
@@ -28,6 +28,7 @@ Prismod 提供一套可配置、可调试、可扩展的客户端世界滤镜：
 - 支持 PostChain 与 Adobe `.cube` LUT 资源；
 - 支持滤镜强度调节、统一调试 uniform 和资源重载；
 - 提供只依赖 `com.xkmxz.prismod.api.client` 的客户端 Java API；
+- 提供可选的服务端 API、`/prismod help`、`/prismod status` 和版本化网络通道；
 - 渲染失败时安全回退原色，并释放 PostChain、LUT 纹理和临时 framebuffer。
 
 ## ✅ 当前功能
@@ -42,6 +43,7 @@ Prismod 提供一套可配置、可调试、可扩展的客户端世界滤镜：
 | 资源包编辑器 | ✅ | 支持草稿、语言文件、滤镜模板、备份和原子保存 |
 | 滤镜调试 | ✅ | 支持强度、曝光、对比度、高光、阴影、饱和度、色温、色调和伽马 |
 | 客户端 Java API | ✅ | 注册、注销、强制滤镜和不可变状态快照 |
+| 服务端基础框架 | ✅ | `/prismod help`、`/prismod status` 和可选版本化网络通道 |
 | Oculus 共存 | 🧪 | 可选共存，具体 shaderpack 兼容性需要按版本实测 |
 
 ## 🧱 技术架构
@@ -49,6 +51,8 @@ Prismod 提供一套可配置、可调试、可扩展的客户端世界滤镜：
 ```text
 Prismod
 ├─ Prismod.java                         通用 Forge 入口
+├─ server/                              服务端生命周期、命令和网络基础框架
+├─ api/server/                          服务端内部 API
 ├─ client/
 │  ├─ PrismodClient                     客户端事件、配置和资源重载
 │  ├─ filter/
@@ -83,7 +87,7 @@ minecraft:main --(一个滤镜 pass)--> swap --(颜色 blit)--> minecraft:main
 - Minecraft Java Edition **1.20.1**
 - Minecraft Forge **47.3.32**
 - Java **17**
-- 客户端环境；不支持安装到专用服务端
+- 客户端环境；可选在专用服务端安装服务端框架
 
 ### 安装发行版
 
@@ -177,6 +181,10 @@ registration.close();
 ```
 
 `postEffect` 是实际 PostChain 资源路径；`setForcedFilter` 使用的是逻辑滤镜 ID。完整调用说明见 [`docs/Java_API_调用说明.md`](docs/Java_API_调用说明.md)。
+
+## 服务端 API 与命令
+
+服务端框架会在通用入口初始化，不会加载客户端渲染类。可用命令为 `/prismod help` 和 `/prismod status`；服务端 API 示例与网络兼容策略见 [`docs/服务端_API_与命令.md`](docs/服务端_API_与命令.md)。
 
 ## 🛠️ 开发与构建
 

@@ -1,4 +1,6 @@
 {
+  "command.prismod.help": "Prismod commands: /prismod help, /prismod status",
+  "command.prismod.status": "Prismod server framework: initialized=%s, protocol=%s, channel=%s",
   "filter.prismod.original": "Original",
   "key.categories.prismod": "Prismod Filters",
   "key.prismod.cycle": "Cycle Filter",

@@ -6,6 +6,8 @@
 
 项目已实现并能构建：
 
+- 服务端基础框架：通用入口初始化 `com.xkmxz.prismod.server`，提供 `/prismod help`、`/prismod status` 和可选 `prismod:main` 网络通道；服务端协议首期只注册空消息，不同步滤镜状态。
+
 - 内置滤镜：原色、黑白、暖色、冷色、复古、夜视。
 - F8 按配置顺序循环；自定义滤镜使用 `namespace:path` 的 `FilterKey` 参与循环。
 - F8 提示使用当前 `FilterDefinition.displayName()`：优先显示翻译名称，没有翻译时显示真实自定义 ID，不得通过旧版 `FilterState.id()` 把自定义滤镜显示成原色。
@@ -79,6 +81,14 @@ FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEf
 资源包编辑器的完整版本备份位于 `config/prismod/backup/resourcepacks/.prismod-backup/<资源包目录>/`；删除滤镜的文件按时间批次位于 `config/prismod/backup/resourcepacks/.prismod-recycle/<资源包>/<时间戳>/`，两者都不进入 `config/prismod/resourcepacks/` 的资源包本体。资源包管理页的“备份管理”页面分别管理两类备份，不处理旧版资源包内部回收站。
 
 以上备份路径是当前实现的准确信息；下方早期示例中的旧 `.prismod-backup` 和包内 `.prismod-recycle` 路径已废弃。
+
+### 服务端边界
+
+- `server/PrismodServer.java`：服务端生命周期初始化、命令事件监听和服务端状态快照。
+- `server/command/PrismodCommands.java`：注册 `/prismod`、`help` 和 `status`；命令不加载客户端类。
+- `server/network/PrismodNetwork.java`：维护 `prismod:main`、协议版本 `1` 和无字段扩展消息。
+- `api/server/ServerApi.java`、`ServerStatus.java`：服务端内部 API 和不可变状态快照。
+- 专用服务器路径不得加载 `net.minecraft.client`、`api.client` 或 `client` 包；缺少 Prismod 的对端仍允许连接，双方安装时才校验网络协议版本。
 
 ### 状态与配置
 
@@ -183,9 +193,9 @@ public Prismod() {
 
 具体使用步骤：取消对应导入和注册代码的注释，在构造函数中调用 `ITEMS.register(modEventBus)`，再根据需要把 `EXAMPLE_ITEM` 放入创造模式标签；同时补充物品模型、语言键和纹理资源。只有在物品确实成为 Prismod 功能的一部分时才恢复，不能仅为验证模板而注册示例物品。
 
-### 未来命令示范
+### 服务端命令与未来扩展
 
-Prismod 当前没有注册服务器命令。若未来需要增加命令，应保留客户端/服务端边界，并使用 Forge 的命令事件注册，例如：
+Prismod 当前注册 `/prismod`、`/prismod help` 和 `/prismod status`。这些命令只查询服务端框架状态，不修改世界或玩家状态。未来管理类命令应保留客户端/服务端边界，并使用 OP 权限等级 2，例如：
 
 ```java
 private void registerCommands(RegisterCommandsEvent event) {
@@ -199,7 +209,7 @@ private void registerCommands(RegisterCommandsEvent event) {
 }
 ```
 
-启用前需要导入 `RegisterCommandsEvent` 和 `Commands`，将监听器注册到正确的 Forge 事件总线，并明确命令只作用于服务端还是需要向客户端发送请求。滤镜渲染、`Minecraft`、`FilterApi` 等客户端类不能直接从专用服务器命令路径加载；命令的实际语法、权限和反馈文本也必须在本文件和用户文档中写出具体例子。
+扩展前需要将监听器注册到正确的 Forge 事件总线，并明确命令只作用于服务端还是需要通过 `prismod:main` 向客户端发送请求。滤镜渲染、`Minecraft`、`FilterApi` 等客户端类不能直接从专用服务器命令路径加载；命令的实际语法、权限和反馈文本也必须在本文件和用户文档中写出具体例子。
 
 ### 重要功能文档示例
 

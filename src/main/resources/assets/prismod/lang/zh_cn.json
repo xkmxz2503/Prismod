@@ -1,4 +1,6 @@
 {
+  "command.prismod.help": "Prismod 命令：/prismod help、/prismod status",
+  "command.prismod.status": "Prismod 服务端框架：initialized=%s，protocol=%s，channel=%s",
   "filter.prismod.original": "原色",
   "screen.prismod.import_success": "导入 %s 个资源包。",
   "screen.prismod.import_partial": "已导入 %s/%s 个资源包，最后失败原因：%s",
