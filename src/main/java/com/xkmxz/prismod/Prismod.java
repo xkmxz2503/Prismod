@@ -21,7 +21,8 @@ public class Prismod {
 
     public Prismod() {
         PrismodServer.initialize();
-        DistExecutor.safeRunWhenOn(Dist.CLIENT, () -> PrismodClient::register);
+        // 使用嵌套 lambda，避免专用服务端执行安全引用校验时解析客户端方法引用。
+        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> PrismodClient.register());
         LOGGER.info("Prismod initialized");
     }
 }
