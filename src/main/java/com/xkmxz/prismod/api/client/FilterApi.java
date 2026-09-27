@@ -80,8 +80,17 @@ public final class FilterApi {
                 "", 0, current.fallbackReason(), current.generation());
     }
 
+    /**
+     * Returns a fresh immutable snapshot of the filters currently known to Prismod.
+     * The registry is read at call time, so resource reloads and registrations are visible immediately.
+     */
     public static List<FilterDescriptor> getFilters() {
         return FilterRegistry.get().descriptors();
+    }
+
+    /** Alias that makes it explicit that the result is the current runtime list. */
+    public static List<FilterDescriptor> getAvailableFilters() {
+        return getFilters();
     }
 
     private static void runOnClientThread(Runnable action) {

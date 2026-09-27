@@ -163,3 +163,19 @@ subscription.close();
 ```
 
 写操作必须在客户端线程执行；`setForcedFilter` 等兼容方法会自动排队到客户端线程。资源重载或渲染失败时，Prismod 保留用户选择和覆盖意图，暂时回退到 `prismod:original`，并通过快照的 `fallbackReason` 与注册状态暴露原因。
+
+## 7. 获取实时滤镜列表
+
+`FilterApi.getFilters()` 和 `FilterApi.getAvailableFilters()` 都会在调用时读取当前注册表，返回不可变的最新列表。资源包重载、API 注册或注销完成后，下一次调用即可看到变化；之前返回的列表不会被原地修改。
+
+```java
+List<FilterDescriptor> filters = FilterApi.getFilters();
+for (FilterDescriptor filter : filters) {
+    if (filter.available()) {
+        ResourceLocation id = filter.id();
+        float defaultStrength = filter.defaultStrength();
+    }
+}
+```
+
+列表中的 `available()` 反映当前资源校验状态；资源暂时缺失或渲染失败时，条目仍保留并通过 `failureReason()` 与 `failureDetail()` 提供诊断信息。
