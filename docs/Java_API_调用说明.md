@@ -179,3 +179,18 @@ for (FilterDescriptor filter : filters) {
 ```
 
 列表中的 `available()` 反映当前资源校验状态；资源暂时缺失或渲染失败时，条目仍保留并通过 `failureReason()` 与 `failureDetail()` 提供诊断信息。
+
+## 8. 客户端 API 手动测试命令
+
+启动客户端后，在游戏内输入 `/prismod_client api help` 查看测试命令。它们模拟其他模组调用公开客户端 API，不代表服务端命令。
+
+```text
+/prismod_client api list
+/prismod_client api snapshot
+/prismod_client api force prismod:warm 0.75
+/prismod_client api clear
+/prismod_client api watch
+/prismod_client api owner_clear
+```
+
+`force` 使用测试 owner `prismod-api-test-mod` 和优先级 `100` 创建覆盖；`clear` 关闭当前句柄，`owner_clear` 演示按 owner 批量清理，`watch` 演示 `FilterApi.subscribe` 的实时状态通知。
