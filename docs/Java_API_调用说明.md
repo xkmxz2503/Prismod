@@ -130,3 +130,36 @@ public final class DebugFilterClient {
 ```
 
 不要直接操作 `FilterRegistry`、`FilterController`、`FilterSelection`、`FilterKey` 或 `WorldFilterRenderer`。这些属于 Prismod 内部实现；稳定公开契约只有 `FilterApi`、`FilterSnapshot`、`CustomFilterMetadata` 和 `FilterRegistration`。
+
+## 6. 公共契约与多模组覆盖
+
+客户端与未来服务端共同使用的无客户端依赖模型位于 `com.xkmxz.prismod.api.common`。其中滤镜 ID 使用 `ResourceLocation`，owner 使用字符串；公共模型不包含 `Minecraft`、渲染器、PostChain 或 GPU 对象，因此可以安全用于未来网络和指令适配器。
+
+创建带优先级的临时覆盖：
+
+```java
+FilterOverride override = FilterApi.createOverride(
+        "example-mod",
+        ResourceLocation.fromNamespaceAndPath("example", "debug"),
+        0.8F,
+        10
+);
+
+// 优先级更高的覆盖会生效；同优先级按创建时间较新的请求生效。
+override.close(); // 幂等关闭，恢复下一项覆盖或用户选择
+```
+
+多个模组可以同时创建覆盖。关闭单个句柄不会影响其他 owner；模组卸载时可调用 `FilterApi.clearOverrides(ownerId)` 批量清理。
+
+监听状态变化：
+
+```java
+FilterSubscription subscription = FilterApi.subscribe(snapshot -> {
+    ResourceLocation id = snapshot.filter();
+    boolean fallback = snapshot.fallbackReason() != FilterFallbackReason.NONE;
+});
+
+subscription.close();
+```
+
+写操作必须在客户端线程执行；`setForcedFilter` 等兼容方法会自动排队到客户端线程。资源重载或渲染失败时，Prismod 保留用户选择和覆盖意图，暂时回退到 `prismod:original`，并通过快照的 `fallbackReason` 与注册状态暴露原因。

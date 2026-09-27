@@ -7,6 +7,9 @@ import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
 import com.xkmxz.prismod.api.client.CustomFilterMetadata;
 import com.xkmxz.prismod.api.client.FilterRegistration;
+import com.xkmxz.prismod.api.common.model.FilterDescriptor;
+import com.xkmxz.prismod.api.common.state.FilterFailureReason;
+import com.xkmxz.prismod.api.common.state.FilterRegistrationState;
 import com.xkmxz.prismod.client.filter.FilterId;
 import com.xkmxz.prismod.client.filter.FilterKey;
 import com.xkmxz.prismod.client.filter.lut.Lut3dData;
@@ -42,6 +45,18 @@ public final class FilterRegistry {
     public synchronized String failure(FilterKey key) { return failures.get(key); }
     public synchronized boolean isAvailable(FilterKey key) { return definitions.containsKey(key) && !failures.containsKey(key); }
 
+    public synchronized List<FilterDescriptor> descriptors() {
+        return definitions.values().stream().map(definition -> new FilterDescriptor(
+                definition.key().id(),
+                definition.packNamespace() == null ? "prismod" : definition.packNamespace(),
+                definition.type() == com.xkmxz.prismod.client.filter.registry.FilterType.LUT3D
+                        ? com.xkmxz.prismod.api.common.state.FilterType.LUT3D : com.xkmxz.prismod.api.common.state.FilterType.POST_CHAIN,
+                definition.translationKey(), definition.defaultStrength(),
+                isAvailable(definition.key()),
+                failures.containsKey(definition.key()) ? FilterFailureReason.RESOURCE_INVALID : FilterFailureReason.NONE,
+                failures.getOrDefault(definition.key(), ""))).toList();
+    }
+
     /** @deprecated retained only for source compatibility; v1 discovery never calls this method. */
     @Deprecated
     static boolean isDiscoverableResource(ResourceLocation id) {
@@ -68,7 +83,7 @@ public final class FilterRegistry {
             }
         }
         for (RegistrationRecord record : registrations.values()) {
-            FilterDefinition definition = inspectPostChain(manager, record.postEffect(), record.metadata(), null);
+            FilterDefinition definition = inspectPostChain(manager, record.key().id(), record.postEffect(), record.metadata(), null);
             if (definition != null) definitions.put(record.key(), definition);
         }
         generation++;
@@ -137,13 +152,19 @@ public final class FilterRegistry {
     }
 
     public synchronized FilterRegistration register(String ownerId, ResourceLocation postEffect, CustomFilterMetadata metadata) {
+        return register(FilterKey.fromPostEffect(postEffect).id(), ownerId, postEffect, metadata);
+    }
+
+    public synchronized FilterRegistration register(ResourceLocation logicalId, String ownerId,
+                                                    ResourceLocation postEffect, CustomFilterMetadata metadata) {
         if (ownerId == null || ownerId.isBlank()) throw new IllegalArgumentException("ownerId must not be blank");
+        Objects.requireNonNull(logicalId, "logicalId");
         Objects.requireNonNull(postEffect, "postEffect");
         CustomFilterMetadata safe = metadata == null ? CustomFilterMetadata.defaults() : metadata;
-        FilterKey key = FilterKey.fromPostEffect(postEffect);
+        FilterKey key = new FilterKey(logicalId);
         RegistrationRecord record = new RegistrationRecord(new RegistrationId(ownerId, key), postEffect, safe, ++generation);
         registrations.put(record.id(), record);
-        FilterDefinition definition = inspectPostChain(Minecraft.getInstance().getResourceManager(), postEffect, safe, null);
+        FilterDefinition definition = inspectPostChain(Minecraft.getInstance().getResourceManager(), logicalId, postEffect, safe, null);
         if (definition != null) definitions.put(key, definition);
         return new Handle(record.id(), record.version());
     }
@@ -152,6 +173,21 @@ public final class FilterRegistry {
         RegistrationRecord current = registrations.get(id);
         if (current == null || current.version() != version) return;
         registrations.remove(id); definitions.remove(id.key()); failures.remove(id.key()); generation++;
+    }
+
+    public synchronized int unregisterOwner(String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) return 0;
+        List<RegistrationId> ids = registrations.keySet().stream()
+                .filter(id -> id.ownerId().equals(ownerId)).toList();
+        for (RegistrationId id : ids) {
+            RegistrationRecord record = registrations.remove(id);
+            if (record != null) {
+                definitions.remove(id.key());
+                failures.remove(id.key());
+            }
+        }
+        if (!ids.isEmpty()) generation++;
+        return ids.size();
     }
 
     public synchronized void markFailed(FilterKey key, Throwable error) { if (definitions.containsKey(key)) failures.put(key, error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage()); }
@@ -168,8 +204,14 @@ public final class FilterRegistry {
     }
 
     private static FilterDefinition inspectPostChain(ResourceManager manager, ResourceLocation postEffect, CustomFilterMetadata metadata, String packNamespace) {
+        return inspectPostChain(manager, FilterKey.fromPostEffect(postEffect).id(), postEffect, metadata, packNamespace);
+    }
+
+    private static FilterDefinition inspectPostChain(ResourceManager manager, ResourceLocation logicalId,
+                                                     ResourceLocation postEffect, CustomFilterMetadata metadata,
+                                                     String packNamespace) {
         if (postEffect == null) return null;
-        FilterKey key = FilterKey.fromPostEffect(postEffect);
+        FilterKey key = new FilterKey(logicalId);
         try {
             boolean debugSupported = validatePostChain(manager, postEffect);
             String translation = metadata != null && metadata.translationKey() != null ? metadata.translationKey() : generatedTranslationKey(key);
@@ -210,6 +252,16 @@ public final class FilterRegistry {
         private final RegistrationId id; private final long version; private boolean closed;
         private Handle(RegistrationId id, long version) { this.id = id; this.version = version; }
         @Override public ResourceLocation id() { return id.key().id(); }
+        @Override public String ownerId() { return id.ownerId(); }
+        @Override public FilterRegistrationState state() {
+            if (closed) return FilterRegistrationState.CLOSED;
+            if (failures.containsKey(id.key())) return FilterRegistrationState.FAILED;
+            return registrations.containsKey(id) ? FilterRegistrationState.ACTIVE : FilterRegistrationState.CLOSED;
+        }
+        @Override public FilterFailureReason failureReason() {
+            return failures.containsKey(id.key()) ? FilterFailureReason.RESOURCE_INVALID : FilterFailureReason.NONE;
+        }
+        @Override public String failureDetail() { return failures.getOrDefault(id.key(), ""); }
         @Override public void close() { synchronized (FilterRegistry.this) { if (!closed) { closed = true; unregister(id, version); } } }
     }
 }
