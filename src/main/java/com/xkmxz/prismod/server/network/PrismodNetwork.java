@@ -12,7 +12,7 @@ import java.util.function.Supplier;
 public final class PrismodNetwork {
     public static final ResourceLocation CHANNEL_ID =
             ResourceLocation.fromNamespaceAndPath("prismod", "main");
-    public static final String PROTOCOL_VERSION = "1";
+    public static final String PROTOCOL_VERSION = "2";
     public static final String ABSENT_VERSION = "ABSENT";
     public static final String VANILLA_VERSION = "ACCEPTVANILLA";
 
@@ -30,6 +30,8 @@ public final class PrismodNetwork {
                 PrismodNetwork::acceptsProtocolVersion);
         channel.registerMessage(0, EmptyPacket.class, EmptyPacket::encode, EmptyPacket::decode,
                 EmptyPacket::handle);
+        channel.registerMessage(1, FilterCommandPacket.class, FilterCommandPacket::encode,
+                FilterCommandPacket::decode, FilterCommandPacket::handleNoop);
     }
 
     public static boolean acceptsProtocolVersion(String version) {

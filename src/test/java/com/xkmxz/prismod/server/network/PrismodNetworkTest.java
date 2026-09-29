@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PrismodNetworkTest {
     @Test
     void acceptsMatchingAndOptionalPeerVersions() {
+        assertEquals("2", PrismodNetwork.PROTOCOL_VERSION);
         assertTrue(PrismodNetwork.acceptsProtocolVersion(PrismodNetwork.PROTOCOL_VERSION));
         assertTrue(PrismodNetwork.acceptsProtocolVersion(PrismodNetwork.ABSENT_VERSION));
         assertTrue(PrismodNetwork.acceptsProtocolVersion(PrismodNetwork.VANILLA_VERSION));

@@ -58,6 +58,12 @@ final class FilterController {
         publish();
     }
 
+    void select(FilterKey key, float strength) {
+        FilterKey normalized = key == null ? FilterKey.of(FilterId.ORIGINAL) : key;
+        strengths.put(normalized, FilterStrength.normalize(strength));
+        select(normalized);
+    }
+
     void cycle() {
         OverrideState forced = activeOverride();
         if (forced != null && (forced.key().isOriginal() || FilterRegistry.get().isAvailable(forced.key()))) return;

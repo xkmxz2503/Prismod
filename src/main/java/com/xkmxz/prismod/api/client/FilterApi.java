@@ -33,6 +33,12 @@ public final class FilterApi {
         runOnClientThread(() -> FilterManager.get().setForced(filter, strength));
     }
 
+    /** Applies a server-selected filter without creating a client override. */
+    public static void selectFilter(ResourceLocation filter, float strength) {
+        if (filter == null) throw new NullPointerException("filter");
+        runOnClientThread(() -> FilterManager.get().select(new FilterKey(filter), strength));
+    }
+
     public static FilterOverride createOverride(String ownerId, ResourceLocation filter, float strength, int priority) {
         if (ownerId == null || ownerId.isBlank()) throw new IllegalArgumentException("ownerId must not be blank");
         if (filter == null) throw new NullPointerException("filter");

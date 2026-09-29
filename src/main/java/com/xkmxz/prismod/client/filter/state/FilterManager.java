@@ -47,6 +47,11 @@ public final class FilterManager {
         notifyListeners();
     }
 
+    public void select(FilterKey key, float strength) {
+        controller.select(key, strength);
+        notifyListeners();
+    }
+
     public void setForced(FilterKey key, float strength) {
         controller.setForced(key, strength);
         notifyListeners();

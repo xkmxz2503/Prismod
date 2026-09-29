@@ -16,6 +16,7 @@ import net.minecraftforge.client.ConfigScreenHandler;
 import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.settings.KeyConflictContext;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -48,6 +49,8 @@ public final class PrismodClient {
                 () -> new ConfigScreenHandler.ConfigScreenFactory((mc, parent) -> new FilterConfigScreen(parent)));
         MinecraftForge.EVENT_BUS.addListener(PrismodClient::tick);
         MinecraftForge.EVENT_BUS.addListener(PrismodApiTestCommands::register);
+        MinecraftForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) ->
+                com.xkmxz.prismod.client.network.PrismodClientNetwork.resetSession());
     }
 
     public static CompletableFuture<Void> reloadPrismodResources() {
