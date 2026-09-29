@@ -160,9 +160,18 @@ public final class FilterRegistry {
         if (ownerId == null || ownerId.isBlank()) throw new IllegalArgumentException("ownerId must not be blank");
         Objects.requireNonNull(logicalId, "logicalId");
         Objects.requireNonNull(postEffect, "postEffect");
+        String normalizedOwner = ownerId.trim();
         CustomFilterMetadata safe = metadata == null ? CustomFilterMetadata.defaults() : metadata;
         FilterKey key = new FilterKey(logicalId);
-        RegistrationRecord record = new RegistrationRecord(new RegistrationId(ownerId, key), postEffect, safe, ++generation);
+        RegistrationId id = new RegistrationId(normalizedOwner, key);
+        RegistrationRecord previous = registrations.get(id);
+        boolean ownedByAnother = registrations.keySet().stream()
+                .anyMatch(candidate -> candidate.key().equals(key) && !candidate.ownerId().equals(normalizedOwner));
+        if (ownedByAnother || (previous == null && definitions.containsKey(key))) {
+            return new FailedHandle(id, FilterFailureReason.ID_CONFLICT,
+                    "logical filter ID is already registered: " + logicalId);
+        }
+        RegistrationRecord record = new RegistrationRecord(id, postEffect, safe, ++generation);
         registrations.put(record.id(), record);
         FilterDefinition definition = inspectPostChain(Minecraft.getInstance().getResourceManager(), logicalId, postEffect, safe, null);
         if (definition != null) definitions.put(key, definition);
@@ -256,12 +265,34 @@ public final class FilterRegistry {
         @Override public FilterRegistrationState state() {
             if (closed) return FilterRegistrationState.CLOSED;
             if (failures.containsKey(id.key())) return FilterRegistrationState.FAILED;
-            return registrations.containsKey(id) ? FilterRegistrationState.ACTIVE : FilterRegistrationState.CLOSED;
+            RegistrationRecord current = registrations.get(id);
+            return current != null && current.version() == version
+                    ? FilterRegistrationState.ACTIVE : FilterRegistrationState.CLOSED;
         }
         @Override public FilterFailureReason failureReason() {
             return failures.containsKey(id.key()) ? FilterFailureReason.RESOURCE_INVALID : FilterFailureReason.NONE;
         }
         @Override public String failureDetail() { return failures.getOrDefault(id.key(), ""); }
         @Override public void close() { synchronized (FilterRegistry.this) { if (!closed) { closed = true; unregister(id, version); } } }
+    }
+
+    private static final class FailedHandle implements FilterRegistration {
+        private final RegistrationId id;
+        private final FilterFailureReason reason;
+        private final String detail;
+        private boolean closed;
+
+        private FailedHandle(RegistrationId id, FilterFailureReason reason, String detail) {
+            this.id = id;
+            this.reason = reason;
+            this.detail = detail;
+        }
+
+        @Override public ResourceLocation id() { return id.key().id(); }
+        @Override public String ownerId() { return id.ownerId(); }
+        @Override public FilterRegistrationState state() { return closed ? FilterRegistrationState.CLOSED : FilterRegistrationState.FAILED; }
+        @Override public FilterFailureReason failureReason() { return closed ? FilterFailureReason.NONE : reason; }
+        @Override public String failureDetail() { return closed ? "" : detail; }
+        @Override public void close() { closed = true; }
     }
 }

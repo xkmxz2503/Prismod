@@ -4,6 +4,7 @@ package com.xkmxz.prismod.api.common.state;
 public enum FilterFailureReason {
     NONE,
     INVALID_ARGUMENT,
+    ID_CONFLICT,
     RESOURCE_MISSING,
     RESOURCE_INVALID,
     RENDER_FAILED,

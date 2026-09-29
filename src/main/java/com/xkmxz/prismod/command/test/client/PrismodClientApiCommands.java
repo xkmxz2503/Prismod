@@ -5,6 +5,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.xkmxz.prismod.api.client.FilterApi;
 import com.xkmxz.prismod.api.client.FilterOverride;
 import com.xkmxz.prismod.api.client.FilterSubscription;
+import com.xkmxz.prismod.api.client.operation.FilterOperation;
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
 import com.xkmxz.prismod.api.client.FilterSnapshot;
 import net.minecraft.client.Minecraft;
@@ -37,6 +38,7 @@ public final class PrismodClientApiCommands {
                                                         FloatArgumentType.getFloat(context, "strength"))))))
                         .then(Commands.literal("clear").executes(context -> clear()))
                         .then(Commands.literal("watch").executes(context -> watch()))
+                        .then(Commands.literal("watch_events").executes(context -> watchEvents()))
                         .then(Commands.literal("owner_clear").executes(context -> ownerClear()))));
     }
 
@@ -47,6 +49,7 @@ public final class PrismodClientApiCommands {
         message("§f/prismod_client api force <namespace:path> [strength] §7- 创建测试覆盖");
         message("§f/prismod_client api clear §7- 关闭测试覆盖");
         message("§f/prismod_client api watch §7- 切换状态监听");
+        message("§f/prismod_client api watch_events §7- 监听列表、状态和操作事件");
         message("§f/prismod_client api owner_clear §7- 按 owner 清理测试状态");
         return 1;
     }
@@ -103,10 +106,20 @@ public final class PrismodClientApiCommands {
     }
 
     private static int ownerClear() {
-        int count = FilterApi.clearOverrides(OWNER);
+        FilterOperation operation = FilterApi.clearOverridesOperation(OWNER);
         testOverride = null;
-        message("§a已按 owner 清理测试覆盖，清理数量：" + count);
-        return count;
+        message("§a已请求按 owner 清理测试覆盖，状态：" + operation.status()
+                + " 数量：" + operation.affectedCount());
+        return operation.affectedCount();
+    }
+
+    private static int watchEvents() {
+        if (subscription != null) subscription.close();
+        subscription = FilterApi.subscribeEvents(event -> message("§d[API事件] " + event.type()
+                + " filters=" + event.filters().size()
+                + (event.operation() == null ? "" : " operation=" + event.operation().status())));
+        message("§a已开启 API 类型化事件监听。");
+        return 1;
     }
 
     private static void message(String text) {

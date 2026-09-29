@@ -166,7 +166,7 @@ subscription.close();
 
 ## 7. 获取实时滤镜列表
 
-`FilterApi.getFilters()` 和 `FilterApi.getAvailableFilters()` 都会在调用时读取当前注册表，返回不可变的最新列表。资源包重载、API 注册或注销完成后，下一次调用即可看到变化；之前返回的列表不会被原地修改。
+`FilterApi.getFilters()` 会在调用时读取完整注册表，包含暂不可用条目；`FilterApi.getAvailableFilters()` 只返回当前可用条目。两者均返回不可变的最新列表。资源包重载、API 注册或注销完成后，下一次调用即可看到变化；之前返回的列表不会被原地修改。
 
 ```java
 List<FilterDescriptor> filters = FilterApi.getFilters();
@@ -194,3 +194,11 @@ for (FilterDescriptor filter : filters) {
 ```
 
 `force` 使用测试 owner `prismod-api-test-mod` 和优先级 `100` 创建覆盖；`clear` 关闭当前句柄，`owner_clear` 演示按 owner 批量清理，`watch` 演示 `FilterApi.subscribe` 的实时状态通知。
+
+## 9. 生命周期、事件与异步清理
+
+逻辑滤镜 ID 在运行时全局唯一。相同 owner 的重复注册会替换旧版本，旧句柄随即显示为 `CLOSED`；不同 owner 或内置/资源包已占用该 ID 时，注册句柄显示为 `FAILED`，失败原因是 `ID_CONFLICT`，不会影响已存在的滤镜。
+
+`FilterApi.subscribeEvents(...)` 提供类型化事件，可区分快照、注册表、可用性与操作完成事件。批量清理请使用 `clearRegistrationsOperation(ownerId)` 或 `clearOverridesOperation(ownerId)`，返回的 `FilterOperation` 会从后台线程的 `QUEUED` 更新为最终状态，并给出实际影响数量。旧的 `int` 清理方法仍可用但已弃用。
+
+`setSessionSelection` 仅设置会话选择，不写入玩家配置，离开世界后自动清除。`selectFilter` 保留为弃用别名。

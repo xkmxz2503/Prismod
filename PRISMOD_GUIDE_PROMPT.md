@@ -74,6 +74,8 @@ FilterSnapshot selected = FilterApi.getSelectedFilter();
 FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEffect, metadata);
 ```
 
+客户端 API 的逻辑滤镜 ID 在运行时全局唯一：同一 owner 重复注册会替换旧版本，不同 owner 或内置/资源包已占用时返回 `ID_CONFLICT`。批量清理使用 `clearRegistrationsOperation(ownerId)` 或 `clearOverridesOperation(ownerId)` 获取可观察的 `FilterOperation`；`subscribeEvents(...)` 可监听快照、注册表、可用性和操作完成事件。`setSessionSelection(...)` 只影响当前世界会话，不写入玩家配置。
+
 `setForcedFilter` 鍙帴鍙楅€昏緫婊ら暅 ID锛氬唴缃护闀滀娇鐢?`prismod:<name>`锛岃嚜瀹氫箟婊ら暅浣跨敤瀹屾暣 `namespace:path`锛涙敞鍐?API 鐨?`postEffect` 鎵嶄娇鐢ㄥ疄闄?PostChain 璧勬簮璺緞銆傚己鍒舵护闀滀紭鍏堜簬鐜╁鎬诲紑鍏炽€丗8 鍜屾櫘閫氶€夋嫨锛涢噸澶嶈缃細鏇挎崲鍘熷己鍒剁姸鎬侊紝娓呴櫎鍚庢仮澶嶇敤鎴烽€夋嫨鍜屾渶鏂伴厤缃€傚啓 API 浼氳皟搴﹀埌 Minecraft 瀹㈡埛绔嚎绋嬶紝璇诲彇杩斿洖鏈€杩戜竴娆″凡搴旂敤鐨勪笉鍙彉 `FilterSnapshot`銆俙getEffectiveFilter()` 杩斿洖鏈€缁堟覆鏌撶姸鎬侊紝`getSelectedFilter()` 淇濈暀鐜╁閫夋嫨锛涘揩鐓у寘鍚€昏緫 ID銆佸己搴︺€乫orced 鍜?renderAvailable銆備笓鐢ㄦ湇鍔″櫒涓嶅緱鍔犺浇 `api.client` 鎴栦换浣?`net.minecraft.client` 绫汇€?
 
 ## 鏋舵瀯鍜屾ā鍧楄亴璐?

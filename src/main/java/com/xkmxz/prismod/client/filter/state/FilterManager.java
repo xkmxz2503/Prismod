@@ -8,6 +8,9 @@ import com.xkmxz.prismod.api.client.FilterOverride;
 import com.xkmxz.prismod.api.client.FilterSnapshot;
 import com.xkmxz.prismod.api.client.FilterStateListener;
 import com.xkmxz.prismod.api.client.FilterSubscription;
+import com.xkmxz.prismod.api.client.event.FilterEvent;
+import com.xkmxz.prismod.api.client.event.FilterEventListener;
+import com.xkmxz.prismod.api.client.operation.FilterOperation;
 import com.xkmxz.prismod.api.common.state.FilterOverrideState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -24,6 +27,7 @@ public final class FilterManager {
     private static final FilterManager INSTANCE = new FilterManager();
     private final FilterController controller = new FilterController();
     private final CopyOnWriteArrayList<FilterStateListener> listeners = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<FilterEventListener> eventListeners = new CopyOnWriteArrayList<>();
 
     private FilterManager() {
     }
@@ -93,6 +97,30 @@ public final class FilterManager {
                 if (!closed) { closed = true; listeners.remove(listener); }
             }
         };
+    }
+
+    public FilterSubscription subscribeEvents(FilterEventListener listener) {
+        if (listener == null) throw new NullPointerException("listener");
+        eventListeners.add(listener);
+        return new FilterSubscription() {
+            private boolean closed;
+            @Override public void close() {
+                if (!closed) { closed = true; eventListeners.remove(listener); }
+            }
+        };
+    }
+
+    public void registryChanged() {
+        refreshConfig();
+        notifyEvent(FilterEvent.registryChanged(FilterRegistry.get().descriptors()));
+    }
+
+    public void availabilityChanged() {
+        notifyEvent(FilterEvent.availabilityChanged(FilterRegistry.get().descriptors()));
+    }
+
+    public void operationCompleted(FilterOperation operation) {
+        notifyEvent(FilterEvent.operationCompleted(operation));
     }
 
     public FilterSnapshot snapshot() {
@@ -174,6 +202,7 @@ public final class FilterManager {
     public void reportFilterFailure(FilterKey key, Throwable error) {
         FilterRegistry.get().markFailed(key, error);
         refreshConfig();
+        availabilityChanged();
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player != null) {
             minecraft.player.displayClientMessage(Component.translatable("message.prismod.filter_failed",
@@ -185,6 +214,13 @@ public final class FilterManager {
         FilterSnapshot snapshot = snapshot();
         for (FilterStateListener listener : listeners) {
             try { listener.onChanged(snapshot); } catch (Throwable ignored) { }
+        }
+        notifyEvent(FilterEvent.snapshotChanged(snapshot));
+    }
+
+    private void notifyEvent(FilterEvent event) {
+        for (FilterEventListener listener : eventListeners) {
+            try { listener.onEvent(event); } catch (Throwable ignored) { }
         }
     }
 
