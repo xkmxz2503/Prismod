@@ -19,6 +19,25 @@
 
 `filter` 下的管理命令需要 OP 权限等级 2。所有帮助、状态、成功、失败和参数反馈都使用翻译键；动态值通过翻译参数注入。
 
+## 服务端 API 测试命令
+
+用于手工验证公开 `FilterServerApi` 的测试命令独立于日常管理命令，要求 OP 权限等级 2：
+
+```text
+/prismod_server api help
+/prismod_server api status
+/prismod_server api select broadcast <filter> [strength]
+/prismod_server api select player <target> <filter> [strength]
+/prismod_server api override broadcast <filter> <priority> [strength]
+/prismod_server api override player <target> <filter> <priority> [strength]
+/prismod_server api clear selection
+/prismod_server api clear owner
+/prismod_server api clear all
+/prismod_server api reset
+```
+
+测试覆盖固定使用 owner `prismod-server-api-test`。每次变更命令都会显示 `OperationResult` 的状态、反馈代码、请求 ID、目标、影响数量、generation 和参数；`status` 会显示服务端协议、通道及当前策略快照。测试命令只调用 `FilterServerApi`，不直接访问服务端应用层、策略状态或网络实现。
+
 ## 服务端 API
 
 ```java
