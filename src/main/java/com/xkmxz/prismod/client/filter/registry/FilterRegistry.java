@@ -5,11 +5,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
-import com.xkmxz.prismod.api.client.CustomFilterMetadata;
-import com.xkmxz.prismod.api.client.FilterRegistration;
+import com.xkmxz.prismod.api.client.contract.CustomFilterMetadata;
+import com.xkmxz.prismod.api.client.contract.FilterRegistration;
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
-import com.xkmxz.prismod.api.common.state.FilterFailureReason;
-import com.xkmxz.prismod.api.common.state.FilterRegistrationState;
+import com.xkmxz.prismod.api.common.state.filter.FilterFailureReason;
+import com.xkmxz.prismod.api.common.state.lifecycle.FilterRegistrationState;
 import com.xkmxz.prismod.client.filter.FilterId;
 import com.xkmxz.prismod.client.filter.FilterKey;
 import com.xkmxz.prismod.client.filter.lut.Lut3dData;
@@ -50,7 +50,7 @@ public final class FilterRegistry {
                 definition.key().id(),
                 definition.packNamespace() == null ? "prismod" : definition.packNamespace(),
                 definition.type() == com.xkmxz.prismod.client.filter.registry.FilterType.LUT3D
-                        ? com.xkmxz.prismod.api.common.state.FilterType.LUT3D : com.xkmxz.prismod.api.common.state.FilterType.POST_CHAIN,
+                        ? com.xkmxz.prismod.api.common.state.filter.FilterType.LUT3D : com.xkmxz.prismod.api.common.state.filter.FilterType.POST_CHAIN,
                 definition.translationKey(), definition.defaultStrength(),
                 isAvailable(definition.key()),
                 failures.containsKey(definition.key()) ? FilterFailureReason.RESOURCE_INVALID : FilterFailureReason.NONE,

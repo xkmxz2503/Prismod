@@ -137,18 +137,18 @@ final class FilterController {
         return generation;
     }
 
-    com.xkmxz.prismod.api.common.state.FilterFallbackReason fallbackReason() {
-        if (!renderAvailable) return com.xkmxz.prismod.api.common.state.FilterFallbackReason.RENDER_UNAVAILABLE;
+    com.xkmxz.prismod.api.common.state.filter.FilterFallbackReason fallbackReason() {
+        if (!renderAvailable) return com.xkmxz.prismod.api.common.state.filter.FilterFallbackReason.RENDER_UNAVAILABLE;
         if (activeOverride() != null && !isSelectable(activeOverride().key())
                 && !activeOverride().key().isOriginal()) {
-            return com.xkmxz.prismod.api.common.state.FilterFallbackReason.UNAVAILABLE;
+            return com.xkmxz.prismod.api.common.state.filter.FilterFallbackReason.UNAVAILABLE;
         }
-        if (!enabled) return com.xkmxz.prismod.api.common.state.FilterFallbackReason.DISABLED;
+        if (!enabled) return com.xkmxz.prismod.api.common.state.filter.FilterFallbackReason.DISABLED;
         FilterKey requested = sessionSelection == null ? selected : sessionSelection.key();
         if (!requested.isOriginal() && !isSelectable(requested)) {
-            return com.xkmxz.prismod.api.common.state.FilterFallbackReason.UNAVAILABLE;
+            return com.xkmxz.prismod.api.common.state.filter.FilterFallbackReason.UNAVAILABLE;
         }
-        return com.xkmxz.prismod.api.common.state.FilterFallbackReason.NONE;
+        return com.xkmxz.prismod.api.common.state.filter.FilterFallbackReason.NONE;
     }
 
     void refreshConfig(boolean enabled, List<FilterId> order, Map<FilterId, ? extends Number> configuredStrengths) {

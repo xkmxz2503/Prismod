@@ -2,7 +2,7 @@ package com.xkmxz.prismod.api.common.model;
 
 import net.minecraft.resources.ResourceLocation;
 import com.xkmxz.prismod.api.common.request.FilterOverrideRequest;
-import com.xkmxz.prismod.api.common.state.FilterFallbackReason;
+import com.xkmxz.prismod.api.common.state.filter.FilterFallbackReason;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

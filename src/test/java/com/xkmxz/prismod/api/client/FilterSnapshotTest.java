@@ -1,5 +1,6 @@
 package com.xkmxz.prismod.api.client;
 
+import com.xkmxz.prismod.api.client.contract.FilterSnapshot;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 

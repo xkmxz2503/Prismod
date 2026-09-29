@@ -1,6 +1,7 @@
 package com.xkmxz.prismod.api.client.operation;
 
-import com.xkmxz.prismod.api.common.state.FilterOperationStatus;
+import com.xkmxz.prismod.api.common.state.operation.FilterOperationStatus;
+import com.xkmxz.prismod.api.common.result.FeedbackCode;
 
 import java.util.UUID;
 
@@ -10,9 +11,9 @@ public interface FilterOperation {
 
     FilterOperationStatus status();
 
-    int affectedCount();
+    FeedbackCode code();
 
-    String detail();
+    int affectedCount();
 
     boolean completed();
 }

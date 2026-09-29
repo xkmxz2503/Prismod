@@ -1,8 +1,8 @@
 package com.xkmxz.prismod.api.client.event;
 
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
-import com.xkmxz.prismod.api.common.state.FilterFailureReason;
-import com.xkmxz.prismod.api.common.state.FilterType;
+import com.xkmxz.prismod.api.common.state.filter.FilterFailureReason;
+import com.xkmxz.prismod.api.common.state.filter.FilterType;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 

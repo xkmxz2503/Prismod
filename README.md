@@ -63,7 +63,7 @@ Prismod
 │  ├─ render/                            世界画面 PostChain、LUT 和 GPU 状态
 │  └─ ui/                                配置、资源包和滤镜调试页面
 ├─ api/client/
-│  ├─ FilterApi                          稳定客户端 API 入口
+│  ├─ FilterClientApi                     稳定客户端 API 入口
 │  ├─ FilterSnapshot                     不可变公开状态快照
 │  ├─ CustomFilterMetadata               自定义滤镜元数据
 │  └─ FilterRegistration                 注册句柄
@@ -149,19 +149,18 @@ config/prismod/config/prismod-client.toml
 公开 API 只位于 `com.xkmxz.prismod.api.client`，外部模组不需要依赖 Prismod 的 `client.filter` 内部类。
 
 ```java
-import com.xkmxz.prismod.api.client.CustomFilterMetadata;
-import com.xkmxz.prismod.api.client.FilterApi;
-import com.xkmxz.prismod.api.client.FilterRegistration;
-import com.xkmxz.prismod.api.client.FilterSnapshot;
+import com.xkmxz.prismod.api.client.FilterClientApi;
+import com.xkmxz.prismod.api.client.contract.CustomFilterMetadata;
+import com.xkmxz.prismod.api.client.contract.FilterRegistration;
+import com.xkmxz.prismod.api.client.contract.FilterSnapshot;
 import net.minecraft.resources.ResourceLocation;
 
 ResourceLocation filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");
-FilterApi.setForcedFilter(filter, 0.75F);
+FilterClientApi.setForcedFilter(filter, 0.75F);
 
-FilterSnapshot effective = FilterApi.getEffectiveFilter();
-FilterSnapshot selected = FilterApi.getSelectedFilter();
+FilterSnapshot effective = FilterClientApi.snapshot();
 
-FilterApi.clearForcedFilter();
+FilterClientApi.clearForcedFilter();
 ```
 
 `FilterSnapshot` 包含 `filter`、`strength`、`forced` 和 `renderAvailable`。其中 `filter` 始终保留完整逻辑 ID，例如 `example:debug`。写 API 会自动调度到 Minecraft 客户端线程，读取返回最近一次已发布的不可变快照。强制滤镜优先于总开关、F8 和普通选择。
@@ -169,14 +168,14 @@ FilterApi.clearForcedFilter();
 注册自定义滤镜：
 
 ```java
-FilterRegistration registration = FilterApi.registerCustomFilter(
+FilterRegistration registration = FilterClientApi.registerCustomFilter(
         "example-mod",
         ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"),
         new CustomFilterMetadata("filter.example.debug", 0.75F)
 );
 
 // 功能关闭时注销，并清除强制覆盖。
-FilterApi.clearForcedFilter();
+FilterClientApi.clearForcedFilter();
 registration.close();
 ```
 

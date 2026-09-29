@@ -17,7 +17,7 @@ import com.xkmxz.prismod.client.filter.state.FilterManager;
 import com.xkmxz.prismod.client.filter.state.FilterSelection;
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;
-import com.xkmxz.prismod.client.ui.LutDebugScreen;
+import com.xkmxz.prismod.client.ui.debug.LutDebugScreen;
 import com.xkmxz.prismod.mixin.client.PostChainAccessor;
 import com.xkmxz.prismod.mixin.client.BlendModeAccessor;
 import net.minecraft.client.Minecraft;

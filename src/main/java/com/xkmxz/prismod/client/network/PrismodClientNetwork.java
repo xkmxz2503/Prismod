@@ -1,40 +1,39 @@
 package com.xkmxz.prismod.client.network;
 
-import com.xkmxz.prismod.api.client.FilterApi;
-import com.xkmxz.prismod.api.client.FilterOverride;
-import com.xkmxz.prismod.server.network.FilterCommandPacket;
+import com.xkmxz.prismod.api.client.FilterClientApi;
+import com.xkmxz.prismod.api.client.contract.FilterOverride;
+import com.xkmxz.prismod.network.contract.PolicyMessage;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/** Client-side receiver for server filter policy packets. */
+/** Client adapter for the frozen policy transport contract. */
 public final class PrismodClientNetwork {
     private static final Map<UUID, FilterOverride> OVERRIDES = new HashMap<>();
 
     private PrismodClientNetwork() {
     }
 
-    public static void handle(FilterCommandPacket packet) {
-        switch (packet.operation()) {
+    public static synchronized void handle(PolicyMessage message) {
+        switch (message.operation()) {
             case SELECT -> {
-                ResourceLocation filter = packet.filter();
-                if (filter != null) FilterApi.setSessionSelection(filter, packet.strength());
+                ResourceLocation filter = message.filter();
+                if (filter != null) FilterClientApi.setSessionSelection(filter, message.strength());
             }
             case OVERRIDE -> {
-                FilterOverride previous = OVERRIDES.remove(packet.requestId());
-                if (previous != null) previous.close();
-                if (packet.filter() != null) {
-                    OVERRIDES.put(packet.requestId(), FilterApi.createOverride(
-                            packet.owner(), packet.filter(), packet.strength(), packet.priority()));
+                if (OVERRIDES.containsKey(message.requestId())) return;
+                if (message.filter() != null) {
+                    OVERRIDES.put(message.requestId(), FilterClientApi.createOverride(
+                            message.owner(), message.filter(), message.strength(), message.priority()));
                 }
             }
             case CLEAR_OVERRIDE -> {
-                FilterOverride previous = OVERRIDES.remove(packet.requestId());
+                FilterOverride previous = OVERRIDES.remove(message.requestId());
                 if (previous != null) previous.close();
             }
-            case CLEAR_SELECTION -> FilterApi.clearSessionSelection();
+            case CLEAR_SELECTION -> FilterClientApi.clearSessionSelection();
             case CLEAR_ALL_OVERRIDES -> {
                 OVERRIDES.values().forEach(FilterOverride::close);
                 OVERRIDES.clear();
@@ -42,8 +41,9 @@ public final class PrismodClientNetwork {
         }
     }
 
-    public static void resetSession() {
+    public static synchronized void resetSession() {
         OVERRIDES.values().forEach(FilterOverride::close);
         OVERRIDES.clear();
+        FilterClientApi.clearSessionSelection();
     }
 }

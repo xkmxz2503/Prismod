@@ -6,14 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-class ServerApiTest {
+class FilterServerApiTest {
     @Test
     void exposesStableServerFrameworkStatus() {
-        ServerStatus status = ServerApi.status();
+        ServerStatus status = FilterServerApi.status();
 
         assertNotNull(status);
         assertFalse(status.initialized());
-        assertEquals(ServerApi.NETWORK_CHANNEL_ID, status.networkChannel());
-        assertEquals(ServerApi.PROTOCOL_VERSION, status.protocolVersion());
+        assertEquals(FilterServerApi.NETWORK_CHANNEL_ID, status.networkChannel());
+        assertEquals(FilterServerApi.PROTOCOL_VERSION, status.protocolVersion());
     }
 }

@@ -1,9 +1,10 @@
 package com.xkmxz.prismod.command.server;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.xkmxz.prismod.api.server.ServerApi;
+import com.xkmxz.prismod.api.server.FilterServerApi;
 import com.xkmxz.prismod.api.server.ServerStatus;
 import com.xkmxz.prismod.api.server.ServerFilterStatus;
+import com.xkmxz.prismod.api.common.result.OperationResult;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -89,6 +90,7 @@ public final class PrismodServerCommands {
 
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> clearCommands() {
         return literal("clear")
+                .then(literal("selection").executes(context -> report(context.getSource(), FilterServerApi.clearSelection())))
                 .then(literal("all").executes(context -> clearAll(context.getSource())))
                 .then(literal("broadcast").then(Commands.argument("owner", StringArgumentType.word())
                         .executes(context -> clearBroadcast(context.getSource(), StringArgumentType.getString(context, "owner")))))
@@ -98,36 +100,40 @@ public final class PrismodServerCommands {
     }
 
     private static int selectBroadcast(CommandSourceStack source, ResourceLocation id, float strength) {
-        return report(source, ServerApi.broadcastSelection(new FilterSelectionRequest(id, strength)));
+        return report(source, FilterServerApi.broadcastSelection(new FilterSelectionRequest(id, strength)));
     }
 
     private static int selectPlayer(CommandSourceStack source, net.minecraft.server.level.ServerPlayer player, ResourceLocation id, float strength) {
-        return report(source, ServerApi.sendSelection(player, new FilterSelectionRequest(id, strength)));
+        return report(source, FilterServerApi.sendSelection(player, new FilterSelectionRequest(id, strength)));
     }
 
     private static int overrideBroadcast(CommandSourceStack source, String owner, ResourceLocation id, int priority, float strength) {
-        return report(source, ServerApi.broadcastOverride(new FilterOverrideRequest(owner, id, strength, priority)));
+        return report(source, FilterServerApi.broadcastOverride(new FilterOverrideRequest(owner, id, strength, priority)));
     }
 
     private static int overridePlayer(CommandSourceStack source, net.minecraft.server.level.ServerPlayer player, String owner, ResourceLocation id, int priority, float strength) {
-        return report(source, ServerApi.sendOverride(player, new FilterOverrideRequest(owner, id, strength, priority)));
+        return report(source, FilterServerApi.sendOverride(player, new FilterOverrideRequest(owner, id, strength, priority)));
     }
 
     private static int clearBroadcast(CommandSourceStack source, String owner) {
-        return report(source, ServerApi.clearBroadcastOverride(owner));
+        return report(source, FilterServerApi.clearBroadcastOverride(owner));
     }
 
     private static int clearPlayer(CommandSourceStack source, net.minecraft.server.level.ServerPlayer player, String owner) {
-        return report(source, ServerApi.clearPlayerOverride(player, owner));
+        return report(source, FilterServerApi.clearPlayerOverride(player, owner));
     }
 
     private static int clearAll(CommandSourceStack source) {
-        return report(source, ServerApi.clearAllOverrides());
+        return report(source, FilterServerApi.clearAllOverrides());
     }
 
-    private static int report(CommandSourceStack source, com.xkmxz.prismod.api.server.ServerOperationResult result) {
-        if (result.accepted()) source.sendSuccess(() -> Component.literal("Prismod: " + result.detail()), false);
-        else source.sendFailure(Component.literal("Prismod: " + result.status() + " - " + result.detail()));
+    private static int report(CommandSourceStack source, OperationResult result) {
+        Component message = Component.translatable(result.accepted()
+                        ? "command.prismod.operation.success"
+                        : "command.prismod.operation.failure",
+                result.code().name().toLowerCase(), result.target(), result.affectedCount());
+        if (result.accepted()) source.sendSuccess(() -> message, false);
+        else source.sendFailure(message);
         return result.accepted() ? 1 : 0;
     }
 
@@ -137,20 +143,17 @@ public final class PrismodServerCommands {
     }
 
     private static int sendStatus(CommandSourceStack source) {
-        ServerStatus status = ServerApi.status();
-        ServerFilterStatus filters = ServerApi.filterStatus();
+        ServerStatus status = FilterServerApi.status();
+        ServerFilterStatus filters = FilterServerApi.filterStatus();
         source.sendSuccess(() -> Component.translatable(
                 "command.prismod.status",
                 status.initialized(),
                 status.protocolVersion(),
                 status.networkChannel()), false);
-        source.sendSuccess(() -> Component.literal(
-                "filters: global=" + (filters.globalSelection() == null ? "none" : filters.globalSelection())
-                        + " strength=" + filters.globalStrength()
-                        + " globalOverrides=" + filters.globalOverrideCount()
-                        + " playerSelections=" + filters.playerSelectionCount()
-                        + " playerOverrides=" + filters.playerOverrideCount()
-                        + " generation=" + filters.generation()), false);
+        source.sendSuccess(() -> Component.translatable("command.prismod.filters",
+                filters.globalSelection() == null ? "none" : filters.globalSelection(),
+                filters.globalStrength(), filters.globalOverrideCount(), filters.playerSelectionCount(),
+                filters.playerOverrideCount(), filters.generation()), false);
         return 1;
     }
 }

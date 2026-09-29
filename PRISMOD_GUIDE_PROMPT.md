@@ -6,7 +6,7 @@
 
 椤圭洰宸插疄鐜板苟鑳芥瀯寤猴細
 
-- 鏈嶅姟绔熀纭€妗嗘灦锛氶€氱敤鍏ュ彛鍒濆鍖?`com.xkmxz.prismod.server`锛屾彁渚?`/prismod help`銆乣/prismod status` 鍜屽彲閫?`prismod:main` 缃戠粶閫氶亾锛涙湇鍔＄鍗忚棣栨湡鍙敞鍐岀┖娑堟伅锛屼笉鍚屾婊ら暅鐘舵€併€?
+- 鏈嶅姟绔熀纭€妗嗘灦锛氶€氱敤鍏ュ彛鍒濆鍖?`com.xkmxz.prismod.server`锛屾彁渚?`/prismod help`銆乣/prismod status` 鍜屽彲閫?`prismod:policy` 缃戠粶閫氶亾锛涙湇鍔＄鍗忚棣栨湡鍙敞鍐岀┖娑堟伅锛屼笉鍚屾婊ら暅鐘舵€併€?
 
 - 鍐呯疆婊ら暅锛氬師鑹层€侀粦鐧姐€佹殩鑹层€佸喎鑹层€佸鍙ゃ€佸瑙嗐€?
 - F8 鎸夐厤缃『搴忓惊鐜紱鑷畾涔夋护闀滀娇鐢?`namespace:path` 鐨?`FilterKey` 鍙備笌寰幆銆?
@@ -67,16 +67,15 @@ strength_night_vision = 1.0
 鍏紑瀹㈡埛绔?API 浣嶄簬 `com.xkmxz.prismod.api.client`锛屽閮ㄦā缁勪笉寰椾緷璧?`client.filter` 鍐呴儴绫伙細
 
 ```java
-FilterApi.setForcedFilter(ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F);
-FilterApi.clearForcedFilter();
-FilterSnapshot effective = FilterApi.getEffectiveFilter();
-FilterSnapshot selected = FilterApi.getSelectedFilter();
-FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEffect, metadata);
+FilterClientApi.setForcedFilter(ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F);
+FilterClientApi.clearForcedFilter();
+FilterSnapshot effective = FilterClientApi.snapshot();
+FilterRegistration registration = FilterClientApi.registerCustomFilter(ownerId, postEffect, metadata);
 ```
 
 客户端 API 的逻辑滤镜 ID 在运行时全局唯一：同一 owner 重复注册会替换旧版本，不同 owner 或内置/资源包已占用时返回 `ID_CONFLICT`。批量清理使用 `clearRegistrationsOperation(ownerId)` 或 `clearOverridesOperation(ownerId)` 获取可观察的 `FilterOperation`；`subscribeEvents(...)` 可监听快照、注册表、可用性和操作完成事件。`setSessionSelection(...)` 只影响当前世界会话，不写入玩家配置。
 
-`setForcedFilter` 鍙帴鍙楅€昏緫婊ら暅 ID锛氬唴缃护闀滀娇鐢?`prismod:<name>`锛岃嚜瀹氫箟婊ら暅浣跨敤瀹屾暣 `namespace:path`锛涙敞鍐?API 鐨?`postEffect` 鎵嶄娇鐢ㄥ疄闄?PostChain 璧勬簮璺緞銆傚己鍒舵护闀滀紭鍏堜簬鐜╁鎬诲紑鍏炽€丗8 鍜屾櫘閫氶€夋嫨锛涢噸澶嶈缃細鏇挎崲鍘熷己鍒剁姸鎬侊紝娓呴櫎鍚庢仮澶嶇敤鎴烽€夋嫨鍜屾渶鏂伴厤缃€傚啓 API 浼氳皟搴﹀埌 Minecraft 瀹㈡埛绔嚎绋嬶紝璇诲彇杩斿洖鏈€杩戜竴娆″凡搴旂敤鐨勪笉鍙彉 `FilterSnapshot`銆俙getEffectiveFilter()` 杩斿洖鏈€缁堟覆鏌撶姸鎬侊紝`getSelectedFilter()` 淇濈暀鐜╁閫夋嫨锛涘揩鐓у寘鍚€昏緫 ID銆佸己搴︺€乫orced 鍜?renderAvailable銆備笓鐢ㄦ湇鍔″櫒涓嶅緱鍔犺浇 `api.client` 鎴栦换浣?`net.minecraft.client` 绫汇€?
+`setForcedFilter` 鍙帴鍙楅€昏緫婊ら暅 ID锛氬唴缃护闀滀娇鐢?`prismod:<name>`锛岃嚜瀹氫箟婊ら暅浣跨敤瀹屾暣 `namespace:path`锛涙敞鍐?API 鐨?`postEffect` 鎵嶄娇鐢ㄥ疄闄?PostChain 璧勬簮璺緞銆傚己鍒舵护闀滀紭鍏堜簬鐜╁鎬诲紑鍏炽€丗8 鍜屾櫘閫氶€夋嫨锛涢噸澶嶈缃細鏇挎崲鍘熷己鍒剁姸鎬侊紝娓呴櫎鍚庢仮澶嶇敤鎴烽€夋嫨鍜屾渶鏂伴厤缃€傚啓 API 浼氳皟搴﹀埌 Minecraft 瀹㈡埛绔嚎绋嬶紝璇诲彇杩斿洖鏈€杩戜竴娆″凡搴旂敤鐨勪笉鍙彉 `FilterSnapshot`銆俙getEffectiveFilter()` 杩斿洖鏈€缁堟覆鏌撶姸鎬侊紝`snapshot()` 淇濈暀鐜╁閫夋嫨锛涘揩鐓у寘鍚€昏緫 ID銆佸己搴︺€乫orced 鍜?renderAvailable銆備笓鐢ㄦ湇鍔″櫒涓嶅緱鍔犺浇 `api.client` 鎴栦换浣?`net.minecraft.client` 绫汇€?
 
 ## 鏋舵瀯鍜屾ā鍧楄亴璐?
 
@@ -88,8 +87,8 @@ FilterRegistration registration = FilterApi.registerCustomFilter(ownerId, postEf
 
 - `server/PrismodServer.java`锛氭湇鍔＄鐢熷懡鍛ㄦ湡鍒濆鍖栥€佸懡浠や簨浠剁洃鍚拰鏈嶅姟绔姸鎬佸揩鐓с€?
 - `server/command/PrismodCommands.java`锛氭敞鍐?`/prismod`銆乣help` 鍜?`status`锛涘懡浠や笉鍔犺浇瀹㈡埛绔被銆?
-- `server/network/PrismodNetwork.java`锛氱淮鎶?`prismod:main`銆佸崗璁増鏈?`1` 鍜屾棤瀛楁鎵╁睍娑堟伅銆?
-- `api/server/ServerApi.java`銆乣ServerStatus.java`锛氭湇鍔＄鍐呴儴 API 鍜屼笉鍙彉鐘舵€佸揩鐓с€?
+- `network/transport/PolicyNetwork.java`锛氱淮鎶?`prismod:policy`銆佸崗璁増鏈?`1` 鍜屾棤瀛楁鎵╁睍娑堟伅銆?
+- `api/server/FilterServerApi.java`銆乣ServerStatus.java`锛氭湇鍔＄鍐呴儴 API 鍜屼笉鍙彉鐘舵€佸揩鐓с€?
 - 涓撶敤鏈嶅姟鍣ㄨ矾寰勪笉寰楀姞杞?`net.minecraft.client`銆乣api.client` 鎴?`client` 鍖咃紱缂哄皯 Prismod 鐨勫绔粛鍏佽杩炴帴锛屽弻鏂瑰畨瑁呮椂鎵嶆牎楠岀綉缁滃崗璁増鏈€?
 
 ### 鐘舵€佷笌閰嶇疆
@@ -211,7 +210,7 @@ private void registerCommands(RegisterCommandsEvent event) {
 }
 ```
 
-鎵╁睍鍓嶉渶瑕佸皢鐩戝惉鍣ㄦ敞鍐屽埌姝ｇ‘鐨?Forge 浜嬩欢鎬荤嚎锛屽苟鏄庣‘鍛戒护鍙綔鐢ㄤ簬鏈嶅姟绔繕鏄渶瑕侀€氳繃 `prismod:main` 鍚戝鎴风鍙戦€佽姹傘€傛护闀滄覆鏌撱€乣Minecraft`銆乣FilterApi` 绛夊鎴风绫讳笉鑳界洿鎺ヤ粠涓撶敤鏈嶅姟鍣ㄥ懡浠よ矾寰勫姞杞斤紱鍛戒护鐨勫疄闄呰娉曘€佹潈闄愬拰鍙嶉鏂囨湰涔熷繀椤诲湪鏈枃浠跺拰鐢ㄦ埛鏂囨。涓啓鍑哄叿浣撲緥瀛愩€?
+鎵╁睍鍓嶉渶瑕佸皢鐩戝惉鍣ㄦ敞鍐屽埌姝ｇ‘鐨?Forge 浜嬩欢鎬荤嚎锛屽苟鏄庣‘鍛戒护鍙綔鐢ㄤ簬鏈嶅姟绔繕鏄渶瑕侀€氳繃 `prismod:policy` 鍚戝鎴风鍙戦€佽姹傘€傛护闀滄覆鏌撱€乣Minecraft`銆乣FilterClientApi` 绛夊鎴风绫讳笉鑳界洿鎺ヤ粠涓撶敤鏈嶅姟鍣ㄥ懡浠よ矾寰勫姞杞斤紱鍛戒护鐨勫疄闄呰娉曘€佹潈闄愬拰鍙嶉鏂囨湰涔熷繀椤诲湪鏈枃浠跺拰鐢ㄦ埛鏂囨。涓啓鍑哄叿浣撲緥瀛愩€?
 
 ### 閲嶈鍔熻兘鏂囨。绀轰緥
 
@@ -219,20 +218,19 @@ private void registerCommands(RegisterCommandsEvent event) {
 
 ```java
 // 鍦ㄥ鎴风鍏ュ彛璋冪敤锛氳 Prismod 涓存椂浣跨敤澶嶅彜婊ら暅锛屽己搴︿负 75%銆?
-FilterApi.setForcedFilter(ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F);
+FilterClientApi.setForcedFilter(ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F);
 
-FilterSnapshot effective = FilterApi.getEffectiveFilter();
-FilterSnapshot selected = FilterApi.getSelectedFilter();
+FilterSnapshot effective = FilterClientApi.snapshot();
 
 // 鐢ㄥ畬鍚庤В闄ゅ己鍒剁姸鎬侊紝鎭㈠鐜╁鍦ㄩ厤缃晫闈腑鐨勯€夋嫨銆?
-FilterApi.clearForcedFilter();
+FilterClientApi.clearForcedFilter();
 ```
 
 鍚屾椂璇存槑璋冪敤鐜銆佺嚎绋嬭姹傘€佺姸鎬佷紭鍏堢骇銆侀厤缃槸鍚﹁惤鐩樸€佸け璐ユ椂鐨勫洖閫€琛屼负锛屼互鍙婁竴涓敤鎴峰彲澶嶇幇鐨勬搷浣滆矾寰勩€備緥濡傝祫婧愬寘鍔熻兘蹇呴』鍐欐槑鏀剧疆鐩綍銆乣prismod.pack.json` 鏈€灏忓唴瀹广€佸鍏ュ叆鍙ｃ€佸惎鐢?绂佺敤浣嶇疆鍜岃祫婧愰噸杞芥椂鏈恒€?
 
 ## 客户端 API 手动测试命令
 
-客户端注册 `prismod_client` 测试命令，用于模拟外部模组调用 `com.xkmxz.prismod.api.client.FilterApi`：
+客户端注册 `prismod_client` 测试命令，用于模拟外部模组调用 `com.xkmxz.prismod.api.client.FilterClientApi`：
 
 - `/prismod_client api list`：读取实时滤镜列表。
 - `/prismod_client api snapshot`：读取当前有效快照。

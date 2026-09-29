@@ -1,6 +1,6 @@
 package com.xkmxz.prismod.api.client.event;
 
-import com.xkmxz.prismod.api.client.FilterSnapshot;
+import com.xkmxz.prismod.api.client.contract.FilterSnapshot;
 import com.xkmxz.prismod.api.client.operation.FilterOperation;
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
 
