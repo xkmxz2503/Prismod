@@ -15,9 +15,12 @@ Prismod 服务端 API 是滤镜策略和状态源。服务端保存全局或指�
 /prismod filter override player <target> <owner> <id> <priority> [strength]
 /prismod filter clear broadcast <owner>
 /prismod filter clear player <target> <owner>
+/prismod filter clear all
 ```
 
-直接执行 `/prismod` 等同于 `/prismod help`。`status` 会显示框架初始化状态、网络协议版本和通道 ID。`filter` 下的调配命令需要 OP 权限等级 2，`strength` 默认为 `1.0`，范围为 `0.0` 到 `1.0`。
+直接执行 `/prismod` 等同于 `/prismod help`。`status` 会显示框架初始化状态、网络协议版本、通道 ID，以及当前全局选择、强度、全局覆盖数量、玩家级选择/覆盖数量和状态代数。`filter` 下的调配命令需要 OP 权限等级 2，`strength` 默认为 `1.0`，范围为 `0.0` 到 `1.0`。
+
+`/prismod filter clear all` 是保底恢复命令：它会清除服务端保存的全部全局和指定玩家覆盖，并向在线客户端发送清除包。它不会清除普通选择，也不会干预其他模组自行创建的客户端覆盖。
 
 ## 服务端 API
 

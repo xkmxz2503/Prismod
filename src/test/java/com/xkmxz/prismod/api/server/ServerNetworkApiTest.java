@@ -31,4 +31,13 @@ class ServerNetworkApiTest {
         assertEquals(first.requestId(), second.requestId());
         assertEquals(FilterOperationStatus.SUCCESS, ServerApi.clearBroadcastOverride("server-rule").status());
     }
+
+    @Test
+    void clearsEveryServerOverrideAndExposesPolicySummary() {
+        ServerApi.broadcastOverride(new FilterOverrideRequest("clear-all-test", FILTER, 0.5F, 4));
+
+        assertEquals(1, ServerApi.filterStatus().globalOverrideCount());
+        assertEquals(FilterOperationStatus.SUCCESS, ServerApi.clearAllOverrides().status());
+        assertEquals(0, ServerApi.filterStatus().globalOverrideCount());
+    }
 }

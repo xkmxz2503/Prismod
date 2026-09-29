@@ -27,4 +27,10 @@ class FilterCommandPacketTest {
         FilterCommandPacket.encode(clear, clearBuffer);
         assertNull(FilterCommandPacket.decode(clearBuffer).filter());
     }
+
+    @Test
+    void createsClearAllPacket() {
+        FilterCommandPacket packet = FilterCommandPacket.clearAllOverrides(UUID.randomUUID());
+        assertEquals(FilterCommandPacket.Operation.CLEAR_ALL_OVERRIDES, packet.operation());
+    }
 }

@@ -35,6 +35,10 @@ public final class PrismodClientNetwork {
                 if (previous != null) previous.close();
             }
             case CLEAR_SELECTION -> FilterApi.selectFilter(ResourceLocation.fromNamespaceAndPath("prismod", "original"), 0.0F);
+            case CLEAR_ALL_OVERRIDES -> {
+                OVERRIDES.values().forEach(FilterOverride::close);
+                OVERRIDES.clear();
+            }
         }
     }
 

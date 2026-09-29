@@ -3,6 +3,7 @@ package com.xkmxz.prismod.server.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.xkmxz.prismod.api.server.ServerApi;
 import com.xkmxz.prismod.api.server.ServerStatus;
+import com.xkmxz.prismod.api.server.ServerFilterStatus;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -88,6 +89,7 @@ public final class PrismodCommands {
 
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> clearCommands() {
         return literal("clear")
+                .then(literal("all").executes(context -> clearAll(context.getSource())))
                 .then(literal("broadcast").then(Commands.argument("owner", StringArgumentType.word())
                         .executes(context -> clearBroadcast(context.getSource(), StringArgumentType.getString(context, "owner")))))
                 .then(literal("player").then(Commands.argument("target", EntityArgument.player())
@@ -119,6 +121,10 @@ public final class PrismodCommands {
         return report(source, ServerApi.clearPlayerOverride(player, owner));
     }
 
+    private static int clearAll(CommandSourceStack source) {
+        return report(source, ServerApi.clearAllOverrides());
+    }
+
     private static int report(CommandSourceStack source, com.xkmxz.prismod.api.server.ServerOperationResult result) {
         if (result.accepted()) source.sendSuccess(() -> Component.literal("Prismod: " + result.detail()), false);
         else source.sendFailure(Component.literal("Prismod: " + result.status() + " - " + result.detail()));
@@ -132,11 +138,19 @@ public final class PrismodCommands {
 
     private static int sendStatus(CommandSourceStack source) {
         ServerStatus status = ServerApi.status();
+        ServerFilterStatus filters = ServerApi.filterStatus();
         source.sendSuccess(() -> Component.translatable(
                 "command.prismod.status",
                 status.initialized(),
                 status.protocolVersion(),
                 status.networkChannel()), false);
+        source.sendSuccess(() -> Component.literal(
+                "filters: global=" + (filters.globalSelection() == null ? "none" : filters.globalSelection())
+                        + " strength=" + filters.globalStrength()
+                        + " globalOverrides=" + filters.globalOverrideCount()
+                        + " playerSelections=" + filters.playerSelectionCount()
+                        + " playerOverrides=" + filters.playerOverrideCount()
+                        + " generation=" + filters.generation()), false);
         return 1;
     }
 }

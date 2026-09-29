@@ -18,5 +18,6 @@ class PrismodCommandsTest {
         assertEquals(0, dispatcher.parse("prismod filter select broadcast prismod:original", null).getExceptions().size());
         assertEquals(0, dispatcher.parse("prismod filter override broadcast server-rule prismod:original 10", null).getExceptions().size());
         assertEquals(0, dispatcher.parse("prismod filter clear broadcast server-rule", null).getExceptions().size());
+        assertEquals(0, dispatcher.parse("prismod filter clear all", null).getExceptions().size());
     }
 }

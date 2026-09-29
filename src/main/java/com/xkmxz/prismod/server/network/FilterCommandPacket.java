@@ -16,7 +16,7 @@ public record FilterCommandPacket(
         float strength,
         int priority
 ) {
-    public enum Operation { SELECT, OVERRIDE, CLEAR_SELECTION, CLEAR_OVERRIDE }
+    public enum Operation { SELECT, OVERRIDE, CLEAR_SELECTION, CLEAR_OVERRIDE, CLEAR_ALL_OVERRIDES }
 
     public FilterCommandPacket {
         operation = operation == null ? Operation.CLEAR_SELECTION : operation;
@@ -35,6 +35,10 @@ public record FilterCommandPacket(
 
     public static FilterCommandPacket clearOverride(UUID id, String owner) {
         return new FilterCommandPacket(Operation.CLEAR_OVERRIDE, id, owner, null, 0.0F, 0);
+    }
+
+    public static FilterCommandPacket clearAllOverrides(UUID id) {
+        return new FilterCommandPacket(Operation.CLEAR_ALL_OVERRIDES, id, "", null, 0.0F, 0);
     }
 
     public static void encode(FilterCommandPacket packet, FriendlyByteBuf buffer) {

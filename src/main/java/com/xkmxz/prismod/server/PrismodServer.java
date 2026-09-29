@@ -8,6 +8,7 @@ import com.xkmxz.prismod.api.common.request.FilterSelectionRequest;
 import com.xkmxz.prismod.api.common.state.FilterOperationStatus;
 import com.xkmxz.prismod.api.server.ServerOperationResult;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -44,6 +45,14 @@ public final class PrismodServer {
 
     public static ServerStatus status() {
         return new ServerStatus(initialized, PrismodNetwork.CHANNEL_ID, PrismodNetwork.PROTOCOL_VERSION);
+    }
+
+    public static synchronized com.xkmxz.prismod.api.server.ServerFilterStatus filterStatus() {
+        int playerOverrideCount = playerOverrideRequests.values().stream().mapToInt(Map::size).sum();
+        return new com.xkmxz.prismod.api.server.ServerFilterStatus(
+                broadcastSelection == null ? null : broadcastSelection.filter(),
+                broadcastSelection == null ? 0.0F : broadcastSelection.strength(),
+                broadcastOverrideRequests.size(), playerSelections.size(), playerOverrideCount, generation);
     }
 
     public static synchronized ServerOperationResult broadcastSelection(FilterSelectionRequest request) {
@@ -114,6 +123,20 @@ public final class PrismodServer {
         sendPlayer(player, com.xkmxz.prismod.server.network.FilterCommandPacket.clearOverride(id, ownerId));
         generation++;
         return success(id, player.getUUID().toString(), 0.0F, "override cleared");
+    }
+
+    public static synchronized ServerOperationResult clearAllOverrides() {
+        int count = broadcastOverrides.size() + playerOverrideRequests.values().stream().mapToInt(Map::size).sum();
+        if (count == 0) {
+            return new ServerOperationResult(FilterOperationStatus.NOT_FOUND, null, "all", "no server overrides", 0.0F, generation);
+        }
+        sendAll(com.xkmxz.prismod.server.network.FilterCommandPacket.clearAllOverrides(UUID.randomUUID()));
+        broadcastOverrides.clear();
+        broadcastOverrideRequests.clear();
+        playerOverrides.clear();
+        playerOverrideRequests.clear();
+        generation++;
+        return new ServerOperationResult(FilterOperationStatus.SUCCESS, null, "all", "cleared " + count + " server overrides", 0.0F, generation);
     }
 
     private static ServerOperationResult success(UUID id, String target, float strength, String detail) {

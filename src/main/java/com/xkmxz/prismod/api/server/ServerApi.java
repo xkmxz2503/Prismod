@@ -19,10 +19,15 @@ public final class ServerApi {
         return PrismodServer.status();
     }
 
+    public static ServerFilterStatus filterStatus() {
+        return PrismodServer.filterStatus();
+    }
+
     public static ServerOperationResult broadcastSelection(FilterSelectionRequest request) { return PrismodServer.broadcastSelection(request); }
     public static ServerOperationResult sendSelection(ServerPlayer player, FilterSelectionRequest request) { return PrismodServer.sendSelection(player, request); }
     public static ServerOperationResult broadcastOverride(FilterOverrideRequest request) { return PrismodServer.broadcastOverride(request); }
     public static ServerOperationResult sendOverride(ServerPlayer player, FilterOverrideRequest request) { return PrismodServer.sendOverride(player, request); }
     public static ServerOperationResult clearBroadcastOverride(String ownerId) { return PrismodServer.clearBroadcastOverride(ownerId); }
     public static ServerOperationResult clearPlayerOverride(ServerPlayer player, String ownerId) { return PrismodServer.clearPlayerOverride(player, ownerId); }
+    public static ServerOperationResult clearAllOverrides() { return PrismodServer.clearAllOverrides(); }
 }
