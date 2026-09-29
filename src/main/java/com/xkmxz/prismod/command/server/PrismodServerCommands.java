@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.server.command;
+package com.xkmxz.prismod.command.server;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.xkmxz.prismod.api.server.ServerApi;
@@ -20,10 +20,10 @@ import net.minecraftforge.event.RegisterCommandsEvent;
 import static net.minecraft.commands.Commands.literal;
 
 /** Registers Prismod's server command tree. */
-public final class PrismodCommands {
+public final class PrismodServerCommands {
     public static final int MANAGEMENT_PERMISSION_LEVEL = 2;
 
-    private PrismodCommands() {
+    private PrismodServerCommands() {
     }
 
     public static void onRegisterCommands(RegisterCommandsEvent event) {

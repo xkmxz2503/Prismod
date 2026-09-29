@@ -83,6 +83,33 @@ class FilterControllerTest {
     }
 
     @Test
+    void clearingLegacyForcedFilterKeepsOtherOwnerOverrides() {
+        FilterController controller = new FilterController();
+        controller.addOverride("another-mod", FilterKey.of(FilterId.WARM), 0.6F, 100);
+        controller.setForced(FilterId.COOL, 1.0F);
+
+        controller.clearForced();
+
+        assertTrue(controller.isForced());
+        assertEquals(FilterKey.of(FilterId.WARM), controller.effectiveSelection().key());
+        assertEquals(0.6F, controller.effectiveSelection().strength());
+    }
+
+    @Test
+    void sessionSelectionDoesNotReplaceUserSelection() {
+        FilterController controller = new FilterController();
+        controller.select(FilterId.WARM);
+
+        controller.selectSession(FilterKey.of(FilterId.COOL), 0.4F);
+
+        assertEquals(FilterKey.of(FilterId.WARM), controller.selectedSelection().key());
+        assertEquals(FilterKey.of(FilterId.COOL), controller.effectiveSelection().key());
+        assertEquals(0.4F, controller.effectiveSelection().strength());
+        controller.clearSessionSelection();
+        assertEquals(FilterKey.of(FilterId.WARM), controller.effectiveSelection().key());
+    }
+
+    @Test
     void cycleDoesNotAlterSelectionDuringForcedOverride() {
         FilterController controller = new FilterController();
         controller.select(FilterId.WARM);

@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.client.command;
+package com.xkmxz.prismod.command.test.client;
 
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -15,12 +15,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 
 /** Client-only commands that simulate another mod consuming Prismod's public API. */
-public final class PrismodApiTestCommands {
+public final class PrismodClientApiCommands {
     private static final String OWNER = "prismod-api-test-mod";
     private static FilterOverride testOverride;
     private static FilterSubscription subscription;
 
-    private PrismodApiTestCommands() {
+    private PrismodClientApiCommands() {
     }
 
     public static void register(RegisterClientCommandsEvent event) {

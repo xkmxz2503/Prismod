@@ -16,6 +16,7 @@ import java.util.Set;
 /** Thread-confined state machine with an immutable cross-thread snapshot. */
 final class FilterController {
     private FilterKey selected = FilterKey.of(FilterId.ORIGINAL);
+    private FilterSelection sessionSelection;
     private boolean enabled = true;
     private boolean renderAvailable = true;
     private List<FilterKey> cycleOrder = defaultKeys();
@@ -58,10 +59,15 @@ final class FilterController {
         publish();
     }
 
-    void select(FilterKey key, float strength) {
-        FilterKey normalized = key == null ? FilterKey.of(FilterId.ORIGINAL) : key;
-        strengths.put(normalized, FilterStrength.normalize(strength));
-        select(normalized);
+    void selectSession(FilterKey key, float strength) {
+        sessionSelection = new FilterSelection(key, strength, false);
+        publish();
+    }
+
+    void clearSessionSelection() {
+        if (sessionSelection == null) return;
+        sessionSelection = null;
+        publish();
     }
 
     void cycle() {
@@ -87,7 +93,7 @@ final class FilterController {
     }
 
     void clearForced() {
-        overrides.clear();
+        if (legacyOverrideId != 0) overrides.remove(legacyOverrideId);
         legacyOverrideId = 0;
         publish();
     }
@@ -138,7 +144,8 @@ final class FilterController {
             return com.xkmxz.prismod.api.common.state.FilterFallbackReason.UNAVAILABLE;
         }
         if (!enabled) return com.xkmxz.prismod.api.common.state.FilterFallbackReason.DISABLED;
-        if (!selected.isOriginal() && !isSelectable(selected)) {
+        FilterKey requested = sessionSelection == null ? selected : sessionSelection.key();
+        if (!requested.isOriginal() && !isSelectable(requested)) {
             return com.xkmxz.prismod.api.common.state.FilterFallbackReason.UNAVAILABLE;
         }
         return com.xkmxz.prismod.api.common.state.FilterFallbackReason.NONE;
@@ -189,6 +196,7 @@ final class FilterController {
     void resetSession() {
         overrides.clear();
         legacyOverrideId = 0;
+        sessionSelection = null;
         publish();
     }
 
@@ -197,9 +205,10 @@ final class FilterController {
         OverrideState forced = activeOverride();
         FilterSelection forcedState = forced == null ? null
                 : new FilterSelection(forced.key(), forced.strength(), true);
+        FilterSelection requested = sessionSelection == null ? selectedState : sessionSelection;
         FilterSelection effective = forcedState != null
                 && (forcedState.key().isOriginal() || isSelectable(forcedState.key())) ? forcedState
-                : enabled && (selected.isOriginal() || isSelectable(selected)) ? selectedState
+                : enabled && (requested.key().isOriginal() || isSelectable(requested.key())) ? requested
                 : new FilterSelection(FilterKey.of(FilterId.ORIGINAL), 0.0F, false);
         if (!renderAvailable) effective = new FilterSelection(FilterKey.of(FilterId.ORIGINAL), 0.0F,
                 forced != null);

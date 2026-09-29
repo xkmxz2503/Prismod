@@ -20,7 +20,7 @@ public final class PrismodClientNetwork {
         switch (packet.operation()) {
             case SELECT -> {
                 ResourceLocation filter = packet.filter();
-                if (filter != null) FilterApi.selectFilter(filter, packet.strength());
+                if (filter != null) FilterApi.setSessionSelection(filter, packet.strength());
             }
             case OVERRIDE -> {
                 FilterOverride previous = OVERRIDES.remove(packet.requestId());
@@ -34,7 +34,7 @@ public final class PrismodClientNetwork {
                 FilterOverride previous = OVERRIDES.remove(packet.requestId());
                 if (previous != null) previous.close();
             }
-            case CLEAR_SELECTION -> FilterApi.selectFilter(ResourceLocation.fromNamespaceAndPath("prismod", "original"), 0.0F);
+            case CLEAR_SELECTION -> FilterApi.clearSessionSelection();
             case CLEAR_ALL_OVERRIDES -> {
                 OVERRIDES.values().forEach(FilterOverride::close);
                 OVERRIDES.clear();

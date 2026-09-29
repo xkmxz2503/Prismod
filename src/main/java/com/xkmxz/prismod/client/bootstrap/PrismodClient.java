@@ -5,7 +5,7 @@ import com.xkmxz.prismod.client.filter.state.FilterManager;
 import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import com.xkmxz.prismod.client.render.WorldFilterRenderer;
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
-import com.xkmxz.prismod.client.command.PrismodApiTestCommands;
+import com.xkmxz.prismod.command.test.client.PrismodClientApiCommands;
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import com.xkmxz.prismod.client.ui.FilterConfigScreen;
 import net.minecraft.client.KeyMapping;
@@ -48,7 +48,7 @@ public final class PrismodClient {
         ModLoadingContext.get().registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class,
                 () -> new ConfigScreenHandler.ConfigScreenFactory((mc, parent) -> new FilterConfigScreen(parent)));
         MinecraftForge.EVENT_BUS.addListener(PrismodClient::tick);
-        MinecraftForge.EVENT_BUS.addListener(PrismodApiTestCommands::register);
+        MinecraftForge.EVENT_BUS.addListener(PrismodClientApiCommands::register);
         MinecraftForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) ->
                 com.xkmxz.prismod.client.network.PrismodClientNetwork.resetSession());
     }

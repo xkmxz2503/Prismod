@@ -1,7 +1,7 @@
 package com.xkmxz.prismod.server;
 
 import com.xkmxz.prismod.api.server.ServerStatus;
-import com.xkmxz.prismod.server.command.PrismodCommands;
+import com.xkmxz.prismod.command.server.PrismodServerCommands;
 import com.xkmxz.prismod.server.network.PrismodNetwork;
 import com.xkmxz.prismod.api.common.request.FilterOverrideRequest;
 import com.xkmxz.prismod.api.common.request.FilterSelectionRequest;
@@ -37,7 +37,7 @@ public final class PrismodServer {
     public static synchronized void initialize() {
         if (initialized) return;
         PrismodNetwork.initialize();
-        MinecraftForge.EVENT_BUS.addListener(PrismodCommands::onRegisterCommands);
+        MinecraftForge.EVENT_BUS.addListener(PrismodServerCommands::onRegisterCommands);
         MinecraftForge.EVENT_BUS.addListener(PrismodServer::onPlayerLoggedIn);
         MinecraftForge.EVENT_BUS.addListener(PrismodServer::onServerStopped);
         initialized = true;

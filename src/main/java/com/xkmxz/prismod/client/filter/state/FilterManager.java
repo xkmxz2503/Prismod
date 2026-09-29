@@ -47,8 +47,13 @@ public final class FilterManager {
         notifyListeners();
     }
 
-    public void select(FilterKey key, float strength) {
-        controller.select(key, strength);
+    public void selectSession(FilterKey key, float strength) {
+        controller.selectSession(key, strength);
+        notifyListeners();
+    }
+
+    public void clearSessionSelection() {
+        controller.clearSessionSelection();
         notifyListeners();
     }
 

@@ -16,16 +16,29 @@ public final class FilterApi {
 
     public static FilterRegistration registerCustomFilter(String ownerId, ResourceLocation postEffect,
                                                            CustomFilterMetadata metadata) {
-        return FilterRegistry.get().register(ownerId, postEffect, metadata);
+        if (postEffect == null) throw new NullPointerException("postEffect");
+        return registerCustomFilter(FilterKey.fromPostEffect(postEffect).id(), ownerId, postEffect, metadata);
     }
 
     public static FilterRegistration registerCustomFilter(ResourceLocation logicalId, String ownerId,
                                                            ResourceLocation postEffect, CustomFilterMetadata metadata) {
-        return FilterRegistry.get().register(logicalId, ownerId, postEffect, metadata);
+        if (logicalId == null) throw new NullPointerException("logicalId");
+        if (ownerId == null || ownerId.isBlank()) throw new IllegalArgumentException("ownerId must not be blank");
+        if (postEffect == null) throw new NullPointerException("postEffect");
+        String normalizedOwner = ownerId.trim();
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.isSameThread()) return FilterRegistry.get().register(logicalId, normalizedOwner, postEffect, metadata);
+        DeferredRegistration deferred = new DeferredRegistration(logicalId, normalizedOwner);
+        minecraft.execute(() -> deferred.attach(FilterRegistry.get().register(logicalId, normalizedOwner, postEffect, metadata)));
+        return deferred;
     }
 
     public static int clearRegistrations(String ownerId) {
-        return FilterRegistry.get().unregisterOwner(ownerId);
+        Minecraft minecraft = Minecraft.getInstance();
+        String normalizedOwner = ownerId == null ? null : ownerId.trim();
+        if (minecraft.isSameThread()) return FilterRegistry.get().unregisterOwner(normalizedOwner);
+        minecraft.execute(() -> FilterRegistry.get().unregisterOwner(normalizedOwner));
+        return 0;
     }
 
     /** Sets one logical filter ID as the forced filter. */
@@ -33,10 +46,21 @@ public final class FilterApi {
         runOnClientThread(() -> FilterManager.get().setForced(filter, strength));
     }
 
-    /** Applies a server-selected filter without creating a client override. */
-    public static void selectFilter(ResourceLocation filter, float strength) {
+    /** Applies a session-only selection without changing the user's local selection or configuration. */
+    public static void setSessionSelection(ResourceLocation filter, float strength) {
         if (filter == null) throw new NullPointerException("filter");
-        runOnClientThread(() -> FilterManager.get().select(new FilterKey(filter), strength));
+        runOnClientThread(() -> FilterManager.get().selectSession(new FilterKey(filter), strength));
+    }
+
+    /** Clears the session-only selection and restores the user's local selection. */
+    public static void clearSessionSelection() {
+        runOnClientThread(FilterManager.get()::clearSessionSelection);
+    }
+
+    /** @deprecated Use {@link #setSessionSelection(ResourceLocation, float)} for transient network selections. */
+    @Deprecated
+    public static void selectFilter(ResourceLocation filter, float strength) {
+        setSessionSelection(filter, strength);
     }
 
     public static FilterOverride createOverride(String ownerId, ResourceLocation filter, float strength, int priority) {
@@ -137,6 +161,44 @@ public final class FilterApi {
         @Override public void close() {
             closed = true;
             FilterOverride current = delegate;
+            if (current != null) current.close();
+        }
+    }
+
+    private static final class DeferredRegistration implements FilterRegistration {
+        private final ResourceLocation id;
+        private final String ownerId;
+        private volatile FilterRegistration delegate;
+        private volatile boolean closed;
+
+        private DeferredRegistration(ResourceLocation id, String ownerId) {
+            this.id = id;
+            this.ownerId = ownerId;
+        }
+
+        private void attach(FilterRegistration registration) {
+            delegate = registration;
+            if (closed) registration.close();
+        }
+
+        @Override public ResourceLocation id() { return id; }
+        @Override public String ownerId() { return ownerId; }
+        @Override public com.xkmxz.prismod.api.common.state.FilterRegistrationState state() {
+            FilterRegistration current = delegate;
+            if (closed) return com.xkmxz.prismod.api.common.state.FilterRegistrationState.CLOSED;
+            return current == null ? com.xkmxz.prismod.api.common.state.FilterRegistrationState.PENDING : current.state();
+        }
+        @Override public com.xkmxz.prismod.api.common.state.FilterFailureReason failureReason() {
+            FilterRegistration current = delegate;
+            return current == null ? com.xkmxz.prismod.api.common.state.FilterFailureReason.NONE : current.failureReason();
+        }
+        @Override public String failureDetail() {
+            FilterRegistration current = delegate;
+            return current == null ? "" : current.failureDetail();
+        }
+        @Override public void close() {
+            closed = true;
+            FilterRegistration current = delegate;
             if (current != null) current.close();
         }
     }
