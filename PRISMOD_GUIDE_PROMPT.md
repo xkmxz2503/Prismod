@@ -1,6 +1,6 @@
 # Prismod 后续开发引导提示词
 
-你正在维护 Prismod：一个面向 Minecraft 1.20.1、Forge 47.3.32、Java 17 的客户端世界画面滤镜模组。开始修改前先阅读本文件、`README.md`、`docs/自定义滤镜资源包制作说明.md`、`docs/Java_API_调用说明.md` 和相关源码。除非用户明确要求，不要改变已经确定的配置格式、公开 API、渲染时序或客户端/服务端边界。
+你正在维护 Prismod：一个面向 Minecraft 1.20.1、Forge 47.3.32、Java 17 的客户端世界画面滤镜模组。开始修改前先阅读本文件、`README.md`、`docs/API_使用指南.md`、`docs/自定义滤镜资源包制作说明.md`、`docs/Java_API_调用说明.md` 和相关源码。除非用户明确要求，不要改变已经确定的配置格式、公开 API、渲染时序或客户端/服务端边界。
 
 ## 当前项目状态
 
@@ -196,6 +196,8 @@ public Prismod() {
 ### 服务端命令与未来扩展
 
 Prismod 当前注册 `/prismod`、`/prismod help`、`/prismod status` 和 `/prismod filter ...`。滤镜管理命令使用 OP 权限等级 2，只创建服务端内存策略并通过 `prismod:policy` 下发；所有反馈通过翻译键生成。服务端 API 与命令调用同一个服务端应用层，服务端代码不得直接加载客户端类。
+
+客户端 API、服务端 API、管理命令、API 测试命令、实现架构和网络协议的完整用法见 `docs/API_使用指南.md`；修改 API 或命令时必须同步检查该指南中的方法、参数和示例。
 
 ```java
 private void registerCommands(RegisterCommandsEvent event) {

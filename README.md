@@ -181,9 +181,11 @@ registration.close();
 
 `postEffect` 是实际 PostChain 资源路径；`setForcedFilter` 使用的是逻辑滤镜 ID。完整调用说明见 [`docs/Java_API_调用说明.md`](docs/Java_API_调用说明.md)。
 
+客户端 API、服务端 API、管理命令、API 测试命令、实现架构和网络协议的统一指南见 [`docs/API_使用指南.md`](docs/API_使用指南.md)。
+
 ## 服务端 API 与命令
 
-服务端框架会在通用入口初始化，不会加载客户端渲染类。可用命令为 `/prismod help` 和 `/prismod status`；服务端 API 示例与网络兼容策略见 [`docs/服务端_API_与命令.md`](docs/服务端_API_与命令.md)。
+服务端框架会在通用入口初始化，不会加载客户端渲染类。可用命令为 `/prismod help` 和 `/prismod status`；服务端 API 示例与网络兼容策略见 [`docs/服务端_API_与命令.md`](docs/服务端_API_与命令.md)。统一 API 使用指南见 [`docs/API_使用指南.md`](docs/API_使用指南.md)。
 
 ## 🛠️ 开发与构建
 
@@ -235,6 +237,7 @@ GPU 性能诊断：
 ## 📚 项目文档
 
 - [`docs/Java_API_调用说明.md`](docs/Java_API_调用说明.md)：客户端 API、注册生命周期和线程约束。
+- [`docs/API_使用指南.md`](docs/API_使用指南.md)：客户端 API、服务端 API、管理命令、测试命令、实现架构和网络协议总览。
 - [`docs/自定义滤镜资源包制作说明.md`](docs/自定义滤镜资源包制作说明.md)：资源包 v1、PostChain、LUT 和调试 uniform。
 - [`PRISMOD_GUIDE_PROMPT.md`](PRISMOD_GUIDE_PROMPT.md)：项目架构、边界和开发约定。
 
