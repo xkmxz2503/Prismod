@@ -38,6 +38,20 @@ class FilterControllerTest {
     }
 
     @Test
+    void forcedSelectionRemainsAvailableForUiWhenRenderingFallsBack() {
+        FilterController controller = new FilterController();
+        controller.select(FilterId.WARM);
+        controller.setForced(FilterId.COOL, 0.75F);
+        controller.setRenderAvailable(false);
+
+        assertNotNull(controller.forcedSelection());
+        assertEquals(FilterKey.of(FilterId.COOL), controller.forcedSelection().key());
+        assertEquals(0.75F, controller.forcedSelection().strength());
+        assertTrue(controller.forcedSelection().forced());
+        assertEquals(FilterKey.of(FilterId.ORIGINAL), controller.effectiveSelection().key());
+    }
+
+    @Test
     void clearingOverrideRestoresLatestUserStrength() {
         FilterController controller = new FilterController();
         controller.select(FilterId.VINTAGE);

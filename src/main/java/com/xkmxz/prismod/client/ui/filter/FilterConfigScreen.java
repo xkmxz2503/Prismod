@@ -7,6 +7,7 @@ import com.xkmxz.prismod.client.filter.*;
 import com.xkmxz.prismod.client.filter.registry.FilterDefinition;
 import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import com.xkmxz.prismod.client.filter.state.FilterManager;
+import com.xkmxz.prismod.client.filter.state.FilterSelection;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -162,8 +163,18 @@ public final class FilterConfigScreen extends Screen {
     }
 
     private Component selectionLabel(FilterKey id) {
+        FilterSelection forced = FilterManager.get().forcedSelection();
+        if (forced != null && id.equals(forced.key())) {
+            return id.equals(draftSelected)
+                    ? Component.translatable("screen.prismod.selected_forced", filterName(id))
+                    : Component.translatable("screen.prismod.forced_selected", filterName(id));
+        }
         return id.equals(draftSelected)
                 ? Component.translatable("screen.prismod.selected", filterName(id)) : filterName(id);
+    }
+
+    private void refreshSelectionLabels() {
+        rows.forEach((filter, row) -> row.select.setMessage(selectionLabel(filter)));
     }
 
     private void move(FilterKey id, int direction) {
@@ -269,8 +280,13 @@ public final class FilterConfigScreen extends Screen {
         renderBackground(graphics);
         graphics.drawCenteredString(font, title, width / 2, panelTop, 0xFFFFFF);
         graphics.drawCenteredString(font, Component.translatable("screen.prismod.order_hint"), width / 2, panelTop + 66, 0xBBBBBB);
-        boolean forced = FilterManager.get().isForced();
-        graphics.drawCenteredString(font, Component.translatable(forced ? "screen.prismod.forced_hint" : "screen.prismod.save_hint"),
+        refreshSelectionLabels();
+        FilterSelection forcedSelection = FilterManager.get().forcedSelection();
+        boolean forced = forcedSelection != null;
+        Component hint = forced
+                ? Component.translatable("screen.prismod.forced_hint", filterName(forcedSelection.key()))
+                : Component.translatable("screen.prismod.save_hint");
+        graphics.drawCenteredString(font, hint,
                 width / 2, listBottom + 2, forced ? 0xFFCC66 : 0xBBBBBB);
         if (draggedId != null) {
             int y = listTop + draftOrder.indexOf(draggedId) * ROW_HEIGHT - scrollOffset;

@@ -156,6 +156,11 @@ public final class FilterManager {
         return controller.effectiveSelection();
     }
 
+    /** 返回当前覆盖目标，不受渲染回退状态影响。 */
+    public FilterSelection forcedSelection() {
+        return controller.forcedSelection();
+    }
+
     /** 显示当前滤镜名称，保留自定义滤镜的 namespace:path 身份。 */
     public Component effectiveDisplayName() {
         FilterSelection selection = effectiveSelection();

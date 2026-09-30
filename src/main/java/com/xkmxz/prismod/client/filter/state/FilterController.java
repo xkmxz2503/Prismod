@@ -42,6 +42,12 @@ final class FilterController {
         return snapshot.effective();
     }
 
+    /** 返回当前优先级最高的覆盖目标，即使渲染已回退到原色画面。 */
+    FilterSelection forcedSelection() {
+        OverrideState forced = activeOverride();
+        return forced == null ? null : new FilterSelection(forced.key(), forced.strength(), true);
+    }
+
     boolean isForced() {
         return activeOverride() != null;
     }
