@@ -3,11 +3,11 @@ package com.xkmxz.prismod.command.test.client;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.xkmxz.prismod.api.client.FilterClientApi;
-import com.xkmxz.prismod.api.client.contract.FilterOverride;
 import com.xkmxz.prismod.api.client.contract.FilterSnapshot;
 import com.xkmxz.prismod.api.client.contract.FilterSubscription;
 import com.xkmxz.prismod.api.client.operation.FilterOperation;
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
+import com.xkmxz.prismod.api.common.state.operation.FilterOperationStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -19,7 +19,6 @@ import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 /** Client-only commands that simulate another mod consuming Prismod's public API. */
 public final class PrismodClientApiCommands {
     private static final String OWNER = "prismod-api-test-mod";
-    private static FilterOverride testOverride;
     private static FilterSubscription subscription;
 
     private PrismodClientApiCommands() {
@@ -75,21 +74,22 @@ public final class PrismodClientApiCommands {
 
     private static int force(CommandContext<CommandSourceStack> context, float strength) {
         ResourceLocation id = ResourceLocationArgument.getId(context, "filter");
-        if (testOverride != null) testOverride.close();
-        testOverride = FilterClientApi.createOverride(OWNER, id, strength, 100);
+        // 测试命令只通过公开 API 管理覆盖，不直接持有句柄或访问客户端状态。
+        FilterClientApi.clearOverrides(OWNER);
+        FilterClientApi.createOverride(OWNER, id, strength, 100);
         message("command.prismod.client.force", id, strength);
         return 1;
     }
 
     private static int clear() {
-        if (testOverride == null) {
+        FilterOperation operation = FilterClientApi.clearOverrides(OWNER);
+        if (operation.status() != FilterOperationStatus.SUCCESS
+                || operation.affectedCount() == 0) {
             message("command.prismod.client.clear.none");
             return 0;
         }
-        testOverride.close();
-        testOverride = null;
         message("command.prismod.client.clear.done");
-        return 1;
+        return operation.affectedCount();
     }
 
     private static int watch() {
@@ -107,7 +107,6 @@ public final class PrismodClientApiCommands {
 
     private static int ownerClear() {
         FilterOperation operation = FilterClientApi.clearOverrides(OWNER);
-        testOverride = null;
         message("command.prismod.client.owner_clear", operation.status(), operation.affectedCount());
         return operation.affectedCount();
     }
