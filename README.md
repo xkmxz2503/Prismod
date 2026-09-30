@@ -238,6 +238,7 @@ GPU 性能诊断：
 
 - [`docs/Java_API_调用说明.md`](docs/Java_API_调用说明.md)：客户端 API、注册生命周期和线程约束。
 - [`docs/API_使用指南.md`](docs/API_使用指南.md)：客户端 API、服务端 API、管理命令、测试命令、实现架构和网络协议总览。
+- [`docs/API_与指令架构审查.md`](docs/API_与指令架构审查.md)：API、指令、抽象层和网络层的架构审查稿。
 - [`docs/自定义滤镜资源包制作说明.md`](docs/自定义滤镜资源包制作说明.md)：资源包 v1、PostChain、LUT 和调试 uniform。
 - [`PRISMOD_GUIDE_PROMPT.md`](PRISMOD_GUIDE_PROMPT.md)：项目架构、边界和开发约定。
 

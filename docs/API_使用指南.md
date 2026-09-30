@@ -448,8 +448,8 @@ flowchart LR
 flowchart LR
     A[服务端模组]
     B[FilterServerApi]
-    C[/prismod 管理命令]
-    D[/prismod_server api 测试命令]
+    C["/prismod 管理命令"]
+    D["/prismod_server api 测试命令"]
     E[ServerFilterApplication]
     F[PolicyTransport]
     G[PolicyNetwork]
@@ -556,6 +556,7 @@ CLEAR_ALL_OVERRIDES
 
 ## 10. 相关文档
 
+- [`docs/API_与指令架构审查.md`](API_与指令架构审查.md)：API、指令、抽象层和网络层的架构审查稿。
 - [`docs/Java_API_调用说明.md`](Java_API_调用说明.md)：客户端 API 的专题调用说明。
 - [`docs/服务端_API_与命令.md`](服务端_API_与命令.md)：服务端 API、管理命令和冻结网络协议的专题说明。
 - [`docs/自定义滤镜资源包制作说明.md`](自定义滤镜资源包制作说明.md)：Prismod v1 自定义资源包、PostChain、LUT 和调试 uniform。
