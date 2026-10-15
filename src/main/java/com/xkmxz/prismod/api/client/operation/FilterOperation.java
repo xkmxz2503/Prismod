@@ -6,31 +6,45 @@ import com.xkmxz.prismod.api.common.state.filter.FilterFailureReason;
 
 import java.util.UUID;
 
-/** Observable result of a client API operation that may be queued to the client thread. */
+/**
+ * Observable result of a client API operation that may be queued to the client thread.
+ *
+ * <p>A queued operation eventually reaches one terminal status. Reading this
+ * object is safe while the client thread completes the operation.</p>
+ */
 public interface FilterOperation {
+    /** @return immutable successful zero-impact operation for compatibility handles */
     static FilterOperation completedOperation() {
         return CompletedFilterOperation.INSTANCE;
     }
 
+    /** Creates an already completed failed operation for validation failures. */
     static FilterOperation failedOperation(FilterOperationStatus status, FeedbackCode code,
                                            FilterFailureReason reason, String detail) {
         return new FixedFilterOperation(status, code, reason, detail);
     }
 
+    /** @return stable operation identifier */
     UUID id();
 
+    /** @return current status, such as {@code QUEUED}, {@code SUCCESS}, or {@code FAILED} */
     FilterOperationStatus status();
 
+    /** @return stable machine-readable result code */
     FeedbackCode code();
 
+    /** @return number of affected items, or zero for no-op operations */
     int affectedCount();
 
+    /** @return whether this operation has reached a terminal status */
     boolean completed();
 
+    /** @return stable failure category, or {@link FilterFailureReason#NONE} */
     default FilterFailureReason failureReason() {
         return FilterFailureReason.NONE;
     }
 
+    /** @return short diagnostic detail for {@link #failureReason()} */
     default String failureDetail() {
         return "";
     }

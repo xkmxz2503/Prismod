@@ -36,8 +36,11 @@ public final class FilterBatchOperation implements FilterOperation {
         if (status != null && status != FilterOperationStatus.QUEUED) completed.set(true);
     }
 
+    /** @return immutable operations in the same order as the input batch */
     public List<FilterOperation> items() { return items; }
+    /** @return number of successful items observed so far */
     public int successfulCount() { return successfulCount; }
+    /** @return number of failed items observed so far */
     public int failedCount() { return failedCount; }
 
     public synchronized void complete(FilterOperationStatus status, FeedbackCode code, int affectedCount,

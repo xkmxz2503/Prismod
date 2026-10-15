@@ -16,6 +16,7 @@ public record FilterBatchResult<T>(List<T> handles,
         items = List.copyOf(items == null ? List.of() : items);
     }
 
+    /** @return current aggregate status of {@link #operation()} */
     public FilterOperationStatus status() {
         return operation.status();
     }
