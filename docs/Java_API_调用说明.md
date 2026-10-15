@@ -74,6 +74,8 @@ var available = FilterClientApi.availableFilters();
 
 所有返回列表和快照都是不可变视图。`snapshot()` 返回当前最终渲染快照；渲染不可用时可能暂时回退到 `prismod:original`，但会保留选择信息、回退原因和 generation。
 
+客户端 `FilterSnapshot` 是最终渲染视图；跨端或协议代码使用 `api.common.model.FilterSnapshot`。两者通过 `toCommonSnapshot()` 和 `FilterSnapshot.fromCommonSnapshot(...)` 显式转换，common 模型不携带客户端专属的 `forced` 标记。
+
 ## 操作结果和监听
 
 批量注销返回 `FilterOperation`，只包含结构化状态和稳定失败诊断，不暴露实现异常类型：
@@ -104,7 +106,7 @@ stateSubscription.close();
 eventSubscription.close();
 ```
 
-状态监听器和事件监听器都在 Minecraft 客户端线程同步执行，订阅时不会补发初始状态。监听器异常会被隔离并记录日志。一次写操作产生的快照、注册表或可用性事件先发布，随后发布一次 `OPERATION_COMPLETED`；收到完成事件时可以读取最终快照和句柄状态。
+状态监听器和事件监听器都在 Minecraft 客户端线程同步执行，订阅时不会补发初始状态。监听器异常会被隔离并记录日志。一次写操作产生的快照、注册表或可用性事件先发布，随后发布一次 `OPERATION_COMPLETED`；收到完成事件时可以读取最终快照和句柄状态。注册和覆盖句柄的 `close()` 也会调度到客户端线程，并且重复关闭没有副作用。
 
 ## Owner 会话与批量操作
 

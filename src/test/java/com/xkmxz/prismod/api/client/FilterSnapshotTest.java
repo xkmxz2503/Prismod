@@ -39,7 +39,8 @@ class FilterSnapshotTest {
     @Test
     void preservesCompleteCustomFilterIdentity() {
         ResourceLocation id = ResourceLocation.fromNamespaceAndPath("example", "debug");
-        FilterSnapshot snapshot = new FilterSnapshot(id, 0.75F, true, true);
+        com.xkmxz.prismod.api.client.contract.FilterSnapshot snapshot =
+                new com.xkmxz.prismod.api.client.contract.FilterSnapshot(id, 0.75F, true, true);
         assertEquals(id, snapshot.filter());
         assertEquals("example:debug", snapshot.filter().toString());
         assertEquals(0.75F, snapshot.strength());
@@ -50,9 +51,12 @@ class FilterSnapshotTest {
     @Test
     void normalizesStrengthAndKeepsSnapshotImmutable() {
         ResourceLocation id = ResourceLocation.fromNamespaceAndPath("prismod", "warm");
-        FilterSnapshot low = new FilterSnapshot(id, -1.0F, false, true);
-        FilterSnapshot high = new FilterSnapshot(id, 2.0F, false, true);
-        FilterSnapshot invalid = new FilterSnapshot(id, Float.NaN, false, false);
+        com.xkmxz.prismod.api.client.contract.FilterSnapshot low =
+                new com.xkmxz.prismod.api.client.contract.FilterSnapshot(id, -1.0F, false, true);
+        com.xkmxz.prismod.api.client.contract.FilterSnapshot high =
+                new com.xkmxz.prismod.api.client.contract.FilterSnapshot(id, 2.0F, false, true);
+        com.xkmxz.prismod.api.client.contract.FilterSnapshot invalid =
+                new com.xkmxz.prismod.api.client.contract.FilterSnapshot(id, Float.NaN, false, false);
         assertEquals(0.0F, low.strength());
         assertEquals(1.0F, high.strength());
         assertEquals(0.0F, invalid.strength());
@@ -61,6 +65,32 @@ class FilterSnapshotTest {
 
     @Test
     void rejectsNullFilterIdentity() {
-        assertThrows(NullPointerException.class, () -> new FilterSnapshot(null, 1.0F, false, true));
+        assertThrows(NullPointerException.class, () ->
+                new com.xkmxz.prismod.api.client.contract.FilterSnapshot(null, 1.0F, false, true));
+    }
+
+    @Test
+    void convertsBetweenClientAndCommonSnapshotModelsExplicitly() {
+        ResourceLocation effective = ResourceLocation.fromNamespaceAndPath("example", "debug");
+        ResourceLocation selected = ResourceLocation.fromNamespaceAndPath("prismod", "warm");
+        com.xkmxz.prismod.api.client.contract.FilterSnapshot client =
+                new com.xkmxz.prismod.api.client.contract.FilterSnapshot(
+                        effective, 0.75F, true, false, selected, 0.5F,
+                        "example-mod", 42,
+                        com.xkmxz.prismod.api.common.state.filter.FilterFallbackReason.RENDER_UNAVAILABLE,
+                        9L);
+
+        com.xkmxz.prismod.api.common.model.FilterSnapshot common = client.toCommonSnapshot();
+        assertEquals(effective, common.filter());
+        assertEquals(selected, common.selectedFilter());
+        assertEquals(42, common.overridePriority());
+        assertEquals(9L, common.generation());
+
+        com.xkmxz.prismod.api.client.contract.FilterSnapshot restored =
+                com.xkmxz.prismod.api.client.contract.FilterSnapshot.fromCommonSnapshot(common, true);
+        assertEquals(client.filter(), restored.filter());
+        assertEquals(client.selectedStrength(), restored.selectedStrength());
+        assertEquals(client.overrideOwner(), restored.overrideOwner());
+        assertTrue(restored.forced());
     }
 }

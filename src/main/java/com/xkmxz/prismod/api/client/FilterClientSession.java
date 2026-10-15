@@ -9,7 +9,13 @@ import com.xkmxz.prismod.api.common.request.FilterOverrideRequest;
 
 import java.util.List;
 
-/** Owner-scoped lifecycle for custom registrations and overrides. */
+/**
+ * Owner-scoped lifecycle for custom registrations and overrides.
+ *
+ * <p>Batch methods preserve input order and use best-effort semantics. Closing a
+ * session is idempotent and only releases handles created through that session;
+ * queued work is allowed to finish and then closes its resulting handle.</p>
+ */
 public interface FilterClientSession extends AutoCloseable {
     String ownerId();
     FilterBatchResult<FilterRegistration> registerAll(List<FilterRegistrationRequest> requests);

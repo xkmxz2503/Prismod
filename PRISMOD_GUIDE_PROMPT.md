@@ -75,8 +75,12 @@ FilterRegistration registration = FilterClientApi.registerCustomFilter(ownerId, 
 
 `setForcedFilter` 只接受逻辑滤镜 ID：内置滤镜使用 `prismod:<name>`，自定义滤镜使用完整 `namespace:path`；注册 API 的 `postEffect` 才使用实际 PostChain 资源路径。强制滤镜优先于玩家总开关、F8 和普通选择；重复设置会替换原强制状态，清除后恢复用户选择和最新配置。写 API 会调度到 Minecraft 客户端线程，`snapshot()` 返回最近一次发布的不可变最终渲染快照。专用服务器不得加载 `api.client` 或任何 `net.minecraft.client` 类。
 
+客户端 `FilterSnapshot` 表示最终渲染视图；跨端状态使用 `api.common.model.FilterSnapshot`。两者只能通过 `toCommonSnapshot()` 与 `FilterSnapshot.fromCommonSnapshot(...)` 显式转换，common 模型不承载客户端专属的 `forced` 字段。
+
 需要观察客户端线程排队结果时，使用 `setForcedFilterOperation`、`setSessionSelectionOperation`、`clearForcedFilterOperation` 和 `clearSessionSelectionOperation` 等 `Operation` 后缀入口；注册和覆盖句柄通过 `operation()` 查询创建操作。跨线程调用先返回 `QUEUED`，完成后发布一次 `OPERATION_COMPLETED` 事件；旧的 `void` 与句柄入口继续保留。`registerCustomFilter` 与 `createOverride` 是规范句柄入口，旧的 `registerCustomFilterOperation` 与 `createOverrideOperation` 仅作为 deprecated 兼容别名。Operation 还提供稳定的 `failureReason()` 与 `failureDetail()`；无变化操作成功但影响数量为 0，排队期间关闭句柄不会取消创建。
 客户端模组还可以通过 `FilterClientApi.openSession("example-mod")` 创建 owner 会话，使用 `registerAll(...)` 和 `createOverrides(...)` 批量管理注册和覆盖。批量结果逐项报告，混合成功与失败时状态为 `PARTIAL`；`session.close()` 只清理该 owner 的注册和覆盖，排队项目执行后立即关闭。
+
+状态和事件监听器始终在 Minecraft 客户端线程按变更顺序同步执行，订阅时不补发初始快照；监听器异常会被隔离并记录日志。注册和覆盖句柄的 `close()` 同样调度到客户端线程，重复关闭没有副作用。
 
 ## 架构和模块职责
 

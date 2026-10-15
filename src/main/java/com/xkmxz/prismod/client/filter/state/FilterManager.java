@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 
 /** 状态读取可跨线程；所有写操作以及配置读取只由客户端线程执行。 */
@@ -244,7 +245,7 @@ public final class FilterManager {
         private final String ownerId;
         private final net.minecraft.resources.ResourceLocation filter;
         private final int priority;
-        private boolean closed;
+        private final AtomicBoolean closed = new AtomicBoolean();
 
         private OverrideHandle(long id, String ownerId, net.minecraft.resources.ResourceLocation filter, int priority) {
             this.id = id; this.ownerId = ownerId; this.filter = filter; this.priority = priority;
@@ -253,10 +254,16 @@ public final class FilterManager {
         @Override public net.minecraft.resources.ResourceLocation id() { return filter; }
         @Override public String ownerId() { return ownerId; }
         @Override public int priority() { return priority; }
-        @Override public FilterOverrideState state() { return closed ? FilterOverrideState.CLOSED : FilterOverrideState.ACTIVE; }
-        @Override public boolean isActive() { return !closed; }
+        @Override public FilterOverrideState state() { return closed.get() ? FilterOverrideState.CLOSED : FilterOverrideState.ACTIVE; }
+        @Override public boolean isActive() { return !closed.get(); }
         @Override public void close() {
-            if (!closed) { closed = true; if (controller.removeOverride(id)) notifyListeners(); }
+            if (!closed.compareAndSet(false, true)) return;
+            Runnable remove = () -> {
+                if (controller.removeOverride(id)) notifyListeners();
+            };
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft.isSameThread()) remove.run();
+            else minecraft.execute(remove);
         }
     }
 }

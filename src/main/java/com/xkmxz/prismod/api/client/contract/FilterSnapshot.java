@@ -37,4 +37,21 @@ public record FilterSnapshot(
         if (!Double.isFinite(strength)) return 0.0F;
         return (float) Math.max(0.0D, Math.min(1.0D, strength));
     }
+
+    /** Converts the client rendering view to the cross-side state model. */
+    public com.xkmxz.prismod.api.common.model.FilterSnapshot toCommonSnapshot() {
+        return new com.xkmxz.prismod.api.common.model.FilterSnapshot(
+                filter, strength, selectedFilter, selectedStrength,
+                overrideOwner, overridePriority, renderAvailable, fallbackReason, generation);
+    }
+
+    /** Restores a client view from the cross-side state model with an explicit forced flag. */
+    public static FilterSnapshot fromCommonSnapshot(
+            com.xkmxz.prismod.api.common.model.FilterSnapshot snapshot, boolean forced) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        return new FilterSnapshot(snapshot.filter(), snapshot.strength(), forced,
+                snapshot.renderAvailable(), snapshot.selectedFilter(), snapshot.selectedStrength(),
+                snapshot.overrideOwner(), snapshot.overridePriority(), snapshot.fallbackReason(),
+                snapshot.generation());
+    }
 }

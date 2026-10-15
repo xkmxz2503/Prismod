@@ -28,6 +28,11 @@ public final class FilterClientApi {
         return ClientFilterApplication.registerCustomFilter(ownerId, postEffect, metadata);
     }
 
+    /**
+     * Compatibility alias for callers that used the pre-v1 operation-named entry point.
+     * Prefer {@link #registerCustomFilter(String, ResourceLocation, CustomFilterMetadata)}
+     * and inspect {@link FilterRegistration#operation()} on the returned handle.
+     */
     @Deprecated
     public static FilterRegistration registerCustomFilterOperation(String ownerId, ResourceLocation postEffect,
                                                                     CustomFilterMetadata metadata) {
@@ -39,6 +44,10 @@ public final class FilterClientApi {
         return ClientFilterApplication.registerCustomFilter(logicalId, ownerId, postEffect, metadata);
     }
 
+    /**
+     * Compatibility alias for the explicit-ID registration overload.
+     * Prefer the overload without the {@code Operation} suffix.
+     */
     @Deprecated
     public static FilterRegistration registerCustomFilterOperation(ResourceLocation logicalId, String ownerId,
                                                                     ResourceLocation postEffect, CustomFilterMetadata metadata) {
@@ -77,6 +86,10 @@ public final class FilterClientApi {
         return ClientFilterApplication.createOverride(ownerId, filter, strength, priority);
     }
 
+    /**
+     * Compatibility alias for override creation. Prefer the handle returned by
+     * {@link #createOverride(String, ResourceLocation, float, int)}.
+     */
     @Deprecated
     public static FilterOverride createOverrideOperation(String ownerId, ResourceLocation filter, float strength, int priority) {
         return ClientFilterApplication.createOverrideOperation(ownerId, filter, strength, priority);

@@ -156,6 +156,8 @@ snapshot.generation();
 
 `filter()` 是最终实际滤镜，`selectedFilter()` 是用户选择。渲染资源暂时不可用时，最终滤镜可能回退为 `prismod:original`，但用户选择和回退原因仍保留。
 
+客户端契约中的 `FilterSnapshot` 表示最终渲染视图；`api.common.model.FilterSnapshot` 只表示跨端状态。使用 `toCommonSnapshot()` 和 `FilterSnapshot.fromCommonSnapshot(...)` 显式转换，避免让客户端专属字段进入 common 模型。
+
 获取完整滤镜描述或当前可用滤镜：
 
 ```java
@@ -192,7 +194,7 @@ var eventSubscription = FilterClientApi.subscribeEvents(event -> {
 eventSubscription.close();
 ```
 
-订阅句柄是生命周期对象，关闭后停止接收事件。订阅时不会补发初始状态；监听器异常会被隔离并记录日志。事件类型包括快照变化、注册表变化、可用性变化和操作完成。
+订阅句柄是生命周期对象，关闭后停止接收事件。订阅时不会补发初始状态；监听器异常会被隔离并记录日志。事件类型包括快照变化、注册表变化、可用性变化和操作完成。所有回调都在客户端线程按状态变更顺序执行。
 
 需要观察排队和完成结果时，使用 `setForcedFilterOperation`、`setSessionSelectionOperation`、`clearForcedFilterOperation` 和 `clearSessionSelectionOperation`。`FilterOperation` 提供 `status()`、`code()`、`affectedCount()`、`failureReason()` 和 `failureDetail()`。跨线程调用先返回 `QUEUED`，同线程调用立即完成；无变化操作仍成功但影响数量为 `0`，generation 不递增。一次操作产生的状态事件先发布，随后发布一次 `OPERATION_COMPLETED`。
 
