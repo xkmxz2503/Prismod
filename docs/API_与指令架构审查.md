@@ -72,7 +72,7 @@ flowchart LR
 | 测试指令适配器 | `command/test/server/PrismodServerApiCommands` | 通过公开服务端 API 执行逐步测试 |
 | 网络抽象端口 | `network/contract/PolicyTransport` | 只暴露广播和指定玩家发送能力 |
 | Forge 网络实现 | `network/transport/PolicyNetwork` | 创建通道、编解码、路由和客户端 sink 分发 |
-| 客户端接收适配器 | `client/network/PrismodClientNetwork` | 把策略消息翻译为客户端 API 调用，并维护网络请求 ID 到客户端资源 UUID 的映射 |
+| 客户端接收适配器 | `client/network/PrismodClientNetwork` | 把策略消息翻译为客户端 submit 请求，按策略 ID 跟踪最近请求及客户端创建结果 |
 
 服务端命令不得直接调用 `ServerFilterApplication` 的状态表；服务端应用层不得直接依赖 `SimpleChannel`、`PacketDistributor` 或编解码细节。
 
@@ -110,11 +110,14 @@ flowchart LR
 
 - `FilterSelectionRequest`：逻辑滤镜 ID 和强度；
 - `FilterOverrideRequest`：owner、逻辑滤镜 ID、强度和 priority；
-- `OperationResult`：状态、反馈代码、请求 ID、目标、影响数量、参数和 generation；
+- `ServerFilterRequest`：Select、Override、ClearOverride、ClearAllOverrides、ClearSelection 五类输入；
+- `ServerFilterTarget`：广播或玩家 UUID，不保存 ServerPlayer；
+- `ServerFilterQuery<R>`：Status 和 FilterStatus 两类只读查询；
+- `OperationResult`：请求 ID、状态、反馈代码、失败原因与详情、目标、影响数量、策略 ID 列表和 generation；
 - `ServerStatus`：初始化状态、网络通道和协议版本；
 - `ServerFilterStatus`：服务端策略计数和全局选择摘要。
 
-服务端结果不包含自然语言。命令适配器根据 `status` 和 `code` 选择翻译键，API 调用方根据结构化字段处理业务。
+服务端结果不以自然语言代替稳定代码。failureDetail 用于诊断；命令适配器根据 `status` 和 `code` 选择翻译键。回执不可变，禁止 QUEUED，不包含参数 Map、可操作句柄或后续查询。
 
 ### 3.4 抽象层的统一入口规则
 
@@ -142,20 +145,20 @@ submit 承接注册、选择、强制、覆盖、订阅和 Session，返回 Comp
 
 ### 4.2 服务端 API
 
-公开入口为 `com.xkmxz.prismod.api.server.FilterServerApi`，当前操作分为：
+公开入口为 `com.xkmxz.prismod.api.server.FilterServerApi`，业务方法只有 `CompletionStage<OperationResult> submit(ServerFilterRequest)` 和 `<R> R query(ServerFilterQuery<R>)`。频道和协议常量继续保留，旧业务方法删除，无兼容别名。
 
-类型按入口职责归类：服务端请求与操作结果位于 `api.server.submit.request`、`api.server.submit.result`，状态快照位于 `api.server.query.view`。共享类型也先按 `api.common.submit`、`api.common.query` 分组，再区分结果、视图和状态；不复制跨入口复用的枚举。
+类型按入口职责归类：服务端目标、请求与操作结果位于 `api.server.submit.model`、`api.server.submit.request`、`api.server.submit.result`，查询请求与状态快照位于 `api.server.query.request`、`api.server.query.view`。共享类型也先按 `api.common.submit`、`api.common.query` 分组，再区分结果、视图和状态；不复制跨入口复用的枚举。
 
-- 查询：`status`、`filterStatus`；
-- 全局选择：`broadcastSelection`；
-- 玩家选择：`sendSelection`；
-- 全局覆盖：`broadcastOverride`；
-- 玩家覆盖：`sendOverride`；
-- 全局覆盖清理：`clearBroadcastOverride`；
-- 玩家覆盖清理：`clearPlayerOverride`；
-- 批量清理：`clearAllOverrides`、`clearSelection`。
+- submit 接收选择、覆盖和清理请求，使用明确的广播或玩家 UUID 目标；
+- query 读取最近发布的不可变 ServerStatus 与 ServerFilterStatus；
+- 写请求在服务端线程串行执行，状态发布后交付一次最终回执；
+- 请求 ID 每次独立生成；同目标范围、同 owner 更新覆盖时策略 ID 稳定，参数替换；
+- 服务器不可用返回 UNAVAILABLE，指定玩家离线返回 NOT_FOUND 且不保存请求；
+- 重复清理成功且影响数量为零；新建或更新回执携带策略 ID，失败和清理为空。
 
 所有变更最终进入 `ServerFilterApplication`，由该层统一完成状态变更、generation 递增和策略消息发送。
+
+本步不开放远程注册、Session、批量、订阅、调参或客户端状态查询；客户端公开契约、渲染行为不变。
 
 ### 4.3 服务端管理指令
 
@@ -215,7 +218,7 @@ submit 承接注册、选择、强制、覆盖、订阅和 Session，返回 Comp
 | 项目 | 当前固定值 |
 | --- | --- |
 | 通道 | `prismod:policy` |
-| 协议版本 | `1` |
+| 协议版本 | `2`；拒绝协议 `1`，无兼容分支 |
 | 抽象端口 | `PolicyTransport` |
 | Forge 实现 | `PolicyNetwork` |
 | 消息类型 | `PolicyMessage` |
@@ -237,6 +240,7 @@ void send(ServerPlayer player, PolicyMessage message);
 ```text
 operation   = SELECT | OVERRIDE | CLEAR_SELECTION | CLEAR_OVERRIDE | CLEAR_ALL_OVERRIDES
 requestId   = UUID
+policyId    = UUID；CLEAR_SELECTION、CLEAR_ALL_OVERRIDES 不携带
 owner       = String
 filter      = ResourceLocation，可为空
 strength    = float，规范化到 0.0 到 1.0
@@ -262,10 +266,10 @@ ServerFilterApplication
 | `SELECT` | 提交 `FilterRequest.Select` |
 | `OVERRIDE` | 提交 `FilterRequest.Override` |
 | `CLEAR_SELECTION` | 提交 `FilterRequest.ClearSelection` |
-| `CLEAR_OVERRIDE` | 按 request ID 找到资源 UUID 并提交 Release |
+| `CLEAR_OVERRIDE` | 按 policy ID 找到资源 UUID 并提交 Release |
 | `CLEAR_ALL_OVERRIDES` | 释放并清空全部网络覆盖资源 |
 
-客户端网络适配器以 request ID 做覆盖幂等键。重复 `OVERRIDE` request ID 会被忽略；退出世界时会关闭网络创建的覆盖并清除会话选择。
+客户端网络适配器按策略 ID 记录最近请求及创建结果。同策略同请求不重复创建；同策略新请求释放旧覆盖并创建新覆盖。排队中的旧创建回执只释放自身 UUID；更新或清理不能误释放新覆盖。退出世界时释放网络创建的覆盖并清除会话选择，不影响本地其他模组的覆盖。连接映射重置后，旧连接延迟回执不能修改新连接状态。
 
 ### 5.4 登录补发
 
@@ -275,6 +279,8 @@ ServerFilterApplication
 2. 当前全局覆盖；
 3. 该玩家的个人选择；
 4. 该玩家的个人覆盖。
+
+补发保留策略 ID，并重新生成请求 ID。广播选择后再次发送玩家个人选择，保持个人选择优先。
 
 网络层不提供服务端状态查询、通用 RPC 或操作回执。`OperationResult` 是服务端本地用例结果，不是客户端确认消息。当前 `PolicyNetwork.broadcast(...)` 和 `send(...)` 在通道未初始化或 Forge 网络发送抛出 `RuntimeException` 时会静默返回，因此 `OperationResult.SUCCESS` 只能证明服务端用例层已接受并保存策略，不能证明网络发送、客户端接收或客户端渲染成功；发送失败的可观测性保留为后续独立决策。
 
@@ -316,16 +322,18 @@ network/transport -> Forge 网络实现
 - 网络消息字段和操作集合固定；
 - 服务端登录补发和客户端重复消息幂等已有实现路径。
 
-### 当前需要重点确认的审查项
+### 已固定决策与后续审查项
 
-以下项目是当前源码层面的架构审查问题，不代表已经批准的改动：
+第 2、4、5 项已随本次适配固定；其余项目保留为后续独立审查，不扩大本步范围：
 
 1. `PolicyTransport` 已收窄为服务端发送端口；客户端接收注册保留在 `PolicyNetwork` 实现中。后续只需验证是否需要独立的客户端接收接口，不应重新把接收能力放回服务端端口。
-2. `FilterServerApi` 当前从 `PolicyTransport` 读取通道和协议常量。需要确认公开 API 是否允许直接依赖网络契约，或改为独立的只读协议元数据契约。
+2. 已固定 `PolicyTransport` 为频道与协议常量的单一来源；FilterServerApi 与 PolicyNetwork 直接复用，不新增元数据类型。
 3. `PolicyNetwork.broadcast(...)` 和 `send(...)` 当前捕获 `RuntimeException` 后静默返回。需要决定失败是否必须写入日志、暴露监控事件或反映到服务端操作结果。
-4. 同 owner 覆盖更新时复用已有 request ID。需要确认 request ID 的语义是“owner 策略身份”还是“每次调用唯一请求”；这会影响客户端幂等、审计和调试日志。
-5. `OperationResult` 当前 `parameters` 可能为空，命令反馈只展示有限字段。需要确认审查阶段是否要求每种操作都提供结构化参数，例如 filter、owner、priority 和 strength。
+4. 已分离 requestId 与 policyId：前者每次调用唯一，后者标识持续策略，修正客户端将覆盖更新当成重复请求的问题。
+5. OperationResult 已移除 parameters，使用固定结果字段和策略 ID 列表；旧业务方法与协议 1 不兼容。
 6. 当前网络层没有操作回执。需要确认服务端测试范围是否永远只验证服务端本地 API 结果，还是未来需要增加独立的客户端确认事件；若增加，必须扩展协议，而不能让命令读取客户端状态。
+
+本步不增加双向回执、重试或乱序恢复。编译、单元测试与游戏内双端更新、清理、重连、登录补发应分别记录验证结果。
 
 ## 8. 建议的审查结论格式
 

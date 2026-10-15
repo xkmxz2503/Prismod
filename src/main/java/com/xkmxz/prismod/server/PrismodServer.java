@@ -20,6 +20,7 @@ public final class PrismodServer {
         MinecraftForge.EVENT_BUS.addListener(PrismodServerCommands::onRegisterCommands);
         MinecraftForge.EVENT_BUS.addListener(PrismodServerApiCommands::onRegisterCommands);
         MinecraftForge.EVENT_BUS.addListener(ServerFilterApplication::onPlayerLoggedIn);
+        MinecraftForge.EVENT_BUS.addListener(ServerFilterApplication::onServerStarting);
         MinecraftForge.EVENT_BUS.addListener(ServerFilterApplication::onServerStopped);
         initialized = true;
     }

@@ -3,12 +3,14 @@ package com.xkmxz.prismod.network.contract;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
+import java.util.Objects;
 import java.util.UUID;
 
-/** Frozen policy payload shared by the server sender and client receiver. */
+/** 协议 2 策略消息：请求身份描述一次操作，策略身份描述持续存在的策略。 */
 public record PolicyMessage(
         Operation operation,
         UUID requestId,
+        UUID policyId,
         String owner,
         ResourceLocation filter,
         float strength,
@@ -23,35 +25,42 @@ public record PolicyMessage(
     }
 
     public PolicyMessage {
-        operation = operation == null ? Operation.CLEAR_SELECTION : operation;
-        requestId = requestId == null ? new UUID(0L, 0L) : requestId;
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(requestId, "requestId");
+        boolean requiresPolicy = operation == Operation.SELECT || operation == Operation.OVERRIDE
+                || operation == Operation.CLEAR_OVERRIDE;
+        if (requiresPolicy) Objects.requireNonNull(policyId, "policyId");
+        else if (policyId != null) throw new IllegalArgumentException("整体清理不接受单个策略 ID");
         owner = owner == null ? "" : owner.trim();
         strength = Float.isFinite(strength) ? Math.max(0.0F, Math.min(1.0F, strength)) : 0.0F;
     }
 
-    public static PolicyMessage selection(UUID id, ResourceLocation filter, float strength) {
-        return new PolicyMessage(Operation.SELECT, id, "", filter, strength, 0);
+    public static PolicyMessage selection(UUID requestId, UUID policyId, ResourceLocation filter, float strength) {
+        return new PolicyMessage(Operation.SELECT, requestId, policyId, "", filter, strength, 0);
     }
 
-    public static PolicyMessage override(UUID id, String owner, ResourceLocation filter, float strength, int priority) {
-        return new PolicyMessage(Operation.OVERRIDE, id, owner, filter, strength, priority);
+    public static PolicyMessage override(UUID requestId, UUID policyId, String owner,
+                                         ResourceLocation filter, float strength, int priority) {
+        return new PolicyMessage(Operation.OVERRIDE, requestId, policyId, owner, filter, strength, priority);
     }
 
-    public static PolicyMessage clearSelection(UUID id) {
-        return new PolicyMessage(Operation.CLEAR_SELECTION, id, "", null, 0.0F, 0);
+    public static PolicyMessage clearSelection(UUID requestId) {
+        return new PolicyMessage(Operation.CLEAR_SELECTION, requestId, null, "", null, 0.0F, 0);
     }
 
-    public static PolicyMessage clearOverride(UUID id, String owner) {
-        return new PolicyMessage(Operation.CLEAR_OVERRIDE, id, owner, null, 0.0F, 0);
+    public static PolicyMessage clearOverride(UUID requestId, UUID policyId, String owner) {
+        return new PolicyMessage(Operation.CLEAR_OVERRIDE, requestId, policyId, owner, null, 0.0F, 0);
     }
 
-    public static PolicyMessage clearAllOverrides(UUID id) {
-        return new PolicyMessage(Operation.CLEAR_ALL_OVERRIDES, id, "", null, 0.0F, 0);
+    public static PolicyMessage clearAllOverrides(UUID requestId) {
+        return new PolicyMessage(Operation.CLEAR_ALL_OVERRIDES, requestId, null, "", null, 0.0F, 0);
     }
 
     public static void encode(PolicyMessage message, FriendlyByteBuf buffer) {
         buffer.writeEnum(message.operation());
         buffer.writeUUID(message.requestId());
+        buffer.writeBoolean(message.policyId() != null);
+        if (message.policyId() != null) buffer.writeUUID(message.policyId());
         buffer.writeUtf(message.owner(), 256);
         buffer.writeBoolean(message.filter() != null);
         if (message.filter() != null) buffer.writeResourceLocation(message.filter());
@@ -62,8 +71,9 @@ public record PolicyMessage(
     public static PolicyMessage decode(FriendlyByteBuf buffer) {
         Operation operation = buffer.readEnum(Operation.class);
         UUID requestId = buffer.readUUID();
+        UUID policyId = buffer.readBoolean() ? buffer.readUUID() : null;
         String owner = buffer.readUtf(256);
         ResourceLocation filter = buffer.readBoolean() ? buffer.readResourceLocation() : null;
-        return new PolicyMessage(operation, requestId, owner, filter, buffer.readFloat(), buffer.readInt());
+        return new PolicyMessage(operation, requestId, policyId, owner, filter, buffer.readFloat(), buffer.readInt());
     }
 }

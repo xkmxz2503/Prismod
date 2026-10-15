@@ -22,9 +22,82 @@ class PrismodClientNetworkTest {
     private static final ResourceLocation FILTER = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");
 
     @Test
+    void samePolicyWithNewRequestReplacesParametersAndReleasesOldResource() {
+        Harness harness = new Harness();
+        UUID policyId = UUID.randomUUID();
+        UUID oldResource = UUID.randomUUID();
+        ResourceLocation nextFilter = ResourceLocation.fromNamespaceAndPath("prismod", "warm");
+        harness.network.accept(PolicyMessage.override(UUID.randomUUID(), policyId, "server-rule", FILTER, 0.6F, 100));
+        harness.creations.get(0).complete(success(oldResource));
+        PolicyMessage update = PolicyMessage.override(UUID.randomUUID(), policyId, "server-rule", nextFilter, 0.9F, 200);
+        harness.network.accept(update);
+        harness.network.accept(update);
+
+        assertEquals(List.of(oldResource), harness.released());
+        assertEquals(2, harness.creations.size());
+        FilterRequest.Override replacement = harness.requests.stream().filter(FilterRequest.Override.class::isInstance)
+                .map(FilterRequest.Override.class::cast).toList().get(1);
+        assertEquals(nextFilter, replacement.filter());
+        assertEquals(0.9F, replacement.strength());
+        assertEquals(200, replacement.priority());
+    }
+
+    @Test
+    void pendingUpdateAndClearReleaseBothGenerationsWithoutMixingTheirResources() {
+        Harness harness = new Harness();
+        UUID policyId = UUID.randomUUID();
+        UUID oldResource = UUID.randomUUID();
+        UUID newResource = UUID.randomUUID();
+        harness.network.accept(PolicyMessage.override(UUID.randomUUID(), policyId, "server-rule", FILTER, 0.6F, 100));
+        harness.network.accept(PolicyMessage.override(UUID.randomUUID(), policyId, "server-rule", FILTER, 0.8F, 200));
+        harness.network.accept(PolicyMessage.clearOverride(UUID.randomUUID(), policyId, "server-rule"));
+        harness.creations.get(1).complete(success(newResource));
+        harness.creations.get(0).complete(success(oldResource));
+        assertEquals(List.of(newResource, oldResource), harness.released());
+    }
+
+    @Test
+    void differentPoliciesWithSameOwnerAndRequestStayIndependent() {
+        Harness harness = new Harness();
+        UUID requestId = UUID.randomUUID();
+        UUID firstPolicy = UUID.randomUUID();
+        UUID secondPolicy = UUID.randomUUID();
+        UUID firstResource = UUID.randomUUID();
+        UUID secondResource = UUID.randomUUID();
+        harness.network.accept(PolicyMessage.override(requestId, firstPolicy, "server-rule", FILTER, 0.6F, 100));
+        harness.network.accept(PolicyMessage.override(requestId, secondPolicy, "server-rule", FILTER, 0.7F, 200));
+        harness.creations.get(0).complete(success(firstResource));
+        harness.creations.get(1).complete(success(secondResource));
+        harness.network.accept(PolicyMessage.clearOverride(UUID.randomUUID(), firstPolicy, "server-rule"));
+        assertEquals(List.of(firstResource), harness.released());
+        harness.network.accept(PolicyMessage.clearAllOverrides(UUID.randomUUID()));
+        assertEquals(List.of(firstResource, secondResource), harness.released());
+        assertFalse(harness.requests.stream().anyMatch(FilterRequest.ClearOverrides.class::isInstance));
+    }
+
+    @Test
+    void oldConnectionCompletionCannotReplaceNewConnectionMapping() {
+        Harness harness = new Harness();
+        UUID policyId = UUID.randomUUID();
+        UUID oldResource = UUID.randomUUID();
+        UUID newResource = UUID.randomUUID();
+        harness.network.accept(PolicyMessage.override(UUID.randomUUID(), policyId, "server-rule", FILTER, 0.6F, 100));
+        harness.network.reset();
+        PolicyMessage current = PolicyMessage.override(UUID.randomUUID(), policyId, "server-rule", FILTER, 0.8F, 200);
+        harness.network.accept(current);
+        harness.creations.get(1).complete(success(newResource));
+        harness.creations.get(0).complete(success(oldResource));
+        harness.network.accept(current);
+        assertEquals(2, harness.creations.size());
+        assertEquals(List.of(oldResource), harness.released());
+        harness.network.accept(PolicyMessage.clearOverride(UUID.randomUUID(), policyId, "server-rule"));
+        assertEquals(List.of(oldResource, newResource), harness.released());
+    }
+
+    @Test
     void translatesSelectionAndClearWithoutChangingProtocolValues() {
         Harness harness = new Harness();
-        harness.network.accept(PolicyMessage.selection(UUID.randomUUID(), FILTER, 0.75F));
+        harness.network.accept(PolicyMessage.selection(UUID.randomUUID(), UUID.randomUUID(), FILTER, 0.75F));
         harness.network.accept(PolicyMessage.clearSelection(UUID.randomUUID()));
 
         FilterRequest.Select select = assertInstanceOf(FilterRequest.Select.class, harness.requests.get(0));
@@ -57,11 +130,11 @@ class PrismodClientNetworkTest {
         UUID requestId = UUID.randomUUID();
         UUID resourceId = UUID.randomUUID();
         harness.network.accept(override(requestId));
-        harness.network.accept(PolicyMessage.clearOverride(requestId, "server-rule"));
+        harness.network.accept(PolicyMessage.clearOverride(UUID.randomUUID(), requestId, "server-rule"));
         assertTrue(harness.released().isEmpty());
 
         harness.creations.get(0).complete(success(resourceId));
-        harness.network.accept(PolicyMessage.clearOverride(requestId, "server-rule"));
+        harness.network.accept(PolicyMessage.clearOverride(UUID.randomUUID(), requestId, "server-rule"));
 
         assertEquals(List.of(resourceId), harness.released());
     }
@@ -102,13 +175,13 @@ class PrismodClientNetworkTest {
         UUID oldResource = UUID.randomUUID();
         UUID newResource = UUID.randomUUID();
         harness.network.accept(override(requestId));
-        harness.network.accept(PolicyMessage.clearOverride(requestId, "server-rule"));
+        harness.network.accept(PolicyMessage.clearOverride(UUID.randomUUID(), requestId, "server-rule"));
         harness.network.accept(override(requestId));
         harness.creations.get(1).complete(success(newResource));
         harness.creations.get(0).complete(success(oldResource));
         assertEquals(List.of(oldResource), harness.released());
 
-        harness.network.accept(PolicyMessage.clearOverride(requestId, "server-rule"));
+        harness.network.accept(PolicyMessage.clearOverride(UUID.randomUUID(), requestId, "server-rule"));
         assertEquals(List.of(oldResource, newResource), harness.released());
     }
 
@@ -136,7 +209,7 @@ class PrismodClientNetworkTest {
         Harness harness = new Harness();
         UUID requestId = UUID.randomUUID();
         harness.network.accept(override(requestId));
-        harness.network.accept(PolicyMessage.clearOverride(requestId, "server-rule"));
+        harness.network.accept(PolicyMessage.clearOverride(UUID.randomUUID(), requestId, "server-rule"));
         harness.creations.get(0).complete(new FilterReceipt(UUID.randomUUID(), FilterOperationStatus.FAILED,
                 FeedbackCode.FAILED, FilterFailureReason.RESOURCE_MISSING, "missing", 0, List.of(), List.of()));
         assertTrue(harness.released().isEmpty());
@@ -147,8 +220,8 @@ class PrismodClientNetworkTest {
         Harness first = new Harness();
         Harness second = new Harness();
         UUID requestId = UUID.randomUUID();
-        first.network.accept(PolicyMessage.selection(requestId, null, 1.0F));
-        first.network.accept(PolicyMessage.override(requestId, "server-rule", null, 1.0F, 100));
+        first.network.accept(PolicyMessage.selection(requestId, UUID.randomUUID(), null, 1.0F));
+        first.network.accept(PolicyMessage.override(requestId, requestId, "server-rule", null, 1.0F, 100));
         assertTrue(first.requests.isEmpty());
         first.network.accept(override(requestId));
         second.network.accept(override(requestId));
@@ -157,7 +230,7 @@ class PrismodClientNetworkTest {
     }
 
     private static PolicyMessage override(UUID requestId) {
-        return PolicyMessage.override(requestId, "server-rule", FILTER, 0.6F, 100);
+        return PolicyMessage.override(requestId, requestId, "server-rule", FILTER, 0.6F, 100);
     }
 
     private static FilterReceipt success(UUID resourceId) {

@@ -10,6 +10,10 @@ import com.xkmxz.prismod.api.server.submit.request.FilterOverrideRequest;
 import com.xkmxz.prismod.api.server.submit.request.FilterSelectionRequest;
 import com.xkmxz.prismod.api.server.submit.result.OperationResult;
 import com.xkmxz.prismod.api.server.FilterServerApi;
+import com.xkmxz.prismod.api.server.submit.model.ServerFilterTarget;
+import com.xkmxz.prismod.api.server.submit.request.ServerFilterRequest;
+import com.xkmxz.prismod.api.server.query.request.ServerFilterQuery;
+import java.util.concurrent.CompletionStage;
 import com.xkmxz.prismod.api.server.query.view.ServerFilterStatus;
 import com.xkmxz.prismod.api.server.query.view.ServerStatus;
 import net.minecraft.commands.CommandSourceStack;
@@ -128,41 +132,39 @@ public final class PrismodServerApiCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> clearCommands() {
         return literal("clear")
                 .then(literal("selection").executes(context -> report(context.getSource(),
-                        FilterServerApi.clearSelection())))
+                        FilterServerApi.submit(new ServerFilterRequest.ClearSelection()))))
                 .then(literal("owner").executes(context -> report(context.getSource(),
-                        FilterServerApi.clearBroadcastOverride(TEST_OWNER))))
+                        FilterServerApi.submit(new ServerFilterRequest.ClearOverride(new ServerFilterTarget.Broadcast(), TEST_OWNER)))))
                 .then(literal("all").executes(context -> report(context.getSource(),
-                        FilterServerApi.clearAllOverrides())));
+                        FilterServerApi.submit(new ServerFilterRequest.ClearAllOverrides()))));
     }
 
     private static int selectBroadcast(CommandContext<CommandSourceStack> context,
                                        ResourceLocation filter, float strength) {
-        return report(context.getSource(), FilterServerApi.broadcastSelection(
-                new FilterSelectionRequest(filter, strength)));
+        return report(context.getSource(), FilterServerApi.submit(new ServerFilterRequest.Select(new ServerFilterTarget.Broadcast(),
+                new FilterSelectionRequest(filter, strength))));
     }
 
     private static int selectPlayer(CommandContext<CommandSourceStack> context,
                                     ServerPlayer player, ResourceLocation filter, float strength) {
-        return report(context.getSource(), FilterServerApi.sendSelection(player,
-                new FilterSelectionRequest(filter, strength)));
+        return report(context.getSource(), FilterServerApi.submit(new ServerFilterRequest.Select(new ServerFilterTarget.Player(player.getUUID()), new FilterSelectionRequest(filter, strength))));
     }
 
     private static int overrideBroadcast(CommandContext<CommandSourceStack> context,
                                          ResourceLocation filter, int priority, float strength) {
-        return report(context.getSource(), FilterServerApi.broadcastOverride(
-                new FilterOverrideRequest(TEST_OWNER, filter, strength, priority)));
+        return report(context.getSource(), FilterServerApi.submit(new ServerFilterRequest.Override(new ServerFilterTarget.Broadcast(),
+                new FilterOverrideRequest(TEST_OWNER, filter, strength, priority))));
     }
 
     private static int overridePlayer(CommandContext<CommandSourceStack> context,
                                       ServerPlayer player, ResourceLocation filter,
                                       int priority, float strength) {
-        return report(context.getSource(), FilterServerApi.sendOverride(player,
-                new FilterOverrideRequest(TEST_OWNER, filter, strength, priority)));
+        return report(context.getSource(), FilterServerApi.submit(new ServerFilterRequest.Override(new ServerFilterTarget.Player(player.getUUID()), new FilterOverrideRequest(TEST_OWNER, filter, strength, priority))));
     }
 
     private static int status(CommandSourceStack source) {
-        ServerStatus server = FilterServerApi.status();
-        ServerFilterStatus filters = FilterServerApi.filterStatus();
+        ServerStatus server = FilterServerApi.query(new ServerFilterQuery.Status());
+        ServerFilterStatus filters = FilterServerApi.query(new ServerFilterQuery.FilterStatus());
         message(source, "command.prismod.server_test.status.server", server.initialized(),
                 server.protocolVersion(), server.networkChannel());
         Object globalSelection = filters.globalSelection() == null
@@ -177,18 +179,31 @@ public final class PrismodServerApiCommands {
 
     private static int reset(CommandSourceStack source) {
         message(source, "command.prismod.server_test.reset.begin");
-        int selection = report(source, FilterServerApi.clearSelection());
-        int overrides = report(source, FilterServerApi.clearAllOverrides());
-        message(source, "command.prismod.server_test.reset.done", selection == 1 && overrides == 1);
-        return selection == 1 && overrides == 1 ? 1 : 0;
+        var selection = FilterServerApi.submit(new ServerFilterRequest.ClearSelection());
+        var overrides = FilterServerApi.submit(new ServerFilterRequest.ClearAllOverrides());
+        selection.thenCombine(overrides, (first, second) -> {
+            source.getServer().execute(() -> {
+                reportFinal(source, first);
+                reportFinal(source, second);
+                message(source, "command.prismod.server_test.reset.done", first.accepted() && second.accepted());
+            });
+            return null;
+        });
+        return 1;
     }
 
-    private static int report(CommandSourceStack source, OperationResult result) {
+    private static int report(CommandSourceStack source, CompletionStage<OperationResult> result) {
+        result.thenAccept(receipt -> source.getServer().execute(() -> reportFinal(source, receipt)));
+        return 1;
+    }
+
+    private static int reportFinal(CommandSourceStack source, OperationResult result) {
         Component message = Component.translatable(result.accepted()
                         ? "command.prismod.server_test.operation.success"
                         : "command.prismod.server_test.operation.failure",
                 result.status(), result.code(), result.requestId(), result.target(),
-                result.affectedCount(), result.generation(), result.parameters());
+                result.affectedCount(), result.generation(), result.policyIds(),
+                result.failureReason(), result.failureDetail());
         if (result.accepted()) {
             source.sendSuccess(() -> message, false);
         } else {

@@ -12,10 +12,10 @@ import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-/** 冻结协议的客户端适配器；网络请求 ID 与 API 资源 ID 分别管理。 */
+/** 协议 2 客户端适配器；请求 ID、策略 ID 与客户端资源 ID 分别管理。 */
 public final class PrismodClientNetwork {
     private static final PrismodClientNetwork INSTANCE = new PrismodClientNetwork(FilterClientApi::submit);
-    private final Map<UUID, CompletionStage<FilterReceipt>> overrides = new HashMap<>();
+    private final Map<UUID, OverrideCreation> overrides = new HashMap<>();
     private final Function<FilterRequest, CompletionStage<FilterReceipt>> submit;
 
     /** 包内注入业务入口，测试无需加载 Minecraft 客户端运行环境。 */
@@ -34,27 +34,34 @@ public final class PrismodClientNetwork {
                         new FilterRequest.Select(message.filter(), message.strength()));
             }
             case OVERRIDE -> {
-                if (overrides.containsKey(message.requestId())) return;
-                if (message.filter() != null) overrides.put(message.requestId(), submit.apply(
+                OverrideCreation previous = overrides.get(message.policyId());
+                if (previous != null && previous.requestId().equals(message.requestId())) return;
+                if (message.filter() != null) {
+                    if (previous != null) release(previous.creation());
+                    overrides.put(message.policyId(), new OverrideCreation(message.requestId(), submit.apply(
                         new FilterRequest.Override(message.owner(), message.filter(),
-                                message.strength(), message.priority())));
+                                message.strength(), message.priority()))));
+                }
             }
-            case CLEAR_OVERRIDE -> release(overrides.remove(message.requestId()));
+            case CLEAR_OVERRIDE -> {
+                OverrideCreation previous = overrides.remove(message.policyId());
+                if (previous != null) release(previous.creation());
+            }
             case CLEAR_SELECTION -> submit.apply(new FilterRequest.ClearSelection());
             case CLEAR_ALL_OVERRIDES -> clearOverrides();
         }
     }
 
     private void release(CompletionStage<FilterReceipt> creation) {
-        // 捕获本次创建结果，不再按网络请求 ID 查找，避免误清理后来复用该 ID 的覆盖。
+        // 捕获本次创建结果，不回查映射；旧连接延迟结果只能释放自身资源。
         if (creation != null) creation.thenAccept(receipt -> receipt.resourceIds().forEach(id ->
                 submit.apply(new FilterRequest.Release(id))));
     }
 
     private void clearOverrides() {
-        List<CompletionStage<FilterReceipt>> creations = List.copyOf(overrides.values());
+        List<OverrideCreation> creations = List.copyOf(overrides.values());
         overrides.clear();
-        creations.forEach(this::release);
+        creations.forEach(creation -> release(creation.creation()));
     }
 
     public static void resetSession() {
@@ -64,5 +71,8 @@ public final class PrismodClientNetwork {
     synchronized void reset() {
         clearOverrides();
         submit.apply(new FilterRequest.ClearSelection());
+    }
+
+    private record OverrideCreation(UUID requestId, CompletionStage<FilterReceipt> creation) {
     }
 }

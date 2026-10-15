@@ -176,7 +176,9 @@ FilterClientApi.submit(new FilterRequest.ClearForced());
 
 ## 服务端 API 与命令
 
-服务端框架会在通用入口初始化，不会加载客户端渲染类。可用命令为 `/prismod help` 和 `/prismod status`；服务端 API 示例与网络兼容策略见 [`docs/服务端_API_与命令.md`](docs/服务端_API_与命令.md)。统一 API 使用指南见 [`docs/API_使用指南.md`](docs/API_使用指南.md)。
+服务端框架会在通用入口初始化，不会加载客户端渲染类。`FilterServerApi` 同样只保留 `submit(ServerFilterRequest)` 和 `query(ServerFilterQuery<R>)`，分别返回异步最终回执和不可变服务端状态；旧业务方法已移除。
+
+网络频道仍为 `prismod:policy`，协议升级为 `2`，不兼容协议 `1`。请求 ID 与持续策略 ID 分离，同范围同 owner 再次覆盖会更新客户端参数。服务端回执只表示接受并保存策略，不证明客户端已收到或完成渲染。可用命令包括 `/prismod help`、`/prismod status` 和 `/prismod filter ...`，原语法及 OP 权限保持不变。示例与协议说明见 [服务端 API 与命令](docs/服务端_API_与命令.md)，两端总览见 [API 使用指南](docs/API_使用指南.md)。
 
 ## 🛠️ 开发与构建
 

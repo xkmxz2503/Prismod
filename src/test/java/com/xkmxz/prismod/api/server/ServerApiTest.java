@@ -2,6 +2,7 @@ package com.xkmxz.prismod.api.server;
 
 import com.xkmxz.prismod.network.contract.PolicyTransport;
 import com.xkmxz.prismod.api.server.query.view.ServerStatus;
+import com.xkmxz.prismod.api.server.query.request.ServerFilterQuery;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
@@ -12,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class FilterServerApiTest {
     @Test
     void exposesStableServerFrameworkStatus() {
-        ServerStatus status = FilterServerApi.status();
+        ServerStatus status = FilterServerApi.query(new ServerFilterQuery.Status());
 
         assertNotNull(status);
         assertFalse(status.initialized());

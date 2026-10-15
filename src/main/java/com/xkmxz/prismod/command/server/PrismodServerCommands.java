@@ -2,6 +2,10 @@ package com.xkmxz.prismod.command.server;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.xkmxz.prismod.api.server.FilterServerApi;
+import com.xkmxz.prismod.api.server.submit.model.ServerFilterTarget;
+import com.xkmxz.prismod.api.server.submit.request.ServerFilterRequest;
+import com.xkmxz.prismod.api.server.query.request.ServerFilterQuery;
+import java.util.concurrent.CompletionStage;
 import com.xkmxz.prismod.api.server.query.view.ServerStatus;
 import com.xkmxz.prismod.api.server.query.view.ServerFilterStatus;
 import com.xkmxz.prismod.api.server.submit.result.OperationResult;
@@ -90,7 +94,7 @@ public final class PrismodServerCommands {
 
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> clearCommands() {
         return literal("clear")
-                .then(literal("selection").executes(context -> report(context.getSource(), FilterServerApi.clearSelection())))
+                .then(literal("selection").executes(context -> report(context.getSource(), FilterServerApi.submit(new ServerFilterRequest.ClearSelection()))))
                 .then(literal("all").executes(context -> clearAll(context.getSource())))
                 .then(literal("broadcast").then(Commands.argument("owner", StringArgumentType.word())
                         .executes(context -> clearBroadcast(context.getSource(), StringArgumentType.getString(context, "owner")))))
@@ -100,34 +104,39 @@ public final class PrismodServerCommands {
     }
 
     private static int selectBroadcast(CommandSourceStack source, ResourceLocation id, float strength) {
-        return report(source, FilterServerApi.broadcastSelection(new FilterSelectionRequest(id, strength)));
+        return report(source, FilterServerApi.submit(new ServerFilterRequest.Select(new ServerFilterTarget.Broadcast(), new FilterSelectionRequest(id, strength))));
     }
 
     private static int selectPlayer(CommandSourceStack source, net.minecraft.server.level.ServerPlayer player, ResourceLocation id, float strength) {
-        return report(source, FilterServerApi.sendSelection(player, new FilterSelectionRequest(id, strength)));
+        return report(source, FilterServerApi.submit(new ServerFilterRequest.Select(new ServerFilterTarget.Player(player.getUUID()), new FilterSelectionRequest(id, strength))));
     }
 
     private static int overrideBroadcast(CommandSourceStack source, String owner, ResourceLocation id, int priority, float strength) {
-        return report(source, FilterServerApi.broadcastOverride(new FilterOverrideRequest(owner, id, strength, priority)));
+        return report(source, FilterServerApi.submit(new ServerFilterRequest.Override(new ServerFilterTarget.Broadcast(), new FilterOverrideRequest(owner, id, strength, priority))));
     }
 
     private static int overridePlayer(CommandSourceStack source, net.minecraft.server.level.ServerPlayer player, String owner, ResourceLocation id, int priority, float strength) {
-        return report(source, FilterServerApi.sendOverride(player, new FilterOverrideRequest(owner, id, strength, priority)));
+        return report(source, FilterServerApi.submit(new ServerFilterRequest.Override(new ServerFilterTarget.Player(player.getUUID()), new FilterOverrideRequest(owner, id, strength, priority))));
     }
 
     private static int clearBroadcast(CommandSourceStack source, String owner) {
-        return report(source, FilterServerApi.clearBroadcastOverride(owner));
+        return report(source, FilterServerApi.submit(new ServerFilterRequest.ClearOverride(new ServerFilterTarget.Broadcast(), owner)));
     }
 
     private static int clearPlayer(CommandSourceStack source, net.minecraft.server.level.ServerPlayer player, String owner) {
-        return report(source, FilterServerApi.clearPlayerOverride(player, owner));
+        return report(source, FilterServerApi.submit(new ServerFilterRequest.ClearOverride(new ServerFilterTarget.Player(player.getUUID()), owner)));
     }
 
     private static int clearAll(CommandSourceStack source) {
-        return report(source, FilterServerApi.clearAllOverrides());
+        return report(source, FilterServerApi.submit(new ServerFilterRequest.ClearAllOverrides()));
     }
 
-    private static int report(CommandSourceStack source, OperationResult result) {
+    private static int report(CommandSourceStack source, CompletionStage<OperationResult> result) {
+        result.thenAccept(receipt -> source.getServer().execute(() -> reportFinal(source, receipt)));
+        return 1;
+    }
+
+    private static int reportFinal(CommandSourceStack source, OperationResult result) {
         Component message = Component.translatable(result.accepted()
                         ? "command.prismod.operation.success"
                         : "command.prismod.operation.failure",
@@ -143,8 +152,8 @@ public final class PrismodServerCommands {
     }
 
     private static int sendStatus(CommandSourceStack source) {
-        ServerStatus status = FilterServerApi.status();
-        ServerFilterStatus filters = FilterServerApi.filterStatus();
+        ServerStatus status = FilterServerApi.query(new ServerFilterQuery.Status());
+        ServerFilterStatus filters = FilterServerApi.query(new ServerFilterQuery.FilterStatus());
         source.sendSuccess(() -> Component.translatable(
                 "command.prismod.status",
                 status.initialized(),

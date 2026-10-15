@@ -6,7 +6,7 @@
 
 项目已实现并能构建：
 
-- 服务端框架：通用入口初始化 `com.xkmxz.prismod.server`，提供 `/prismod help`、`/prismod status` 及 `/prismod filter ...` 管理命令；策略通过冻结的 `prismod:policy` / `1` 网络通道下发。
+- 服务端框架：通用入口初始化 `com.xkmxz.prismod.server`，提供 `/prismod help`、`/prismod status` 及 `/prismod filter ...` 管理命令；策略通过 `prismod:policy` / `2` 网络通道下发，不兼容协议 `1`。
 
 - 内置滤镜：原色、黑白、暖色、冷色、复古、夜视。
 - F8 按配置顺序循环；自定义滤镜使用 `namespace:path` 的 `FilterKey` 参与循环。
@@ -70,7 +70,31 @@ strength_night_vision = 1.0
 
 `api/common` 同样只按 `submit/` 和 `query/` 分组：`submit/result` 保存共享反馈代码，`submit/state/operation` 保存操作结果状态；`query/view` 保存共享快照与滤镜描述，`query/state/filter`、`query/state/lifecycle` 保存滤镜及资源生命周期枚举。状态类型按所描述的对象归类，输入回执也可引用查询侧诊断枚举，不另建重复类型。
 
-`api/server` 根目录保留 `FilterServerApi.java`；`submit/request` 保存 FilterSelectionRequest 和 FilterOverrideRequest，`submit/result` 保存 OperationResult；`query/view` 保存 ServerStatus 和 ServerFilterStatus。例如服务端选择请求导入 `com.xkmxz.prismod.api.server.submit.request.FilterSelectionRequest`，仍使用 `FilterServerApi.broadcastSelection(new FilterSelectionRequest(id, 1.0F))`。这次仅整理类型位置，服务端业务方法和协议行为保持不变；common 不反向引用 server。
+`api/server` 根目录保留 `FilterServerApi.java`，业务方法仅有 submit/query，旧方法已删除；`submit/model` 保存 ServerFilterTarget（广播或玩家 UUID），`submit/request` 保存 ServerFilterRequest 及选择、覆盖参数，`submit/result` 保存 OperationResult；`query/request` 保存 ServerFilterQuery，`query/view` 保存 ServerStatus 和 ServerFilterStatus。common 不反向引用 server。
+
+```java
+import com.xkmxz.prismod.api.server.FilterServerApi;
+import com.xkmxz.prismod.api.server.submit.model.ServerFilterTarget;
+import com.xkmxz.prismod.api.server.submit.request.ServerFilterRequest;
+import com.xkmxz.prismod.api.server.submit.request.FilterOverrideRequest;
+import com.xkmxz.prismod.api.server.query.request.ServerFilterQuery;
+import net.minecraft.resources.ResourceLocation;
+
+var target = new ServerFilterTarget.Broadcast();
+FilterServerApi.submit(new ServerFilterRequest.Override(target,
+        new FilterOverrideRequest("server-rule",
+                ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F, 100)))
+        .thenAccept(receipt -> {
+            // 只表示服务端接受并保存策略，不是客户端回执。
+            var state = FilterServerApi.query(new ServerFilterQuery.FilterStatus());
+        });
+// 业务结束时清理该 owner 的广播覆盖。
+FilterServerApi.submit(new ServerFilterRequest.ClearOverride(target, "server-rule"));
+```
+
+submit 返回 CompletionStage<OperationResult>，服务端线程串行执行、状态发布后交付一次最终回执；不要阻塞等待。query 读取最近发布的线程安全不可变状态。每次请求生成独立 UUID；同范围同 owner 更新复用策略 UUID，新建和更新的回执返回策略 ID，失败和清理为空。重复清理成功且影响数量为零；服务器不可用返回 UNAVAILABLE，指定玩家离线返回 NOT_FOUND 且不保存策略。OperationResult 使用固定字段，不含参数 Map、QUEUED 或句柄。
+
+协议 2 分离 requestId 与 policyId；客户端同策略同请求去重，新请求替换旧覆盖。排队旧创建完成后只释放自身资源，断线后旧回执不能改写新连接映射。登录补发复用策略 ID、新生成请求 ID，个人选择优先。服务端成功不证明发送、接收或渲染完成；网络仅下行，不增加客户端确认、重试或乱序恢复。
 
 ```java
 import com.xkmxz.prismod.api.client.FilterClientApi;
@@ -93,7 +117,7 @@ FilterClientApi.submit(new FilterRequest.ClearForced());
 
 选择与覆盖请求使用逻辑滤镜 ID，注册 postEffect 使用实际资源路径。保留现有优先级、强度和回退规则，不修改玩家配置。客户端 Snapshot 与 common Snapshot 通过 toCommonSnapshot()/fromCommonSnapshot(...) 显式转换。
 
-调参输入留待后续独立步骤，FilterDebugSettings 保持 client.filter.debug 内部位置。本次不修改服务端 API、网络协议、shader 或调试预设。完整契约和示例统一维护在 docs/Java_API_调用说明.md。
+调参输入留待后续独立步骤，FilterDebugSettings 保持 client.filter.debug 内部位置。服务端两入口只开放选择、覆盖及清理，不提供远程注册、Session、批量、订阅、调参或客户端状态查询；shader 和调试预设不变。客户端完整契约和示例统一维护在 docs/Java_API_调用说明.md。
 
 ## 架构和模块职责
 
@@ -106,7 +130,7 @@ FilterClientApi.submit(new FilterRequest.ClearForced());
 - `server/PrismodServer.java`：服务端生命周期初始化、事件注册和适配器组装。
 - `server/application/ServerFilterApplication.java`：服务端 API 与命令共用的用例层，持有策略状态并调用 `PolicyTransport`。
 - `command/server/PrismodServerCommands.java`：注册 `/prismod` 命令树并将结果转换为 i18n 组件；命令不加载客户端类。
-- `network/transport/PolicyNetwork.java`：维护冻结的 `prismod:policy`、协议版本 `1` 和固定策略消息。
+- `network/transport/PolicyNetwork.java`：使用 PolicyTransport 中唯一的 `prismod:policy`、协议版本 `2` 常量；消息固定为 operation、requestId、policyId、owner、filter、strength、priority。
 - `api/server/FilterServerApi.java`、`api/server/query/view/ServerStatus.java`、`api/server/query/view/ServerFilterStatus.java`：服务端 API 门面和不可变状态快照。
 - 专用服务器路径不得加载 `net.minecraft.client`、`api.client` 或 `client` 包；缺少 Prismod 的对端仍允许连接，双方安装时才校验网络协议版本。
 

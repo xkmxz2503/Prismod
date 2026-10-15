@@ -1,6 +1,6 @@
 # Prismod API 使用指南
 
-本文档是 Prismod 客户端 API、服务端 API、命令、测试入口、实现架构和网络协议的统一说明。内容对应 Minecraft 1.20.1、Forge 47.3.32、Java 17 和当前 Prismod v1 实现。
+本文档是 Prismod 客户端 API、服务端 API、命令、测试入口、实现架构和网络协议的统一说明。内容对应 Minecraft 1.20.1、Forge 47.3.32、Java 17，以及当前两入口 API 和网络协议 2；资源包格式仍为 v1。
 
 ## 1. 使用边界
 
@@ -60,13 +60,15 @@ ResourceLocation postEffect = ResourceLocation.fromNamespaceAndPath(
 
 Session 清空后可复用，关闭后不能新增，只管理自身注册和覆盖。批量保留输入顺序，允许部分成功。曝光、饱和度等调参输入留待下一步，内部调试模型保持原位。
 
-外部模组不得调用应用层、状态管理器、注册表或渲染器。此调整不改变服务端 API 或网络协议。
+外部模组不得调用应用层、状态管理器、注册表或渲染器。服务端入口和协议边界见下一节。
 
 ## 3. 服务端 Java API
 
 服务端公开入口是 `com.xkmxz.prismod.api.server.FilterServerApi`。服务端 API、服务端管理命令和服务端测试命令共享同一个 `ServerFilterApplication` 用例层。
 
-服务端目录只保留入口文件和 `submit`、`query` 两个职责目录：选择与覆盖请求位于 `submit.request`，OperationResult 位于 `submit.result`，ServerStatus 与 ServerFilterStatus 位于 `query.view`。服务端仍沿用现有业务方法，本次仅调整类型的包位置。
+服务端同样只保留 `submit(ServerFilterRequest)` 和 `query(ServerFilterQuery<R>)` 两个业务入口；频道与协议常量继续保留。旧业务方法已删除，不保留兼容别名。
+
+服务端目录只保留入口文件和 `submit`、`query` 两个职责目录：目标类型位于 `submit.model`，选择、覆盖和组合请求位于 `submit.request`，OperationResult 位于 `submit.result`；查询请求位于 `query.request`，ServerStatus 与 ServerFilterStatus 位于 `query.view`。
 
 ### 3.1 请求模型
 
@@ -94,12 +96,12 @@ FilterOverrideRequest override = new FilterOverrideRequest(
 ### 3.2 查询状态
 
 ```java
-var server = FilterServerApi.status();
+var server = FilterServerApi.query(new ServerFilterQuery.Status());
 server.initialized();
 server.networkChannel();
 server.protocolVersion();
 
-var policy = FilterServerApi.filterStatus();
+var policy = FilterServerApi.query(new ServerFilterQuery.FilterStatus());
 policy.globalSelection();
 policy.globalStrength();
 policy.globalOverrideCount();
@@ -108,74 +110,82 @@ policy.playerOverrideCount();
 policy.generation();
 ```
 
-当前网络状态固定为 `prismod:policy` / `1`。`ServerFilterStatus` 是当前服务端保存的策略摘要，不是客户端渲染快照。
+`ServerFilterQuery` 位于 `api.server.query.request`。查询读取最近发布的线程安全不可变状态，不修改业务状态。当前网络状态为 `prismod:policy` / `2`。`ServerFilterStatus` 是服务端保存的策略摘要，不是客户端渲染快照。
 
 ### 3.3 选择和覆盖操作
 
 广播选择到所有客户端：
 
 ```java
-var result = FilterServerApi.broadcastSelection(
-        new FilterSelectionRequest(filter, 1.0F));
+var result = FilterServerApi.submit(new ServerFilterRequest.Select(
+        new ServerFilterTarget.Broadcast(), new FilterSelectionRequest(filter, 1.0F)));
 ```
 
 发送给单个玩家：
 
 ```java
-var result = FilterServerApi.sendSelection(
-        player, new FilterSelectionRequest(filter, 0.75F));
+var result = FilterServerApi.submit(new ServerFilterRequest.Select(
+        new ServerFilterTarget.Player(playerId), new FilterSelectionRequest(filter, 0.75F)));
 ```
 
 广播覆盖：
 
 ```java
-var result = FilterServerApi.broadcastOverride(
-        new FilterOverrideRequest("server-rule", filter, 1.0F, 100));
+var result = FilterServerApi.submit(new ServerFilterRequest.Override(
+        new ServerFilterTarget.Broadcast(),
+        new FilterOverrideRequest("server-rule", filter, 1.0F, 100)));
 ```
 
 指定玩家覆盖：
 
 ```java
-var result = FilterServerApi.sendOverride(
-        player, new FilterOverrideRequest("server-rule", filter, 1.0F, 100));
+var result = FilterServerApi.submit(new ServerFilterRequest.Override(
+        new ServerFilterTarget.Player(playerId),
+        new FilterOverrideRequest("server-rule", filter, 1.0F, 100)));
 ```
 
 清理策略：
 
 ```java
-FilterServerApi.clearBroadcastOverride("server-rule");
-FilterServerApi.clearPlayerOverride(player, "server-rule");
-FilterServerApi.clearAllOverrides();
-FilterServerApi.clearSelection();
+FilterServerApi.submit(new ServerFilterRequest.ClearOverride(
+        new ServerFilterTarget.Broadcast(), "server-rule"));
+FilterServerApi.submit(new ServerFilterRequest.ClearOverride(
+        new ServerFilterTarget.Player(playerId), "server-rule"));
+FilterServerApi.submit(new ServerFilterRequest.ClearAllOverrides());
+FilterServerApi.submit(new ServerFilterRequest.ClearSelection());
 ```
 
 行为规则：
 
 - 广播选择更新全局选择，并重新发送已有的个人选择；
 - 玩家选择只写入指定玩家的选择；
-- 同一个 owner 的广播或玩家覆盖会更新该 owner 的服务端请求记录；
-- `clearSelection()` 清理全局选择和所有个人选择；
-- `clearAllOverrides()` 清理广播覆盖和玩家覆盖；
-- 没有可清理对象时返回 `NOT_FOUND`；
+- 同一目标范围、同 owner 的覆盖更新复用策略 UUID，每次请求生成新的请求 UUID；
+- `ClearSelection` 清理全局选择和所有个人选择；
+- `ClearAllOverrides` 清理广播覆盖和玩家覆盖；
+- 重复清理成功，影响数量为零；
+- 服务端不可用返回 `UNAVAILABLE`；指定玩家不在线返回 `NOT_FOUND`，不保存此次策略；
 - 服务端停止时清空全部状态并将 generation 重置为 `0`；
 - API 调用不提供网络回执，返回值表示服务端用例是否接受并保存了操作；当前网络发送异常由传输实现隔离，`SUCCESS` 不证明网络发送、客户端接收或客户端渲染成功。
 
 ### 3.4 OperationResult
 
-所有写操作返回不可变的 `OperationResult`：
+`ServerFilterRequest` 位于 `api.server.submit.request`，`ServerFilterTarget` 位于 `api.server.submit.model`。目标只保存广播标记或玩家 UUID，不保存 ServerPlayer。服务端暂不开放远程注册、Session、批量、订阅、调参或客户端状态查询。
+
+所有写操作返回 `CompletionStage<OperationResult>`，服务端线程串行执行并在状态发布后交付一次不可变最终结果。不要在服务端线程阻塞等待。`thenAccept(result -> ...)` 中可依据最终回执反馈；查询仍需重新调用 query。
 
 | 字段 | 含义 |
 | --- | --- |
 | `status` | `SUCCESS`、`INVALID_ARGUMENT`、`NOT_FOUND`、`FAILED` 等操作状态 |
 | `code` | 稳定的 `FeedbackCode`，不包含自然语言 |
-| `requestId` | 网络策略消息使用的请求 ID；失败结果使用零 UUID |
+| `requestId` | 每次调用独立生成的 UUID，失败请求也不例外 |
 | `target` | `broadcast`、玩家 UUID 或 `all` 等目标 |
 | `affectedCount` | 受影响的策略数量 |
-| `parameters` | 结构化参数，当前实现可能为空 |
+| `failureReason` / `failureDetail` | 失败原因与诊断详情；业务判断使用稳定代码 |
+| `policyIds` | 新建或更新的策略 UUID；失败和清理时为空，不可变列表 |
 | `generation` | 服务端策略状态代数 |
 | `accepted()` | 是否为 `SUCCESS` 的便捷判断 |
 
-调用方应依据 `status` 和 `code` 编写逻辑，不解析命令文本或自然语言。
+结果禁止 `QUEUED`，不携带任意参数 Map、操作句柄或后续查询能力。调用方应依据 `status` 和 `code` 编写逻辑，不解析命令文本或诊断详情。
 
 ## 4. 服务端管理命令
 
@@ -199,7 +209,7 @@ FilterServerApi.clearSelection();
 
 命令适配器只负责解析参数、创建公共请求模型、调用 `FilterServerApi` 和把 `OperationResult` 转换为 `Component.translatable(...)`。服务端命令不直接访问 `ServerFilterApplication` 的策略表，也不直接使用 `SimpleChannel`。
 
-服务端命令反馈使用翻译键。成功和失败消息展示反馈代码、目标和影响数量；更完整的 request ID、generation 和参数可通过服务端 API 或 API 测试命令查看。
+服务端命令反馈使用翻译键，异步交付最终结果。成功和失败消息展示反馈代码、目标和影响数量；请求 ID、策略 ID、失败详情和 generation 可通过服务端 API 或 API 测试命令查看。
 
 ## 5. 客户端 API 测试命令
 
@@ -262,7 +272,7 @@ prismod-server-api-test
 
 测试命令需要 OP 权限等级 2。`select` 调用服务端选择 API，`override` 调用服务端覆盖 API；`clear owner` 清理固定测试 owner 的广播覆盖，`clear all` 清理所有广播和玩家覆盖。
 
-`status` 显示服务端初始化状态、协议、通道、全局选择、强度、覆盖数量、玩家选择数量、玩家覆盖数量和 generation。每个写操作显示 `OperationResult` 的状态、反馈代码、request ID、目标、影响数量、generation 和参数。`reset` 依次调用 `clearSelection()` 与 `clearAllOverrides()`，适合测试前后清理状态。
+`status` 显示服务端初始化状态、协议、通道、全局选择、强度、覆盖数量、玩家选择数量、玩家覆盖数量和 generation。每个写操作异步显示最终回执的状态、反馈代码、请求 ID、目标、影响数量、策略 ID、失败详情和 generation。`reset` 按顺序提交 ClearSelection 与 ClearAllOverrides，适合测试前后清理状态。
 
 ### 推荐测试流程
 
@@ -336,12 +346,14 @@ flowchart LR
 | 项目 | 固定值 |
 | --- | --- |
 | 通道 | `prismod:policy` |
-| 协议版本 | `1` |
+| 协议版本 | `2`，拒绝 `1`，不保留兼容分支 |
 | 业务端口 | `PolicyTransport` |
 | Forge 实现 | `PolicyNetwork` |
 | 业务消息 | 不可变 `PolicyMessage` |
 
 `SimpleChannel`、`PacketDistributor`、`FriendlyByteBuf` 编解码和 Forge `NetworkEvent` 只存在于网络实现内部。服务端应用层不直接依赖这些实现类型。
+
+频道和协议常量统一来源于 `PolicyTransport`；公开服务端常量和 Forge 通道都读取同一来源。
 
 ### 8.2 PolicyMessage
 
@@ -350,7 +362,8 @@ flowchart LR
 | 字段 | 含义 |
 | --- | --- |
 | `operation` | 策略操作枚举 |
-| `requestId` | 策略请求和幂等标识 |
+| `requestId` | 本次操作 UUID；更新和登录补发时重新生成 |
+| `policyId` | 持续策略 UUID；同范围同 owner 更新时保持不变，两个批量清理操作不携带 |
 | `owner` | 覆盖所属 owner；选择和清理选择时为空 |
 | `filter` | 逻辑滤镜 ID；清理操作时可以为空 |
 | `strength` | 滤镜强度 |
@@ -374,20 +387,21 @@ CLEAR_ALL_OVERRIDES
 
 - 广播选择和广播覆盖发送给所有客户端；
 - 玩家选择和玩家覆盖发送给指定玩家；
-- 登录时补发当前全局选择、全局覆盖、个人选择和个人覆盖；
-- 网络首版不提供状态查询、通用 RPC 或操作回执。
+- 登录时先补发全局选择和个人选择，再合并全局及个人覆盖按原提交顺序补发，保持同优先级较新者胜出；保留策略 ID 并生成新的请求 ID；
+- 广播选择后重发个人选择，维持个人选择优先；
+- 网络只负责下行，不提供状态查询、通用 RPC 或客户端操作回执。
 
 客户端 `PrismodClientNetwork` 的接收规则：
 
 - `SELECT` 提交 `FilterRequest.Select`；
 - `OVERRIDE` 提交 `FilterRequest.Override`；
 - `CLEAR_SELECTION` 提交 `FilterRequest.ClearSelection`；
-- `CLEAR_OVERRIDE` 按 request ID 查找客户端资源 UUID 并提交 Release；
+- `CLEAR_OVERRIDE` 按策略 ID 查找客户端资源 UUID 并提交 Release；
 - `CLEAR_ALL_OVERRIDES` 释放并清空全部网络覆盖资源；
-- 重复的覆盖 request ID 被忽略，以保证幂等；
-- 客户端退出世界时清理网络策略会话。
+- 同一策略的相同请求被忽略；同一策略的新请求释放旧覆盖并创建新覆盖；
+- 客户端退出世界时清理网络策略会话；只释放网络创建的资源，不影响其他模组的本地覆盖。
 
-同一个 owner 的服务端覆盖会更新服务端记录。若需要在客户端明确观察覆盖替换，建议先执行对应清理命令，再创建新覆盖，以便产生新的客户端策略生命周期。
+客户端内部按“策略 ID → 最近请求与创建结果”跟踪覆盖。旧创建请求尚未完成时遇到更新或清理，回执到达后只释放该旧请求创建的 UUID，不触碰新覆盖。断线重置映射，旧连接的延迟回执不得修改新连接映射。本步不增加网络重试或乱序恢复协议。
 
 ## 9. 常见问题
 
@@ -413,7 +427,7 @@ CLEAR_ALL_OVERRIDES
 
 ### 网络版本不匹配
 
-服务端和客户端必须使用 `prismod:policy` / `1`。网络层不保留旧通道、旧协议或兼容协商入口。
+双方安装 Prismod 时必须使用 `prismod:policy` / `2`，协议 `1` 被拒绝。未安装 Prismod 的对端仍按现有可选通道规则连接。
 
 ## 10. 相关文档
 

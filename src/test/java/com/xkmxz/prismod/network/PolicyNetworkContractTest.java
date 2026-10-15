@@ -18,8 +18,8 @@ class PolicyNetworkContractTest {
     @Test
     void exposesOnlyTheNewStrictProtocol() {
         assertEquals("prismod:policy", PolicyNetwork.CHANNEL_ID.toString());
-        assertEquals("1", PolicyNetwork.PROTOCOL_VERSION);
-        assertFalse(PolicyNetwork.PROTOCOL_VERSION.equals("2"));
+        assertEquals("2", PolicyNetwork.PROTOCOL_VERSION);
+        assertFalse(PolicyNetwork.PROTOCOL_VERSION.equals("1"));
     }
 
     @Test
@@ -35,7 +35,7 @@ class PolicyNetworkContractTest {
     void uninitializedNetworkSkipsSendingWithoutThrowing() {
         assertFalse(PolicyNetwork.get().isInitialized());
         PolicyMessage message = PolicyMessage.selection(
-                UUID.randomUUID(), ResourceLocation.fromNamespaceAndPath("prismod", "original"), 1.0F);
+                UUID.randomUUID(), UUID.randomUUID(), ResourceLocation.fromNamespaceAndPath("prismod", "original"), 1.0F);
 
         assertDoesNotThrow(() -> PolicyNetwork.get().broadcast(message));
         assertDoesNotThrow(() -> PolicyNetwork.get().send(null, message));

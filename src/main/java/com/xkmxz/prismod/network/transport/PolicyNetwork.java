@@ -6,11 +6,13 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 import java.util.function.Consumer;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /** Forge implementation of the frozen policy transport contract. */
@@ -34,7 +36,7 @@ public final class PolicyNetwork implements PolicyTransport {
         channel = NetworkRegistry.newSimpleChannel(CHANNEL_ID, () -> PROTOCOL_VERSION,
                 PROTOCOL_VERSION::equals, PROTOCOL_VERSION::equals);
         channel.registerMessage(0, PolicyPacket.class, PolicyPacket::encode, PolicyPacket::decode,
-                (packet, contextSupplier) -> handle(packet, contextSupplier));
+                (packet, contextSupplier) -> handle(packet, contextSupplier), Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
     public boolean isInitialized() {

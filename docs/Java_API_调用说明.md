@@ -130,7 +130,7 @@ FilterClientApi.submit(new FilterRequest.Override("example-mod", filter, 0.75F, 
 
 ## 6. 服务端与后续调参边界
 
-本次不修改 `FilterServerApi`、服务端请求或返回值。服务端 API 与冻结协议见 [API 使用指南](API_使用指南.md) 和 [服务端 API 与命令](服务端_API_与命令.md)。服务端 `OperationResult` 表示接受并保存策略，不是客户端渲染回执。
+服务端 `FilterServerApi` 也只保留 submit/query，使用独立的 ServerFilterRequest 与 ServerFilterQuery；客户端公开契约不变。服务端通过 `prismod:policy` 协议 `2` 下发，协议 `1` 不兼容。requestId 标识本次请求，policyId 标识持续策略，同策略新请求替换旧网络覆盖。服务端 OperationResult 只表示接受并保存策略，不是客户端渲染回执。完整边界见 [API 使用指南](API_使用指南.md) 和 [服务端 API 与命令](服务端_API_与命令.md)。
 
 调参是后续独立步骤；当前请求尚不接收曝光、饱和度等参数。`client.filter.debug.FilterDebugSettings` 保持内部位置，不作为公开模型，也不要直接启动调试预览代替 API 调用。
 
