@@ -207,6 +207,10 @@ eventSubscription.close();
 
 读取 API 返回最近一次发布的不可变快照。渲染优先级为：渲染不可用时的临时原色、有效强制状态、玩家总开关与普通选择。隐藏或不可用滤镜可能回退为原色，但不会丢失用户选择。
 
+### 2.6 Owner 会话与批量操作
+
+使用 `FilterClientApi.openSession(ownerId)` 可以统一管理一个 owner 创建的注册和覆盖。`registerAll(...)` 与 `createOverrides(...)` 返回逐项结果和 `FilterBatchOperation`；批量尽力执行，部分成功时总体状态为 `PARTIAL`。会话关闭只影响自身资源，不影响强制滤镜或会话选择。
+
 ## 3. 服务端 Java API
 
 服务端公开入口是 `com.xkmxz.prismod.api.server.FilterServerApi`。服务端 API、服务端管理命令和服务端测试命令共享同一个 `ServerFilterApplication` 用例层。

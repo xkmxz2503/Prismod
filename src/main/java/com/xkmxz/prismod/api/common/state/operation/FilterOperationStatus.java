@@ -8,5 +8,6 @@ public enum FilterOperationStatus {
     NOT_FOUND,
     UNAVAILABLE,
     CLOSED,
+    PARTIAL,
     FAILED
 }

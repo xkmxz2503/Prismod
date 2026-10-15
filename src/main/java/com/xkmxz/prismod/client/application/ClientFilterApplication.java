@@ -11,6 +11,12 @@ import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import com.xkmxz.prismod.client.filter.FilterKey;
 import com.xkmxz.prismod.api.client.event.FilterEventListener;
 import com.xkmxz.prismod.api.client.operation.FilterOperation;
+import com.xkmxz.prismod.api.client.operation.FilterBatchOperation;
+import com.xkmxz.prismod.api.client.FilterClientSession;
+import com.xkmxz.prismod.api.client.contract.FilterBatchItem;
+import com.xkmxz.prismod.api.client.contract.FilterBatchResult;
+import com.xkmxz.prismod.api.client.contract.FilterRegistrationRequest;
+import com.xkmxz.prismod.api.common.request.FilterOverrideRequest;
 import com.xkmxz.prismod.api.common.state.operation.FilterOperationStatus;
 import com.xkmxz.prismod.api.common.result.FeedbackCode;
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
@@ -26,6 +32,148 @@ import java.util.function.IntSupplier;
 /** Client-only API; writes are scheduled on the client thread and reads return immutable snapshots. */
 public final class ClientFilterApplication {
     private ClientFilterApplication() {
+    }
+
+    public static FilterClientSession openSession(String ownerId) {
+        return new Session(requireOwner(ownerId));
+    }
+
+    private static final class Session implements FilterClientSession {
+        private final String ownerId;
+        private final List<FilterRegistration> registrations = new java.util.concurrent.CopyOnWriteArrayList<>();
+        private final List<FilterOverride> overrides = new java.util.concurrent.CopyOnWriteArrayList<>();
+        private volatile boolean closed;
+
+        private Session(String ownerId) { this.ownerId = ownerId; }
+        @Override public String ownerId() { return ownerId; }
+        @Override public boolean closed() { return closed; }
+
+        @Override public FilterBatchResult<FilterRegistration> registerAll(List<FilterRegistrationRequest> requests) {
+            List<FilterRegistrationRequest> safe = requests == null ? List.of() : new java.util.ArrayList<>(requests);
+            List<FilterBatchItem<FilterRegistration>> items = new java.util.ArrayList<>();
+            List<FilterRegistration> handles = new java.util.ArrayList<>();
+            List<FilterOperation> operations = new java.util.ArrayList<>();
+            if (closed) return closedBatch(items, handles, operations);
+            for (int i = 0; i < safe.size(); i++) {
+                FilterRegistrationRequest request = safe.get(i);
+                if (request == null) {
+                    FilterOperation op = FilterOperation.failedOperation(FilterOperationStatus.INVALID_ARGUMENT,
+                            FeedbackCode.INVALID_ARGUMENT, FilterFailureReason.INVALID_ARGUMENT, "request is null");
+                    operations.add(op); items.add(new FilterBatchItem<>(i, null, op)); continue;
+                }
+                ResourceLocation logicalId = request.logicalId() == null
+                        ? FilterKey.fromPostEffect(request.postEffect()).id() : request.logicalId();
+                FilterRegistration registration = registerCustomFilter(logicalId, ownerId,
+                        request.postEffect(), request.metadata());
+                FilterOperation op = registration.operation();
+                operations.add(op); items.add(new FilterBatchItem<>(i, registration, op));
+                handles.add(registration); registrations.add(registration);
+            }
+            return finishBatch(items, handles, operations);
+        }
+
+        @Override public FilterBatchResult<FilterOverride> createOverrides(List<FilterOverrideRequest> requests) {
+            List<FilterOverrideRequest> safe = requests == null ? List.of() : new java.util.ArrayList<>(requests);
+            List<FilterBatchItem<FilterOverride>> items = new java.util.ArrayList<>();
+            List<FilterOverride> handles = new java.util.ArrayList<>();
+            List<FilterOperation> operations = new java.util.ArrayList<>();
+            if (closed) return closedBatch(items, handles, operations);
+            for (int i = 0; i < safe.size(); i++) {
+                FilterOverrideRequest request = safe.get(i);
+                if (request == null) {
+                    FilterOperation op = FilterOperation.failedOperation(FilterOperationStatus.INVALID_ARGUMENT,
+                            FeedbackCode.INVALID_ARGUMENT, FilterFailureReason.INVALID_ARGUMENT, "request is null");
+                    operations.add(op); items.add(new FilterBatchItem<>(i, null, op)); continue;
+                }
+                FilterOverride override = createOverride(ownerId, request.filter(), request.strength(), request.priority());
+                FilterOperation op = override.operation();
+                operations.add(op); items.add(new FilterBatchItem<>(i, override, op));
+                handles.add(override); overrides.add(override);
+            }
+            return finishBatch(items, handles, operations);
+        }
+
+        private <T> FilterBatchResult<T> finishBatch(List<FilterBatchItem<T>> items, List<T> handles,
+                                                     List<FilterOperation> operations) {
+            FilterOperationStatus status = aggregateStatus(operations);
+            int success = (int) operations.stream().filter(o -> o.status() == FilterOperationStatus.SUCCESS).count();
+            int failed = operations.size() - success;
+            int affected = operations.stream().mapToInt(FilterOperation::affectedCount).sum();
+            FilterBatchOperation batch = new FilterBatchOperation(UUID.randomUUID(), operations,
+                    status == FilterOperationStatus.QUEUED ? null : status,
+                    failed == 0 ? FeedbackCode.OK : FeedbackCode.FAILED, affected,
+                    success, failed, failed == 0 ? FilterFailureReason.NONE : FilterFailureReason.UNKNOWN,
+                    failed == 0 ? "" : "one or more batch items failed");
+            if (status == FilterOperationStatus.QUEUED) {
+                Minecraft.getInstance().execute(() -> completeBatch(batch));
+            } else {
+                FilterManager.get().batchOperationCompleted(batch);
+            }
+            return new FilterBatchResult<>(handles, batch, items);
+        }
+
+        private static void completeBatch(FilterBatchOperation batch) {
+            List<FilterOperation> operations = batch.items();
+            int success = (int) operations.stream().filter(o -> o.status() == FilterOperationStatus.SUCCESS).count();
+            int failed = (int) operations.stream().filter(o -> o.completed() && o.status() != FilterOperationStatus.SUCCESS).count();
+            int affected = operations.stream().mapToInt(FilterOperation::affectedCount).sum();
+            FilterOperationStatus status = success == operations.size() ? FilterOperationStatus.SUCCESS
+                    : success == 0 ? FilterOperationStatus.FAILED : FilterOperationStatus.PARTIAL;
+            batch.complete(status, failed == 0 ? FeedbackCode.OK : FeedbackCode.FAILED, affected,
+                    success, failed, failed == 0 ? FilterFailureReason.NONE : FilterFailureReason.UNKNOWN,
+                    failed == 0 ? "" : "one or more batch items failed");
+            FilterManager.get().batchOperationCompleted(batch);
+        }
+
+        private <T> FilterBatchResult<T> closedBatch(List<FilterBatchItem<T>> items, List<T> handles,
+                                                     List<FilterOperation> operations) {
+            FilterBatchOperation batch = new FilterBatchOperation(UUID.randomUUID(), operations,
+                    FilterOperationStatus.CLOSED, FeedbackCode.ALREADY_CLOSED, 0, 0, 0,
+                    FilterFailureReason.INVALID_ARGUMENT, "session is closed");
+            FilterManager.get().batchOperationCompleted(batch);
+            return new FilterBatchResult<>(handles, batch, items);
+        }
+
+        private static FilterOperationStatus aggregateStatus(List<FilterOperation> operations) {
+            if (operations.isEmpty()) return FilterOperationStatus.SUCCESS;
+            if (operations.stream().anyMatch(o -> o.status() == FilterOperationStatus.QUEUED)) {
+                return FilterOperationStatus.QUEUED;
+            }
+            long successes = operations.stream().filter(o -> o.status() == FilterOperationStatus.SUCCESS).count();
+            if (successes == operations.size()) return FilterOperationStatus.SUCCESS;
+            return successes == 0 ? FilterOperationStatus.FAILED : FilterOperationStatus.PARTIAL;
+        }
+
+        @Override public FilterOperation clear() {
+            return executeOperation(() -> {
+                int count = 0;
+                for (FilterRegistration registration : registrations) {
+                    if (registration.state() != com.xkmxz.prismod.api.common.state.lifecycle.FilterRegistrationState.CLOSED) {
+                        registration.close();
+                        count++;
+                    }
+                }
+                for (FilterOverride override : overrides) {
+                    if (override.isActive()) {
+                        override.close();
+                        count++;
+                    }
+                }
+                registrations.clear();
+                overrides.clear();
+                return count;
+            });
+        }
+
+        @Override public void close() {
+            if (!closed) {
+                closed = true;
+                clearRegistrationsOperation(ownerId);
+                for (FilterOverride override : overrides) override.close();
+                registrations.clear();
+                overrides.clear();
+            }
+        }
     }
 
     public static FilterRegistration registerCustomFilter(String ownerId, ResourceLocation postEffect,

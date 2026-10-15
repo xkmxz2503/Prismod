@@ -11,6 +11,7 @@ import com.xkmxz.prismod.api.client.contract.FilterSubscription;
 import com.xkmxz.prismod.api.client.event.FilterEvent;
 import com.xkmxz.prismod.api.client.event.FilterEventListener;
 import com.xkmxz.prismod.api.client.operation.FilterOperation;
+import com.xkmxz.prismod.api.client.operation.FilterBatchOperation;
 import com.xkmxz.prismod.api.common.state.lifecycle.FilterOverrideState;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
@@ -124,6 +125,10 @@ public final class FilterManager {
 
     public void operationCompleted(FilterOperation operation) {
         notifyEvent(FilterEvent.operationCompleted(operation));
+    }
+
+    public void batchOperationCompleted(FilterBatchOperation operation) {
+        notifyEvent(FilterEvent.batchOperationCompleted(operation));
     }
 
     public FilterSnapshot snapshot() {

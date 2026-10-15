@@ -19,6 +19,10 @@ public final class FilterClientApi {
     private FilterClientApi() {
     }
 
+    public static FilterClientSession openSession(String ownerId) {
+        return ClientFilterApplication.openSession(ownerId);
+    }
+
     public static FilterRegistration registerCustomFilter(String ownerId, ResourceLocation postEffect,
                                                            CustomFilterMetadata metadata) {
         return ClientFilterApplication.registerCustomFilter(ownerId, postEffect, metadata);

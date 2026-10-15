@@ -106,4 +106,19 @@ eventSubscription.close();
 
 状态监听器和事件监听器都在 Minecraft 客户端线程同步执行，订阅时不会补发初始状态。监听器异常会被隔离并记录日志。一次写操作产生的快照、注册表或可用性事件先发布，随后发布一次 `OPERATION_COMPLETED`；收到完成事件时可以读取最终快照和句柄状态。
 
+## Owner 会话与批量操作
+
+```java
+var session = FilterClientApi.openSession("example-mod");
+var result = session.registerAll(List.of(
+        new FilterRegistrationRequest(
+                ResourceLocation.fromNamespaceAndPath("example", "debug"),
+                ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"),
+                new CustomFilterMetadata("filter.example.debug", 0.75F))));
+result.items().forEach(item -> System.out.println(item.status()));
+session.close();
+```
+
+会话只管理该 owner 创建的注册和覆盖。批量操作按输入顺序尽力执行，成功项保留，混合结果的总体状态为 `PARTIAL`；关闭会话不会取消排队项目，项目执行后会立即关闭对应句柄。
+
 不要直接操作 `FilterManager`、`FilterRegistry`、`FilterController`、`FilterKey` 或渲染器；这些属于 Prismod 内部适配器。

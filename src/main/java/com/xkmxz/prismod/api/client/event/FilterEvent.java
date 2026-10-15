@@ -2,6 +2,7 @@ package com.xkmxz.prismod.api.client.event;
 
 import com.xkmxz.prismod.api.client.contract.FilterSnapshot;
 import com.xkmxz.prismod.api.client.operation.FilterOperation;
+import com.xkmxz.prismod.api.client.operation.FilterBatchOperation;
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
 
 import java.util.List;
@@ -29,6 +30,11 @@ public record FilterEvent(FilterEventType type, FilterSnapshot snapshot,
 
     public static FilterEvent operationCompleted(FilterOperation operation) {
         return new FilterEvent(FilterEventType.OPERATION_COMPLETED, null, List.of(),
+                Objects.requireNonNull(operation, "operation"));
+    }
+
+    public static FilterEvent batchOperationCompleted(FilterBatchOperation operation) {
+        return new FilterEvent(FilterEventType.BATCH_OPERATION_COMPLETED, null, List.of(),
                 Objects.requireNonNull(operation, "operation"));
     }
 }
