@@ -55,7 +55,7 @@ FilterClientApi.submit(new FilterRequest.ClearForced());</code></pre>
 <section id="boundary">
 <h2>实现放在边界之后</h2>
 <div class="flow"><div class="node">外部模组<br><small>FilterClientApi</small></div><span class="arrow" aria-hidden="true">→</span><div class="node">应用层<br><small>校验、调度、资源管理</small></div><span class="arrow" aria-hidden="true">→</span><div class="node">注册与状态<br><small>渲染器读取最终状态</small></div></div>
-<details><summary>源码位置与依赖边界</summary><p><code>api/client/FilterClientApi.java</code>：公开两个业务入口。<br><code>api/client/request</code>、<code>query</code>、<code>contract</code>：输入、查询及不可变数据。<br><code>client/application</code>、<code>client/filter</code>、<code>client/render</code>：内部实现，不供外部模组调用。</p><p>专用服务器不得加载 api.client 或 net.minecraft.client。滤镜只作用于世界画面和手持物品，不进入 HUD、聊天、菜单或容器。</p></details>
+<details><summary>源码位置与依赖边界</summary><p><code>api/client/FilterClientApi.java</code>：公开两个业务入口。<br><code>api/client/submit/</code>：request 请求、model 输入数据、result 回执、listener 回调、event 通知。<br><code>api/client/query/</code>：request 查询请求、view 只读视图。<br><code>client/application</code>、<code>client/filter</code>、<code>client/render</code>：内部实现，不供外部模组调用。</p><p>监听通过 submit 建立，通知复用 query.view 的不可变快照。专用服务器不得加载 api.client 或 net.minecraft.client。滤镜只作用于世界画面和手持物品，不进入 HUD、聊天、菜单或容器。</p></details>
 <details><summary>服务端：保持现有契约</summary><p>FilterServerApi → ServerFilterApplication → PolicyTransport → PolicyNetwork。通道 prismod:policy，版本 1。</p><p>服务端 OperationResult 表示接受并保存策略，不是客户端渲染回执。本步只迁移客户端接收适配，不改变网络协议。</p><p><a href="API_使用指南.md">查看服务端 API、网络和命令总览</a></p></details>
 </section>
 <footer>客户端规范来源：<a href="Java_API_调用说明.md">Java_API_调用说明.md</a> · <a href="API_与指令架构审查.md">架构审查</a></footer>

@@ -64,8 +64,8 @@ Prismod
 │  └─ ui/                                配置、资源包和滤镜调试页面
 ├─ api/client/
 │  ├─ FilterClientApi                     稳定客户端 API 入口
-│  ├─ request / query                    有类型的业务请求与只读查询
-│  └─ contract                           不可变回执、资源视图和快照
+│  ├─ submit/                            输入：request、model、result、listener、event
+│  └─ query/                             查询：request、view
 └─ mixin/client/                         GameRenderer 与 PostChain 访问器
 ```
 
@@ -149,8 +149,8 @@ config/prismod/config/prismod-client.toml
 
 ```java
 import com.xkmxz.prismod.api.client.FilterClientApi;
-import com.xkmxz.prismod.api.client.request.FilterRequest;
-import com.xkmxz.prismod.api.client.query.FilterQuery;
+import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
+import com.xkmxz.prismod.api.client.query.request.FilterQuery;
 import net.minecraft.resources.ResourceLocation;
 
 var filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");

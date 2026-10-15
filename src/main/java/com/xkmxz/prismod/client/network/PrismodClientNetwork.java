@@ -1,8 +1,8 @@
 package com.xkmxz.prismod.client.network;
 
 import com.xkmxz.prismod.api.client.FilterClientApi;
-import com.xkmxz.prismod.api.client.contract.FilterReceipt;
-import com.xkmxz.prismod.api.client.request.FilterRequest;
+import com.xkmxz.prismod.api.client.submit.result.FilterReceipt;
+import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
 import com.xkmxz.prismod.network.contract.PolicyMessage;
 import java.util.HashMap;
 import java.util.List;

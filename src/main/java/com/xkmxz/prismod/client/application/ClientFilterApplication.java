@@ -1,8 +1,8 @@
 package com.xkmxz.prismod.client.application;
 
-import com.xkmxz.prismod.api.client.contract.FilterReceipt;
-import com.xkmxz.prismod.api.client.query.FilterQuery;
-import com.xkmxz.prismod.api.client.request.FilterRequest;
+import com.xkmxz.prismod.api.client.submit.result.FilterReceipt;
+import com.xkmxz.prismod.api.client.query.request.FilterQuery;
+import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
 import net.minecraft.client.Minecraft;
 import java.util.concurrent.CompletionStage;
 

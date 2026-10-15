@@ -52,6 +52,8 @@ ResourceLocation postEffect = ResourceLocation.fromNamespaceAndPath(
 
 请求和查询均使用有类型的 record。回执包含结果、失败原因和资源 UUID，不包含操作句柄；后续状态重新 query，释放使用 submit(Release)。旧客户端方法已移除，不保留兼容别名。
 
+客户端类型按入口归类：`api.client.submit` 下细分请求、输入模型、回执、监听和事件；`api.client.query` 下细分查询请求与只读视图。根目录仅保留门面 FilterClientApi。
+
 写请求调度到客户端线程；状态和资源视图先发布，再交付回执及对应事件。查询读取线程安全发布的数据，不修改业务状态。监听通过 submit 建立和取消，回调异常隔离。
 
 Session 清空后可复用，关闭后不能新增，只管理自身注册和覆盖。批量保留输入顺序，允许部分成功。曝光、饱和度等调参输入留待下一步，内部调试模型保持原位。

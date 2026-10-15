@@ -5,7 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
-import com.xkmxz.prismod.api.client.contract.CustomFilterMetadata;
+import com.xkmxz.prismod.api.client.submit.model.CustomFilterMetadata;
 import com.xkmxz.prismod.client.application.handle.FilterRegistration;
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
 import com.xkmxz.prismod.api.common.state.filter.FilterFailureReason;

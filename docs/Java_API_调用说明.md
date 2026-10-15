@@ -15,9 +15,27 @@ CompletionStage<FilterReceipt> submit(FilterRequest request);
 
 专用服务器不得加载 `api.client`。外部模组不得依赖应用层、注册表、状态管理器、渲染器或内部句柄。
 
+包目录先按两个入口划分，再按类型职责细分：
+
+```text
+api/client/
+├─ FilterClientApi.java
+├─ submit/                         输入相关契约
+│  ├─ request/FilterRequest.java    业务请求
+│  ├─ model/CustomFilterMetadata.java  注册输入数据
+│  ├─ result/FilterReceipt.java     一次性最终回执
+│  ├─ listener/                    状态、事件回调接口
+│  └─ event/                       不可变通知及事件类型
+└─ query/                          查询相关契约
+   ├─ request/FilterQuery.java      查询请求
+   └─ view/                        FilterSnapshot、FilterResourceView
+```
+
+监听通过 submit 建立，相关接口及通知归入 submit；通知引用 query.view 中的只读快照。共享基础类型继续位于 api.common。此处仅调整包位置，业务语义不变；集成代码需更新 import。
+
 ## 2. 输入请求清单
 
-请求位于 `api.client.request.FilterRequest`，以下均为嵌套 record。
+请求位于 `api.client.submit.request.FilterRequest`，以下均为嵌套 record。
 
 | 分类 | 请求 | 含义 |
 | --- | --- | --- |
@@ -38,11 +56,11 @@ CompletionStage<FilterReceipt> submit(FilterRequest request);
 
 ## 3. 只读查询清单
 
-查询位于 `api.client.query.FilterQuery`，结果类型由查询本身决定。
+查询位于 `api.client.query.request.FilterQuery`，结果类型由查询本身决定。
 
 | 查询 | 返回值 |
 | --- | --- |
-| `Snapshot()` | `api.client.contract.FilterSnapshot` |
+| `Snapshot()` | `api.client.query.view.FilterSnapshot` |
 | `Filters(false)` | 全部滤镜的不可变 `List<FilterDescriptor>` |
 | `Filters(true)` | 当前可用滤镜列表 |
 | `Resource(resourceId)` | `Optional<FilterResourceView>` |
@@ -89,8 +107,8 @@ Session 只管理自身创建的注册和覆盖，同 owner 的其他资源不�
 
 ```java
 import com.xkmxz.prismod.api.client.FilterClientApi;
-import com.xkmxz.prismod.api.client.request.FilterRequest;
-import com.xkmxz.prismod.api.client.query.FilterQuery;
+import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
+import com.xkmxz.prismod.api.client.query.request.FilterQuery;
 import net.minecraft.resources.ResourceLocation;
 
 var filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");

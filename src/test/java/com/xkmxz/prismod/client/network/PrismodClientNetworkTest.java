@@ -1,7 +1,7 @@
 package com.xkmxz.prismod.client.network;
 
-import com.xkmxz.prismod.api.client.contract.FilterReceipt;
-import com.xkmxz.prismod.api.client.request.FilterRequest;
+import com.xkmxz.prismod.api.client.submit.result.FilterReceipt;
+import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
 import com.xkmxz.prismod.api.common.result.FeedbackCode;
 import com.xkmxz.prismod.api.common.state.filter.FilterFailureReason;
 import com.xkmxz.prismod.api.common.state.operation.FilterOperationStatus;

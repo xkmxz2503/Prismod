@@ -1,10 +1,16 @@
 package com.xkmxz.prismod.client.application;
 
 import com.mojang.logging.LogUtils;
-import com.xkmxz.prismod.api.client.contract.*;
-import com.xkmxz.prismod.api.client.event.*;
-import com.xkmxz.prismod.api.client.query.FilterQuery;
-import com.xkmxz.prismod.api.client.request.FilterRequest;
+import com.xkmxz.prismod.api.client.submit.model.CustomFilterMetadata;
+import com.xkmxz.prismod.api.client.submit.result.FilterReceipt;
+import com.xkmxz.prismod.api.client.submit.listener.FilterStateListener;
+import com.xkmxz.prismod.api.client.query.view.FilterSnapshot;
+import com.xkmxz.prismod.api.client.query.view.FilterResourceView;
+import com.xkmxz.prismod.api.client.submit.event.FilterEvent;
+import com.xkmxz.prismod.api.client.submit.event.FilterEventType;
+import com.xkmxz.prismod.api.client.submit.listener.FilterEventListener;
+import com.xkmxz.prismod.api.client.query.request.FilterQuery;
+import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
 import com.xkmxz.prismod.api.common.result.FeedbackCode;
 import com.xkmxz.prismod.api.common.state.filter.FilterFailureReason;

@@ -1,8 +1,8 @@
 package com.xkmxz.prismod.api.client;
 
-import com.xkmxz.prismod.api.client.contract.FilterReceipt;
-import com.xkmxz.prismod.api.client.query.FilterQuery;
-import com.xkmxz.prismod.api.client.request.FilterRequest;
+import com.xkmxz.prismod.api.client.submit.result.FilterReceipt;
+import com.xkmxz.prismod.api.client.query.request.FilterQuery;
+import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
 import com.xkmxz.prismod.client.application.ClientFilterApplication;
 import java.util.concurrent.CompletionStage;
 

@@ -66,10 +66,12 @@ strength_night_vision = 1.0
 
 公开客户端 API 位于 `com.xkmxz.prismod.api.client`，门面只保留 `submit(FilterRequest)` 和 `query(FilterQuery<R>)`，旧业务方法已移除。外部模组不得依赖应用层、状态管理器、注册表、渲染器或内部句柄。
 
+`api/client` 根目录仅保留 `FilterClientApi.java` 和两个职责目录：`submit/` 存放 `request`（请求）、`model`（输入数据）、`result`（回执）、`listener`（订阅回调）及 `event`（通知）；`query/` 存放 `request`（查询请求）与 `view`（只读视图）。监听通过输入建立，因此监听相关类型归入 submit；回调可以引用 query.view 的不可变数据，不复制另一套快照。
+
 ```java
 import com.xkmxz.prismod.api.client.FilterClientApi;
-import com.xkmxz.prismod.api.client.request.FilterRequest;
-import com.xkmxz.prismod.api.client.query.FilterQuery;
+import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
+import com.xkmxz.prismod.api.client.query.request.FilterQuery;
 import net.minecraft.resources.ResourceLocation;
 
 FilterClientApi.submit(new FilterRequest.Force(
@@ -109,7 +111,7 @@ FilterClientApi.submit(new FilterRequest.ClearForced());
 - `client/FilterKey.java`：内置和自定义滤镜的稳定 `ResourceLocation` 身份。
 - `client/FilterDefinition.java`：后处理资源、翻译键、默认强度、内置标记和资源包 namespace；`displayName()` 是 UI/F8 的名称来源。
 - `client/FilterSelection.java`：内部动态选择，保留自定义 key、强度和 forced 标记。
-- `api/client/contract/FilterSnapshot.java`：公开的不可变客户端状态快照；只使用 API 包和 Minecraft 基础值类型。
+- `api/client/query/view/FilterSnapshot.java`：公开的不可变客户端状态快照；只使用 API 包和 Minecraft 基础值类型。
 - `client/FilterStrength.java`：内部强度规范化工具。
 - `client/FilterController.java`：纯 Java 状态机，维护选择、强制覆盖、总开关、循环、强度、可见性和渲染可用状态。
 - `client/FilterManager.java`：状态门面、配置刷新、资源失败处理和当前滤镜名称解析。
