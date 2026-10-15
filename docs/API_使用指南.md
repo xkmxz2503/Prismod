@@ -84,7 +84,7 @@ FilterOverrideRequest override = new FilterOverrideRequest(
         "server-rule", filter, 1.0F, 100);
 ```
 
-请求模型会检查滤镜不为空、owner 不为空，并规范化强度。优先级是整数，允许调用方根据业务规则决定大小。
+请求模型会检查滤镜不为空、owner 不为空，并规范化强度；非有限强度按 `0.0` 处理，`ownerId` 会去除首尾空白。同一作用域内重复使用相同 `ownerId` 会更新已有覆盖。优先级是整数，允许调用方根据业务规则决定大小。
 
 ### 3.2 查询状态
 

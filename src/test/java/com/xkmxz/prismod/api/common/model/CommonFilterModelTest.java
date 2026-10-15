@@ -2,6 +2,7 @@ package com.xkmxz.prismod.api.common.model;
 
 import net.minecraft.resources.ResourceLocation;
 import com.xkmxz.prismod.api.common.request.FilterOverrideRequest;
+import com.xkmxz.prismod.api.common.request.FilterSelectionRequest;
 import com.xkmxz.prismod.api.common.state.filter.FilterFallbackReason;
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +18,23 @@ class CommonFilterModelTest {
         assertEquals(id, request.filter());
         assertEquals(1.0F, request.strength());
         assertEquals(7, request.priority());
+    }
+
+    @Test
+    void normalizesSelectionStrengthAndRejectsNullFilter() {
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("example", "debug");
+
+        assertEquals(0.0F, new FilterSelectionRequest(id, Float.NaN).strength());
+        assertEquals(1.0F, new FilterSelectionRequest(id, 2.0F).strength());
+        assertThrows(NullPointerException.class, () -> new FilterSelectionRequest(null, 0.5F));
+    }
+
+    @Test
+    void rejectsBlankOverrideOwnerAndNullFilter() {
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("example", "debug");
+
+        assertThrows(IllegalArgumentException.class, () -> new FilterOverrideRequest("  ", id, 0.5F, 1));
+        assertThrows(NullPointerException.class, () -> new FilterOverrideRequest("owner", null, 0.5F, 1));
     }
 
     @Test

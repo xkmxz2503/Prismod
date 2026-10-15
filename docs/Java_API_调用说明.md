@@ -141,6 +141,13 @@ try (FilterClientSession session = FilterClientApi.openSession("example-mod")) {
 
 服务端返回 `OperationResult`，表示服务端是否接受并保存策略，不表示客户端已经完成渲染。
 
+服务端写操作使用两个公共请求模型：
+
+- `FilterSelectionRequest(filter, strength)`：`filter` 不能为空；`strength` 在构造时归一化到 `0.0–1.0`，非有限值按 `0.0` 处理；
+- `FilterOverrideRequest(ownerId, filter, strength, priority)`：`ownerId` 会去除首尾空白且不能为空，`filter` 不能为空，`strength` 同样归一化到 `0.0–1.0`；同一作用域内使用相同 `ownerId` 会更新该 owner 的覆盖。
+
+这些规则在请求对象创建时执行，因此调用服务端 API 前不需要再复制一套强度或 owner 校验。
+
 ## 4. Operation、句柄和线程语义
 
 ```text
