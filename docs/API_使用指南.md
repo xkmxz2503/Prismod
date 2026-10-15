@@ -34,7 +34,7 @@ ResourceLocation postEffect = ResourceLocation.fromNamespaceAndPath(
 ### 公共数据约束
 
 - 强度会规范化到 `[0.0, 1.0]`；非有限值按 `0.0` 处理。
-- 客户端写操作会调度到 Minecraft 客户端线程。
+- 客户端写操作会调度到 Minecraft 客户端线程；状态和事件监听器也只在客户端线程同步执行。
 - 客户端快照、滤镜描述、服务端请求和服务端结果都是不可变数据。
 - API 结果使用状态和稳定反馈代码，不依赖自然语言详情。
 - 外部模组只能依赖 `api` 包；`client.filter`、服务端应用层和网络实现属于内部代码。
@@ -79,6 +79,8 @@ registration.isActive();
 registration.failureReason();
 registration.failureDetail();
 ```
+
+`registerCustomFilter(...)` 是规范入口；旧的 `registerCustomFilterOperation(...)` 继续保留但已标记为 deprecated。异步注册失败时，句柄和 `registration.operation()` 都会提供稳定的失败原因与简短详情。
 
 功能关闭或模组卸载时关闭句柄：
 
@@ -190,7 +192,9 @@ var eventSubscription = FilterClientApi.subscribeEvents(event -> {
 eventSubscription.close();
 ```
 
-订阅句柄是生命周期对象，关闭后停止接收事件。事件类型包括快照变化、注册表变化、可用性变化和操作完成。
+订阅句柄是生命周期对象，关闭后停止接收事件。订阅时不会补发初始状态；监听器异常会被隔离并记录日志。事件类型包括快照变化、注册表变化、可用性变化和操作完成。
+
+需要观察排队和完成结果时，使用 `setForcedFilterOperation`、`setSessionSelectionOperation`、`clearForcedFilterOperation` 和 `clearSessionSelectionOperation`。`FilterOperation` 提供 `status()`、`code()`、`affectedCount()`、`failureReason()` 和 `failureDetail()`。跨线程调用先返回 `QUEUED`，同线程调用立即完成；无变化操作仍成功但影响数量为 `0`，generation 不递增。一次操作产生的状态事件先发布，随后发布一次 `OPERATION_COMPLETED`。
 
 ### 2.5 客户端线程和优先级
 

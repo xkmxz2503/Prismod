@@ -12,6 +12,7 @@ import com.xkmxz.prismod.api.client.event.FilterEvent;
 import com.xkmxz.prismod.api.client.event.FilterEventListener;
 import com.xkmxz.prismod.api.client.operation.FilterOperation;
 import com.xkmxz.prismod.api.common.state.lifecycle.FilterOverrideState;
+import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
@@ -21,10 +22,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.slf4j.Logger;
 
 /** 状态读取可跨线程；所有写操作以及配置读取只由客户端线程执行。 */
 public final class FilterManager {
     private static final FilterManager INSTANCE = new FilterManager();
+    private static final Logger LOGGER = LogUtils.getLogger();
     private final FilterController controller = new FilterController();
     private final CopyOnWriteArrayList<FilterStateListener> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<FilterEventListener> eventListeners = new CopyOnWriteArrayList<>();
@@ -218,14 +221,16 @@ public final class FilterManager {
     private void notifyListeners() {
         FilterSnapshot snapshot = snapshot();
         for (FilterStateListener listener : listeners) {
-            try { listener.onChanged(snapshot); } catch (Throwable ignored) { }
+            try { listener.onChanged(snapshot); }
+            catch (Throwable error) { LOGGER.warn("Prismod client filter state listener failed", error); }
         }
         notifyEvent(FilterEvent.snapshotChanged(snapshot));
     }
 
     private void notifyEvent(FilterEvent event) {
         for (FilterEventListener listener : eventListeners) {
-            try { listener.onEvent(event); } catch (Throwable ignored) { }
+            try { listener.onEvent(event); }
+            catch (Throwable error) { LOGGER.warn("Prismod client filter event listener failed", error); }
         }
     }
 

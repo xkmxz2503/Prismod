@@ -33,6 +33,7 @@ public final class ClientFilterApplication {
         return registerCustomFilterOperation(ownerId, postEffect, metadata);
     }
 
+    @Deprecated
     public static FilterRegistration registerCustomFilterOperation(String ownerId, ResourceLocation postEffect,
                                                                     CustomFilterMetadata metadata) {
         if (postEffect == null) throw new NullPointerException("postEffect");
@@ -44,6 +45,7 @@ public final class ClientFilterApplication {
         return registerCustomFilterOperation(logicalId, ownerId, postEffect, metadata);
     }
 
+    @Deprecated
     public static FilterRegistration registerCustomFilterOperation(ResourceLocation logicalId, String ownerId,
                                                                     ResourceLocation postEffect, CustomFilterMetadata metadata) {
         if (logicalId == null) throw new NullPointerException("logicalId");
@@ -67,8 +69,9 @@ public final class ClientFilterApplication {
                 deferred.attach(registration);
                 completeRegistrationOperation(operation, registration);
             } catch (RuntimeException exception) {
-                deferred.fail();
-                operation.complete(FilterOperationStatus.FAILED, FeedbackCode.FAILED, 0);
+                deferred.fail(FilterFailureReason.UNKNOWN, "registration failed");
+                operation.complete(FilterOperationStatus.FAILED, FeedbackCode.FAILED,
+                        FilterFailureReason.UNKNOWN, "registration failed", 0);
             }
             FilterManager.get().operationCompleted(operation);
         });
@@ -117,6 +120,7 @@ public final class ClientFilterApplication {
         return createOverrideOperation(ownerId, filter, strength, priority);
     }
 
+    @Deprecated
     public static FilterOverride createOverrideOperation(String ownerId, ResourceLocation filter, float strength, int priority) {
         if (ownerId == null || ownerId.isBlank()) throw new IllegalArgumentException("ownerId must not be blank");
         if (filter == null) throw new NullPointerException("filter");
@@ -136,7 +140,8 @@ public final class ClientFilterApplication {
                 operation.complete(FilterOperationStatus.SUCCESS, FeedbackCode.OK, 1);
             } catch (RuntimeException exception) {
                 deferred.close();
-                operation.complete(FilterOperationStatus.FAILED, FeedbackCode.FAILED, 0);
+                operation.complete(FilterOperationStatus.FAILED, FeedbackCode.FAILED,
+                        FilterFailureReason.UNKNOWN, "override creation failed", 0);
             }
             FilterManager.get().operationCompleted(operation);
         });
@@ -210,7 +215,8 @@ public final class ClientFilterApplication {
         if (registration.state() == com.xkmxz.prismod.api.common.state.lifecycle.FilterRegistrationState.FAILED) {
             FeedbackCode code = registration.failureReason() == FilterFailureReason.ID_CONFLICT
                     ? FeedbackCode.INVALID_ARGUMENT : FeedbackCode.FAILED;
-            operation.complete(FilterOperationStatus.FAILED, code, 0);
+            operation.complete(FilterOperationStatus.FAILED, code, registration.failureReason(),
+                    registration.failureDetail(), 0);
         } else {
             operation.complete(FilterOperationStatus.SUCCESS, FeedbackCode.OK, 1);
         }
@@ -234,7 +240,8 @@ public final class ClientFilterApplication {
             try {
                 operation.complete(FilterOperationStatus.SUCCESS, FeedbackCode.OK, action.getAsInt());
             } catch (RuntimeException exception) {
-                operation.complete(FilterOperationStatus.FAILED, FeedbackCode.FAILED, 0);
+                operation.complete(FilterOperationStatus.FAILED, FeedbackCode.FAILED,
+                        FilterFailureReason.UNKNOWN, "client operation failed", 0);
             }
             FilterManager.get().operationCompleted(operation);
         };
@@ -250,12 +257,23 @@ public final class ClientFilterApplication {
         private volatile FilterOperationStatus status = FilterOperationStatus.QUEUED;
         private volatile FeedbackCode code = FeedbackCode.OK;
         private volatile int affectedCount;
+        private volatile FilterFailureReason failureReason = FilterFailureReason.NONE;
+        private volatile String failureDetail = "";
 
         private void complete(FilterOperationStatus status, FeedbackCode code, int affectedCount) {
-            if (!completed.compareAndSet(false, true)) return;
-            this.status = status;
-            this.code = code;
+            complete(status, code, FilterFailureReason.NONE, "", affectedCount);
+        }
+
+        private synchronized void complete(FilterOperationStatus status, FeedbackCode code,
+                                            FilterFailureReason failureReason, String failureDetail,
+                                            int affectedCount) {
+            if (completed.get()) return;
+            this.status = status == null ? FilterOperationStatus.FAILED : status;
+            this.code = code == null ? FeedbackCode.FAILED : code;
+            this.failureReason = failureReason == null ? FilterFailureReason.UNKNOWN : failureReason;
+            this.failureDetail = failureDetail == null ? "" : failureDetail;
             this.affectedCount = Math.max(0, affectedCount);
+            completed.set(true);
         }
 
         @Override public UUID id() { return id; }
@@ -263,6 +281,8 @@ public final class ClientFilterApplication {
         @Override public FeedbackCode code() { return code; }
         @Override public int affectedCount() { return affectedCount; }
         @Override public boolean completed() { return completed.get(); }
+        @Override public FilterFailureReason failureReason() { return failureReason; }
+        @Override public String failureDetail() { return failureDetail; }
     }
 
     private static final class RefreshingRegistration implements FilterRegistration {
@@ -346,8 +366,13 @@ public final class ClientFilterApplication {
             if (closed) registration.close();
         }
 
-        private void fail() {
+        private volatile FilterFailureReason failureReason = FilterFailureReason.NONE;
+        private volatile String failureDetail = "";
+
+        private void fail(FilterFailureReason reason, String detail) {
             failed = true;
+            failureReason = reason == null ? FilterFailureReason.UNKNOWN : reason;
+            failureDetail = detail == null ? "" : detail;
         }
 
         @Override public ResourceLocation id() { return id; }
@@ -360,11 +385,11 @@ public final class ClientFilterApplication {
         }
         @Override public com.xkmxz.prismod.api.common.state.filter.FilterFailureReason failureReason() {
             FilterRegistration current = delegate;
-            return current == null ? com.xkmxz.prismod.api.common.state.filter.FilterFailureReason.NONE : current.failureReason();
+            return current == null ? failureReason : current.failureReason();
         }
         @Override public String failureDetail() {
             FilterRegistration current = delegate;
-            return current == null ? "" : current.failureDetail();
+            return current == null ? failureDetail : current.failureDetail();
         }
         @Override public FilterOperation operation() { return operation; }
         @Override public void close() {

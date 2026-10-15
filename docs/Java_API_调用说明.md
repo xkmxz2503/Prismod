@@ -21,7 +21,7 @@ registration.close();
 
 `ownerId` 不能为空；`postEffect` 是实际的 PostChain JSON 路径，不是逻辑滤镜 ID。重复注册同一 owner 和逻辑 ID 时，新注册会替换旧注册。强度会规范化到 `[0.0, 1.0]`，非有限值按 `0.0` 处理。
 
-注册方法保留原有句柄调用方式，同时提供 `registerCustomFilterOperation(...)` 兼容入口。两种入口都返回 `FilterRegistration`；通过 `registration.operation()` 可以查询创建操作的 `QUEUED`、`SUCCESS` 或失败状态。句柄仍通过 `close()` 注销。
+`registerCustomFilter(...)` 是规范入口，返回 `FilterRegistration`；通过 `registration.operation()` 可以查询创建操作的 `QUEUED`、`SUCCESS` 或失败状态。旧的 `registerCustomFilterOperation(...)` 入口继续保留，但已标记为 deprecated。句柄仍通过 `close()` 注销。
 
 ## 选择、强制和覆盖
 
@@ -54,7 +54,7 @@ forcedOperation.code();
 forcedOperation.affectedCount();
 ```
 
-`clearSessionSelectionOperation()`、`createOverrideOperation(...)` 也遵循相同规则。覆盖句柄通过 `override.operation()` 查询创建操作；旧的 `void` 方法和不带后缀的句柄方法继续可用，并委托到同一客户端线程调度路径。
+`clearSessionSelectionOperation()` 遵循相同规则。`createOverride(...)` 是规范入口，覆盖句柄通过 `override.operation()` 查询创建操作；旧的 `createOverrideOperation(...)` 入口继续保留，但已标记为 deprecated。旧的 `void` 方法继续可用，并委托到同一客户端线程调度路径。
 
 ## 查询快照和滤镜列表
 
@@ -76,7 +76,7 @@ var available = FilterClientApi.availableFilters();
 
 ## 操作结果和监听
 
-批量注销返回 `FilterOperation`，只包含结构化状态，不包含自然语言详情：
+批量注销返回 `FilterOperation`，只包含结构化状态和稳定失败诊断，不暴露实现异常类型：
 
 ```java
 var operation = FilterClientApi.clearRegistrations("example-mod");
@@ -84,9 +84,11 @@ operation.status();
 operation.code();
 operation.affectedCount();
 operation.completed();
+operation.failureReason();
+operation.failureDetail();
 ```
 
-每个操作只完成一次。操作完成后会发布一次 `OPERATION_COMPLETED` 事件；跨线程调用先返回 `QUEUED`，同线程调用通常直接返回完成状态。
+每个操作只完成一次。跨线程调用先返回 `QUEUED`，同线程调用通常直接返回完成状态。无变化操作仍报告 `SUCCESS` 和 `OK`，但 `affectedCount()` 为 `0`，快照 generation 不递增。排队创建后立即关闭句柄不会取消创建：操作仍报告成功，底层目标完成后会立即关闭，句柄最终为 `CLOSED`。
 
 状态监听不会暴露内部实现：
 
@@ -101,5 +103,7 @@ var eventSubscription = FilterClientApi.subscribeEvents(event -> {
 stateSubscription.close();
 eventSubscription.close();
 ```
+
+状态监听器和事件监听器都在 Minecraft 客户端线程同步执行，订阅时不会补发初始状态。监听器异常会被隔离并记录日志。一次写操作产生的快照、注册表或可用性事件先发布，随后发布一次 `OPERATION_COMPLETED`；收到完成事件时可以读取最终快照和句柄状态。
 
 不要直接操作 `FilterManager`、`FilterRegistry`、`FilterController`、`FilterKey` 或渲染器；这些属于 Prismod 内部适配器。

@@ -31,7 +31,9 @@ class FilterSnapshotTest {
         assertTrue(registration.operation().completed());
         assertEquals(com.xkmxz.prismod.api.common.state.operation.FilterOperationStatus.SUCCESS,
                 registration.operation().status());
+        assertSame(registration.operation(), registration.operation());
         assertTrue(override.operation().completed());
+        assertSame(override.operation(), override.operation());
     }
 
     @Test

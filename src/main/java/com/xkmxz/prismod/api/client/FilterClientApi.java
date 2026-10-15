@@ -24,6 +24,7 @@ public final class FilterClientApi {
         return ClientFilterApplication.registerCustomFilter(ownerId, postEffect, metadata);
     }
 
+    @Deprecated
     public static FilterRegistration registerCustomFilterOperation(String ownerId, ResourceLocation postEffect,
                                                                     CustomFilterMetadata metadata) {
         return ClientFilterApplication.registerCustomFilterOperation(ownerId, postEffect, metadata);
@@ -34,6 +35,7 @@ public final class FilterClientApi {
         return ClientFilterApplication.registerCustomFilter(logicalId, ownerId, postEffect, metadata);
     }
 
+    @Deprecated
     public static FilterRegistration registerCustomFilterOperation(ResourceLocation logicalId, String ownerId,
                                                                     ResourceLocation postEffect, CustomFilterMetadata metadata) {
         return ClientFilterApplication.registerCustomFilterOperation(logicalId, ownerId, postEffect, metadata);
@@ -71,6 +73,7 @@ public final class FilterClientApi {
         return ClientFilterApplication.createOverride(ownerId, filter, strength, priority);
     }
 
+    @Deprecated
     public static FilterOverride createOverrideOperation(String ownerId, ResourceLocation filter, float strength, int priority) {
         return ClientFilterApplication.createOverrideOperation(ownerId, filter, strength, priority);
     }
