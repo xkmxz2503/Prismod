@@ -22,7 +22,7 @@ Prismod 只把滤镜应用到世界画面和手持物品。HUD、聊天、菜单
 ResourceLocation logicalId = ResourceLocation.fromNamespaceAndPath("example", "debug");
 ```
 
-`FilterClientApi.setForcedFilter`、`setSessionSelection` 和覆盖 API 接收逻辑滤镜 ID。注册 API 的 `postEffect` 是实际 PostChain JSON 资源路径，例如：
+客户端 Select、Force 和 Override 请求接收逻辑滤镜 ID。注册 API 的 `postEffect` 是实际 PostChain JSON 资源路径，例如：
 
 ```java
 ResourceLocation postEffect = ResourceLocation.fromNamespaceAndPath(
@@ -41,23 +41,22 @@ ResourceLocation postEffect = ResourceLocation.fromNamespaceAndPath(
 
 ## 2. 客户端 Java API
 
-客户端公开 API 的规范清单、入口分类、句柄生命周期和最小示例统一维护在 [`Java_API_调用说明.md`](Java_API_调用说明.md)。本节只保留总览，避免和专题文档重复。
+客户端 API 的规范清单和示例统一维护在 [Java API 调用说明](Java_API_调用说明.md)，可视化入口是 [API 架构地图](api-architecture-guide.html)。
 
-公开入口为 `com.xkmxz.prismod.api.client.FilterClientApi`，按用途分为：
+公开门面 `FilterClientApi` 仅保留两个业务方法：
 
-| 用途 | 规范入口 |
-| --- | --- |
-| 注册 | `registerCustomFilter(...)` |
-| 普通选择 | `setSessionSelection(...)`、`clearSessionSelection()` |
-| 强制滤镜 | `setForcedFilter(...)`、`clearForcedFilter()` |
-| 覆盖 | `createOverride(...)`、`clearOverrides(...)` |
-| 查询 | `snapshot()`、`filters()`、`availableFilters()` |
-| 监听 | `subscribe(...)`、`subscribeEvents(...)` |
-| 批量生命周期 | `openSession(...)` |
+| 入口 | 职责 | 返回值 |
+| --- | --- | --- |
+| `submit(FilterRequest)` | 注册、选择、覆盖、订阅、Session 和资源释放 | `CompletionStage<FilterReceipt>`，一次最终回执 |
+| `query(FilterQuery<R>)` | 快照、滤镜列表、资源、owner 和 Session 查询 | 不可变数据 |
 
-带 `Operation` 后缀的方法用于观察客户端线程排队、完成状态和失败原因。`registerCustomFilterOperation(...)` 与 `createOverrideOperation(...)` 是 deprecated 兼容入口；新代码使用不带后缀的规范入口，并通过返回句柄的 `operation()` 查看创建结果。
+请求和查询均使用有类型的 record。回执包含结果、失败原因和资源 UUID，不包含操作句柄；后续状态重新 query，释放使用 submit(Release)。旧客户端方法已移除，不保留兼容别名。
 
-外部模组不得依赖 `ClientFilterApplication`、`FilterManager`、`FilterController`、`FilterRegistry` 或渲染器。客户端写操作会自动调度到 Minecraft 客户端线程，读取 API 返回最近一次发布的不可变快照。
+写请求调度到客户端线程；状态和资源视图先发布，再交付回执及对应事件。查询读取线程安全发布的数据，不修改业务状态。监听通过 submit 建立和取消，回调异常隔离。
+
+Session 清空后可复用，关闭后不能新增，只管理自身注册和覆盖。批量保留输入顺序，允许部分成功。曝光、饱和度等调参输入留待下一步，内部调试模型保持原位。
+
+外部模组不得调用应用层、状态管理器、注册表或渲染器。此调整不改变服务端 API 或网络协议。
 
 ## 3. 服务端 Java API
 
@@ -224,8 +223,8 @@ prismod-api-test-mod
 | `help` | 显示客户端 API 测试入口 |
 | `list` | 显示当前可用滤镜描述 |
 | `snapshot` | 显示最终滤镜、强度、强制状态、渲染可用性、回退原因和 generation |
-| `force` | 使用固定 owner 创建优先级 100 的覆盖；重复执行会先关闭旧句柄 |
-| `clear` | 关闭当前测试覆盖句柄 |
+| `force` | 使用固定 owner 创建优先级 100 的覆盖；重复执行会先提交旧覆盖资源的释放请求 |
+| `clear` | 提交当前测试覆盖资源的释放请求 |
 | `watch` | 切换快照监听 |
 | `watch_events` | 替换为类型化 API 事件监听 |
 | `owner_clear` | 按固定 owner 清理覆盖 |
@@ -292,7 +291,7 @@ flowchart LR
 ```
 
 - `FilterClientApi` 是稳定公开门面；
-- `ClientFilterApplication` 执行参数检查、owner 归一化、客户端线程调度和操作状态发布；
+- `ClientFilterApplication` 执行参数检查、owner 归一化、客户端线程调度和回执及资源视图发布；
 - `FilterRegistry` 管理滤镜发现、注册和描述；
 - `FilterManager` 保存选择、强制状态、覆盖和渲染可用性；
 - 快照和事件只通过公开 API 契约发布；
@@ -374,11 +373,11 @@ CLEAR_ALL_OVERRIDES
 
 客户端 `PrismodClientNetwork` 的接收规则：
 
-- `SELECT` 调用 `FilterClientApi.setSessionSelection`；
-- `OVERRIDE` 调用 `FilterClientApi.createOverride`；
-- `CLEAR_SELECTION` 调用 `FilterClientApi.clearSessionSelection`；
-- `CLEAR_OVERRIDE` 关闭对应 request ID 的客户端覆盖句柄；
-- `CLEAR_ALL_OVERRIDES` 关闭并清空全部网络覆盖句柄；
+- `SELECT` 提交 `FilterRequest.Select`；
+- `OVERRIDE` 提交 `FilterRequest.Override`；
+- `CLEAR_SELECTION` 提交 `FilterRequest.ClearSelection`；
+- `CLEAR_OVERRIDE` 按 request ID 查找客户端资源 UUID 并提交 Release；
+- `CLEAR_ALL_OVERRIDES` 释放并清空全部网络覆盖资源；
 - 重复的覆盖 request ID 被忽略，以保证幂等；
 - 客户端退出世界时清理网络策略会话。
 

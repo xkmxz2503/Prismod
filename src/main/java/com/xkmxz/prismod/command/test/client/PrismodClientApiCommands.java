@@ -4,8 +4,10 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.xkmxz.prismod.api.client.FilterClientApi;
 import com.xkmxz.prismod.api.client.contract.FilterSnapshot;
-import com.xkmxz.prismod.api.client.contract.FilterSubscription;
-import com.xkmxz.prismod.api.client.operation.FilterOperation;
+import com.xkmxz.prismod.api.client.contract.FilterReceipt;
+import com.xkmxz.prismod.api.client.query.FilterQuery;
+import com.xkmxz.prismod.api.client.request.FilterRequest;
+import java.util.concurrent.CompletionStage;
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
 import com.xkmxz.prismod.api.common.state.operation.FilterOperationStatus;
 import net.minecraft.client.Minecraft;
@@ -19,7 +21,7 @@ import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 /** Client-only commands that simulate another mod consuming Prismod's public API. */
 public final class PrismodClientApiCommands {
     private static final String OWNER = "prismod-api-test-mod";
-    private static FilterSubscription subscription;
+    private static CompletionStage<FilterReceipt> subscription;
 
     private PrismodClientApiCommands() {
     }
@@ -55,7 +57,7 @@ public final class PrismodClientApiCommands {
     }
 
     private static int list() {
-        var filters = FilterClientApi.availableFilters();
+        var filters = FilterClientApi.query(new FilterQuery.Filters(true));
         message("command.prismod.client.list", filters.size());
         for (FilterDescriptor filter : filters) {
             message("command.prismod.client.list.entry", filter.id(),
@@ -66,7 +68,7 @@ public final class PrismodClientApiCommands {
     }
 
     private static int snapshot() {
-        FilterSnapshot snapshot = FilterClientApi.snapshot();
+        FilterSnapshot snapshot = FilterClientApi.query(new FilterQuery.Snapshot());
         message("command.prismod.client.snapshot", snapshot.filter(), snapshot.strength(), snapshot.forced(),
                 snapshot.renderAvailable(), snapshot.fallbackReason(), snapshot.generation());
         return 1;
@@ -74,49 +76,58 @@ public final class PrismodClientApiCommands {
 
     private static int force(CommandContext<CommandSourceStack> context, float strength) {
         ResourceLocation id = ResourceLocationArgument.getId(context, "filter");
-        // 测试命令只通过公开 API 管理覆盖，不直接持有句柄或访问客户端状态。
-        FilterClientApi.clearOverrides(OWNER);
-        FilterClientApi.createOverride(OWNER, id, strength, 100);
-        message("command.prismod.client.force", id, strength);
+        FilterClientApi.submit(new FilterRequest.ClearOverrides(OWNER))
+                .thenCompose(ignored -> FilterClientApi.submit(new FilterRequest.Override(OWNER, id, strength, 100)))
+                .thenAccept(receipt -> {
+                    if (receipt.status() == FilterOperationStatus.SUCCESS) {
+                        message("command.prismod.client.force", id, strength);
+                    } else message("command.prismod.client.owner_clear", receipt.status(), receipt.affectedCount());
+                });
         return 1;
     }
 
     private static int clear() {
-        FilterOperation operation = FilterClientApi.clearOverrides(OWNER);
-        if (operation.status() != FilterOperationStatus.SUCCESS
-                || operation.affectedCount() == 0) {
-            message("command.prismod.client.clear.none");
-            return 0;
-        }
-        message("command.prismod.client.clear.done");
-        return operation.affectedCount();
+        FilterClientApi.submit(new FilterRequest.ClearOverrides(OWNER)).thenAccept(receipt -> {
+            if (receipt.status() != FilterOperationStatus.SUCCESS || receipt.affectedCount() == 0) {
+                message("command.prismod.client.clear.none");
+            } else message("command.prismod.client.clear.done");
+        });
+        return 1;
     }
 
     private static int watch() {
         if (subscription != null) {
-            subscription.close();
-            subscription = null;
+            closeSubscription();
             message("command.prismod.client.watch.closed");
             return 1;
         }
-        subscription = FilterClientApi.subscribe(snapshot -> message("command.prismod.client.watch.event",
-                snapshot.filter(), snapshot.strength(), snapshot.fallbackReason()));
+        subscription = FilterClientApi.submit(new FilterRequest.SubscribeState(OWNER,
+                snapshot -> message("command.prismod.client.watch.event",
+                        snapshot.filter(), snapshot.strength(), snapshot.fallbackReason())));
         message("command.prismod.client.watch.opened");
         return 1;
     }
 
     private static int ownerClear() {
-        FilterOperation operation = FilterClientApi.clearOverrides(OWNER);
-        message("command.prismod.client.owner_clear", operation.status(), operation.affectedCount());
-        return operation.affectedCount();
+        FilterClientApi.submit(new FilterRequest.ClearOverrides(OWNER)).thenAccept(receipt ->
+                message("command.prismod.client.owner_clear", receipt.status(), receipt.affectedCount()));
+        return 1;
     }
 
     private static int watchEvents() {
-        if (subscription != null) subscription.close();
-        subscription = FilterClientApi.subscribeEvents(event -> message("command.prismod.client.event",
-                event.type(), event.filters().size(), event.operation() == null ? "none" : event.operation().status()));
+        closeSubscription();
+        subscription = FilterClientApi.submit(new FilterRequest.SubscribeEvents(OWNER,
+                event -> message("command.prismod.client.event", event.type(), event.filters().size(),
+                        event.receipt() == null ? "none" : event.receipt().status())));
         message("command.prismod.client.events.opened");
         return 1;
+    }
+
+    private static void closeSubscription() {
+        if (subscription == null) return;
+        subscription.thenAccept(receipt -> receipt.resourceIds().forEach(id ->
+                FilterClientApi.submit(new FilterRequest.Release(id))));
+        subscription = null;
     }
 
     private static void message(String key, Object... arguments) {

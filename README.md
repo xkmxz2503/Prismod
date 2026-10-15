@@ -64,9 +64,8 @@ Prismod
 │  └─ ui/                                配置、资源包和滤镜调试页面
 ├─ api/client/
 │  ├─ FilterClientApi                     稳定客户端 API 入口
-│  ├─ FilterSnapshot                     不可变公开状态快照
-│  ├─ CustomFilterMetadata               自定义滤镜元数据
-│  └─ FilterRegistration                 注册句柄
+│  ├─ request / query                    有类型的业务请求与只读查询
+│  └─ contract                           不可变回执、资源视图和快照
 └─ mixin/client/                         GameRenderer 与 PostChain 访问器
 ```
 
@@ -146,42 +145,28 @@ config/prismod/config/prismod-client.toml
 
 ## 🔌 客户端 Java API
 
-公开 API 只位于 `com.xkmxz.prismod.api.client`，外部模组不需要依赖 Prismod 的 `client.filter` 内部类。
+客户端公开门面 `FilterClientApi` 仅保留 `submit` 和 `query`。旧业务方法已移除，这是不兼容的客户端 API 调整。
 
 ```java
 import com.xkmxz.prismod.api.client.FilterClientApi;
-import com.xkmxz.prismod.api.client.contract.CustomFilterMetadata;
-import com.xkmxz.prismod.api.client.contract.FilterRegistration;
-import com.xkmxz.prismod.api.client.contract.FilterSnapshot;
+import com.xkmxz.prismod.api.client.request.FilterRequest;
+import com.xkmxz.prismod.api.client.query.FilterQuery;
 import net.minecraft.resources.ResourceLocation;
 
-ResourceLocation filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");
-FilterClientApi.setForcedFilter(filter, 0.75F);
+var filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");
+FilterClientApi.submit(new FilterRequest.Force(filter, 0.75F))
+        .thenAccept(receipt -> {
+            // receipt 表示本次业务结果；不代表画面已经完成渲染。
+            var snapshot = FilterClientApi.query(new FilterQuery.Snapshot());
+        });
 
-FilterSnapshot effective = FilterClientApi.snapshot();
-
-FilterClientApi.clearForcedFilter();
+// 在业务结束时解除强制，恢复普通选择。
+FilterClientApi.submit(new FilterRequest.ClearForced());
 ```
 
-`FilterSnapshot` 包含 `filter`、`strength`、`forced` 和 `renderAvailable`。其中 `filter` 始终保留完整逻辑 ID，例如 `example:debug`。写 API 会自动调度到 Minecraft 客户端线程，读取返回最近一次已发布的不可变快照。强制滤镜优先于总开关、F8 和普通选择。
+输入返回一次最终回执，查询返回不可变数据。注册、覆盖和订阅创建后返回资源 UUID；保存 ID，在结束时提交 Release。Session 管理自身的批量注册和覆盖。不要在客户端线程阻塞等待异步结果。
 
-注册自定义滤镜：
-
-```java
-FilterRegistration registration = FilterClientApi.registerCustomFilter(
-        "example-mod",
-        ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"),
-        new CustomFilterMetadata("filter.example.debug", 0.75F)
-);
-
-// 功能关闭时注销，并清除强制覆盖。
-FilterClientApi.clearForcedFilter();
-registration.close();
-```
-
-`postEffect` 是实际 PostChain 资源路径；`setForcedFilter` 使用的是逻辑滤镜 ID。完整调用说明见 [`docs/Java_API_调用说明.md`](docs/Java_API_调用说明.md)。
-
-客户端 API、服务端 API、管理命令、API 测试命令、实现架构和网络协议的统一指南见 [`docs/API_使用指南.md`](docs/API_使用指南.md)。
+当前 API 尚不接收曝光、饱和度等调参输入。外部模组只依赖公开 API，不调用 `client.filter` 内部类。完整规范见 [Java API 调用说明](docs/Java_API_调用说明.md)，易读图解见 [API 架构地图](docs/api-architecture-guide.html)，两端总览见 [API 使用指南](docs/API_使用指南.md)。
 
 ## 服务端 API 与命令
 

@@ -2,7 +2,7 @@ package com.xkmxz.prismod.client.filter.registry;
 
 import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import com.xkmxz.prismod.api.client.contract.CustomFilterMetadata;
-import com.xkmxz.prismod.api.client.contract.FilterRegistration;
+import com.xkmxz.prismod.client.application.handle.FilterRegistration;
 import com.xkmxz.prismod.api.common.state.filter.FilterFailureReason;
 import com.xkmxz.prismod.api.common.state.lifecycle.FilterRegistrationState;
 import net.minecraft.resources.ResourceLocation;
@@ -14,6 +14,42 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class FilterRegistryTest {
+    @Test
+    @SuppressWarnings("unchecked")
+    void replacedHandleIsClosedEvenWhenReplacementHasResourceFailure() throws Exception {
+        // 直接搭建注册表的版本记录，避免测试依赖 Minecraft 客户端和资源加载。
+        var registryConstructor = FilterRegistry.class.getDeclaredConstructor();
+        registryConstructor.setAccessible(true);
+        FilterRegistry registry = registryConstructor.newInstance();
+        var key = new com.xkmxz.prismod.client.filter.FilterKey(
+                ResourceLocation.fromNamespaceAndPath("example", "replacement"));
+        var identity = new FilterRegistry.RegistrationId("owner", key);
+        var recordClass = Class.forName(FilterRegistry.class.getName() + "$RegistrationRecord");
+        var recordConstructor = recordClass.getDeclaredConstructor(FilterRegistry.RegistrationId.class,
+                ResourceLocation.class, CustomFilterMetadata.class, long.class);
+        recordConstructor.setAccessible(true);
+        Object replacement = recordConstructor.newInstance(identity,
+                ResourceLocation.fromNamespaceAndPath("example", "invalid.json"), CustomFilterMetadata.defaults(), 2L);
+        var registrationsField = FilterRegistry.class.getDeclaredField("registrations");
+        registrationsField.setAccessible(true);
+        var registrations = (java.util.Map<Object, Object>) registrationsField.get(registry);
+        registrations.put(identity, replacement);
+        var failuresField = FilterRegistry.class.getDeclaredField("failures");
+        failuresField.setAccessible(true);
+        ((java.util.Map<Object, String>) failuresField.get(registry)).put(key, "replacement invalid");
+        var handleClass = Class.forName(FilterRegistry.class.getName() + "$Handle");
+        var handleConstructor = handleClass.getDeclaredConstructor(FilterRegistry.class,
+                FilterRegistry.RegistrationId.class, long.class);
+        handleConstructor.setAccessible(true);
+        FilterRegistration old = (FilterRegistration) handleConstructor.newInstance(registry, identity, 1L);
+        FilterRegistration current = (FilterRegistration) handleConstructor.newInstance(registry, identity, 2L);
+
+        assertEquals(FilterRegistrationState.CLOSED, old.state());
+        assertEquals(FilterRegistrationState.FAILED, current.state());
+        old.close();
+        assertEquals(replacement, registrations.get(identity));
+    }
+
     @Test
     void legacyShaderPathIsNeverAFilterSource() {
         assertFalse(FilterRegistry.isDiscoverableResource(

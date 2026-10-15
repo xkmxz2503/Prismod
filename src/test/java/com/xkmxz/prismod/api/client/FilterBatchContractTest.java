@@ -1,45 +1,49 @@
 package com.xkmxz.prismod.api.client;
 
-import com.xkmxz.prismod.api.client.contract.CustomFilterMetadata;
-import com.xkmxz.prismod.api.client.contract.FilterBatchItem;
-import com.xkmxz.prismod.api.client.contract.FilterBatchResult;
-import com.xkmxz.prismod.api.client.contract.FilterRegistrationRequest;
-import com.xkmxz.prismod.api.client.operation.FilterBatchOperation;
-import com.xkmxz.prismod.api.client.operation.FilterOperation;
+import com.xkmxz.prismod.api.client.contract.FilterReceipt;
+import com.xkmxz.prismod.api.client.request.FilterRequest;
 import com.xkmxz.prismod.api.common.result.FeedbackCode;
+import com.xkmxz.prismod.api.common.state.filter.FilterFailureReason;
 import com.xkmxz.prismod.api.common.state.operation.FilterOperationStatus;
-import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
-
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 class FilterBatchContractTest {
     @Test
-    void registrationRequestNormalizesAndPreservesFields() {
-        FilterRegistrationRequest request = new FilterRegistrationRequest(
-                ResourceLocation.fromNamespaceAndPath("example", "debug"),
-                ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"),
-                new CustomFilterMetadata("filter.example.debug", 0.75F));
-
-        assertEquals("example:debug", request.logicalId().toString());
-        assertEquals("example:shaders/post/debug.json", request.postEffect().toString());
-        assertEquals(0.75F, request.metadata().defaultStrength());
+    void receiptDefensivelyCopiesAllLists() {
+        List<UUID> ids = new ArrayList<>(List.of(UUID.randomUUID()));
+        List<FilterReceipt> items = new ArrayList<>();
+        FilterReceipt receipt = new FilterReceipt(UUID.randomUUID(), FilterOperationStatus.SUCCESS,
+                FeedbackCode.OK, FilterFailureReason.NONE, "", 1, ids, items);
+        ids.clear();
+        items.add(receipt);
+        assertEquals(1, receipt.resourceIds().size());
+        assertTrue(receipt.items().isEmpty());
+        assertThrows(UnsupportedOperationException.class, () -> receipt.resourceIds().clear());
+        assertThrows(UnsupportedOperationException.class, () -> receipt.items().add(receipt));
+        assertTrue(Arrays.stream(FilterReceipt.class.getDeclaredMethods())
+                .noneMatch(method -> List.of("close", "state", "isActive", "operation").contains(method.getName())));
     }
 
     @Test
-    void batchResultListsAreImmutable() {
-        FilterBatchOperation operation = new FilterBatchOperation(UUID.randomUUID(),
-                List.of(), FilterOperationStatus.SUCCESS, FeedbackCode.OK, 0, 0, 0,
-                com.xkmxz.prismod.api.common.state.filter.FilterFailureReason.NONE, "");
-        FilterBatchResult<Object> result = new FilterBatchResult<>(List.of(), operation,
-                List.<FilterBatchItem<Object>>of());
+    void finalReceiptCannotContainQueuedStatus() {
+        assertThrows(IllegalArgumentException.class, () -> new FilterReceipt(UUID.randomUUID(),
+                FilterOperationStatus.QUEUED, FeedbackCode.OK, FilterFailureReason.NONE, "",
+                0, List.of(), List.of()));
+    }
 
-        assertThrows(UnsupportedOperationException.class, () -> result.handles().add(new Object()));
-        assertThrows(UnsupportedOperationException.class, () -> result.items().clear());
-        assertEquals(FilterOperationStatus.SUCCESS, result.status());
+    @Test
+    void batchCopiesInputsButPreservesInvalidItemsForPerItemFeedback() {
+        List<FilterRequest> requests = new ArrayList<>();
+        requests.add(null);
+        FilterRequest.Batch batch = new FilterRequest.Batch(UUID.randomUUID(), requests);
+        requests.clear();
+        assertEquals(1, batch.requests().size());
+        assertNull(batch.requests().get(0));
+        assertThrows(UnsupportedOperationException.class, () -> batch.requests().clear());
     }
 }

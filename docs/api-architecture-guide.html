@@ -1,25 +1,64 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Prismod API 规范地图</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prismod 客户端 API 地图</title>
 <style>
-:root{font-family:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;color:#1f2937;background:#f5f7fb;line-height:1.55}*{box-sizing:border-box}body{margin:0}main{max-width:1120px;margin:auto;padding:32px 20px 56px}h1{margin:0;font-size:32px}h2{margin:0 0 14px;font-size:22px}h3{margin:0 0 6px;font-size:16px}.lead{font-size:17px;color:#526071;max-width:800px;margin:10px 0 26px}.hero{background:linear-gradient(135deg,#e9f1ff,#f9fbff);border:1px solid #d9e5f8;border-radius:18px;padding:26px;margin-bottom:22px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.tab{border:1px solid #ccd7e6;background:#fff;border-radius:10px;padding:9px 13px;cursor:pointer;font:inherit}.tab.active{background:#2563eb;color:#fff;border-color:#2563eb}.panel{display:none}.panel.active{display:block}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.card{background:#fff;border:1px solid #e1e8f0;border-radius:14px;padding:17px;box-shadow:0 2px 7px rgba(33,55,85,.05)}.card p{margin:7px 0 0;color:#5d6b7d;font-size:14px}.tag{display:inline-block;font-size:12px;padding:3px 7px;border-radius:6px;background:#eef4ff;color:#315ea8;margin-bottom:9px}.flow{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin:16px 0}.node{flex:1 1 145px;min-width:135px;background:#fff;border:1px solid #d9e3ef;border-radius:12px;padding:13px;text-align:center}.node strong{display:block;font-size:14px}.node small{display:block;color:#718096;margin-top:5px}.arrow{align-self:center;color:#8ba0b8;font-size:22px}.layer{border-left:4px solid #2563eb;background:#fff;padding:14px 16px;border-radius:10px;margin:10px 0}.layer.common{border-color:#9333ea}.layer.render{border-color:#ea580c}.rule{display:grid;grid-template-columns:1fr 1fr;gap:12px}.rule div{padding:14px;border-radius:12px;background:#fff;border:1px solid #e1e8f0}.rule strong{display:block;margin-bottom:5px}.muted{color:#6b7788;font-size:14px}.footer{margin-top:28px;color:#718096;font-size:13px}.path{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;color:#475569;word-break:break-all}@media(max-width:760px){.grid,.rule{grid-template-columns:1fr}.arrow{transform:rotate(90deg);width:100%;text-align:center}.node{flex-basis:100%}h1{font-size:27px}}
+:root{font-family:system-ui,"Microsoft YaHei",sans-serif;color:#20304a;background:#f3f6fa;line-height:1.65}*{box-sizing:border-box}body{margin:0}main{max-width:980px;margin:auto;padding:36px 22px 64px}h1{font-size:32px;line-height:1.3;margin:0 0 12px}h2{font-size:22px;margin:0 0 16px}h3{font-size:18px;margin:0 0 8px}p{margin:6px 0 14px}.hero{background:#e6efff;border:1px solid #d0dffa;border-radius:20px;padding:28px;margin-bottom:24px}.muted{color:#596b83}.badge{font-size:13px;color:#325a9b}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{background:white;border:1px solid #dce4f0;border-radius:15px;padding:22px}.blue{border-top:4px solid #3977d6}.green{border-top:4px solid #198c76}.flow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0}.node{flex:1;min-width:130px;text-align:center;background:white;border:1px solid #dce4f0;border-radius:12px;padding:16px}.arrow{font-size:24px;color:#7d8ca2}section{margin-top:28px}code{font-family:Consolas,monospace;background:#edf2f8;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{background:#17263d;color:#e7effa;padding:20px;border-radius:12px;overflow:auto;font-size:14px;line-height:1.7}pre code{background:none;padding:0;color:inherit}details{background:white;border:1px solid #dce4f0;border-radius:12px;margin:10px 0;padding:15px 19px}summary{cursor:pointer;font-weight:600}details p{margin-top:12px}a{color:#2864bb}nav{display:flex;gap:14px;flex-wrap:wrap;margin:20px 0}footer{margin-top:32px;color:#65758b;font-size:13px}@media(max-width:650px){.grid{grid-template-columns:1fr}h1{font-size:27px}.flow{flex-direction:column}.node{width:100%}.arrow{transform:rotate(90deg)}}
 </style>
 </head>
 <body>
 <main>
-<section class="hero"><h1>Prismod API 规范地图</h1><p class="lead"><b>公开 API 接收意图 → 用例层执行 → 状态层计算 → 渲染器呈现</b>。本页只讲外部模组应该调用什么，以及每个入口属于哪一类。</p></section>
-<div class="tabs" role="tablist"><button class="tab active" data-tab="overview">总览</button><button class="tab" data-tab="client">客户端 API</button><button class="tab" data-tab="server">服务端 API</button><button class="tab" data-tab="lifecycle">句柄与 Operation</button><button class="tab" data-tab="boundary">边界规则</button></div>
-<section id="overview" class="panel active"><h2>API 总览</h2><div class="flow"><div class="node"><strong>外部客户端模组</strong><small>FilterClientApi</small></div><div class="arrow">→</div><div class="node"><strong>客户端用例层</strong><small>ClientFilterApplication</small></div><div class="arrow">→</div><div class="node"><strong>状态与注册</strong><small>FilterManager / FilterRegistry</small></div><div class="arrow">→</div><div class="node"><strong>世界画面</strong><small>WorldFilterRenderer</small></div></div><div class="grid"><div class="card"><span class="tag">规范入口</span><h3>客户端</h3><p>注册、选择、强制、覆盖、查询、监听和 Owner 会话。</p></div><div class="card"><span class="tag">规范入口</span><h3>服务端</h3><p>服务端保存策略，再通过网络发布给客户端。</p></div><div class="card"><span class="tag">事实来源</span><h3>文档</h3><p><code>Java_API_调用说明.md</code> 定义客户端 API 的规范清单。</p></div></div></section>
-<section id="client" class="panel"><h2>客户端 API：按用途记忆</h2><p class="muted">外部模组只依赖 <code>FilterClientApi</code>。实现类属于内部适配器。</p><div class="grid"><div class="card"><span class="tag">规范入口</span><h3>注册与注销</h3><p><code>registerCustomFilter(...)</code> 返回 <code>FilterRegistration</code>；结束时调用 <code>close()</code>。</p></div><div class="card"><span class="tag">规范入口</span><h3>选择与强制</h3><p><code>setSessionSelection(...)</code> 是临时选择；<code>setForcedFilter(...)</code> 优先级更高。</p></div><div class="card"><span class="tag">规范入口</span><h3>覆盖</h3><p><code>createOverride(...)</code> 返回覆盖句柄，按 priority 决定生效项。</p></div><div class="card"><span class="tag">查询</span><h3>快照与列表</h3><p><code>snapshot()</code> 读取最终渲染视图；<code>filters()</code> 读取滤镜描述。</p></div><div class="card"><span class="tag">监听</span><h3>状态与事件</h3><p><code>subscribe(...)</code> 和 <code>subscribeEvents(...)</code> 返回订阅句柄。</p></div><div class="card"><span class="tag">兼容入口</span><h3>Deprecated 方法</h3><p><code>registerCustomFilterOperation(...)</code>、<code>createOverrideOperation(...)</code> 保留但新代码不使用。</p></div></div></section>
-<section id="server" class="panel"><h2>服务端 API：发布策略，不负责画面</h2><div class="flow"><div class="node"><strong>FilterServerApi</strong><small>服务端模组</small></div><div class="arrow">→</div><div class="node"><strong>ServerFilterApplication</strong><small>保存策略 / generation</small></div><div class="arrow">→</div><div class="node"><strong>PolicyTransport</strong><small>业务传输端口</small></div><div class="arrow">→</div><div class="node"><strong>PolicyNetwork</strong><small>Forge 网络实现</small></div><div class="arrow">→</div><div class="node"><strong>客户端 API</strong><small>落地为选择或覆盖</small></div></div><p class="muted">服务端的 <code>OperationResult</code> 表示服务器接受并保存了策略，不表示客户端已经完成渲染。客户端最终结果要用 <code>FilterClientApi.snapshot()</code> 查看。</p><div class="rule"><div><strong>请求模型</strong><p class="muted"><code>FilterSelectionRequest</code> 和 <code>FilterOverrideRequest</code> 会在创建时校验资源标识、归一化强度；覆盖请求还要求非空 <code>ownerId</code>。</p></div><div><strong>作用域</strong><p class="muted"><code>broadcast*</code> 面向所有玩家，<code>send*</code> 面向指定玩家；相同 owner 会更新已有覆盖。</p></div></div></section>
-<section id="lifecycle" class="panel"><h2>句柄与 Operation</h2><div class="flow"><div class="node"><strong>注册 / 创建覆盖</strong><small>表达意图</small></div><div class="arrow">→</div><div class="node"><strong>生命周期句柄</strong><small>Registration / Override</small></div><div class="arrow">→</div><div class="node"><strong>operation()</strong><small>QUEUED → SUCCESS / FAILED</small></div><div class="arrow">→</div><div class="node"><strong>close()</strong><small>结束生命周期</small></div></div><div class="rule"><div><strong>不关心结果</strong><p class="muted">使用普通 void 入口，例如 <code>setForcedFilter(...)</code>。</p></div><div><strong>需要观察结果</strong><p class="muted">使用 <code>...Operation(...)</code>，观察排队、完成和失败原因。</p></div></div><p class="muted" style="margin-top:16px">重复关闭没有副作用；排队期间关闭不会取消已提交的创建。</p></section>
-<section id="boundary" class="panel"><h2>外部模组只需要守住这些边界</h2><div class="grid"><div class="card"><h3>可以调用</h3><p><code>FilterClientApi</code>、<code>FilterServerApi</code> 及其公开契约类型。</p></div><div class="card"><h3>不要调用</h3><p><code>ClientFilterApplication</code>、<code>FilterManager</code>、<code>FilterController</code>、<code>FilterRegistry</code>。</p></div><div class="card"><h3>读取状态</h3><p>优先读取不可变的 <code>FilterSnapshot</code>，不要读取内部状态对象。</p></div><div class="card"><h3>关闭资源</h3><p>保存并关闭注册、覆盖、订阅和 Owner 会话句柄。</p></div><div class="card"><h3>服务器隔离</h3><p>专用服务器不得加载 <code>api.client</code> 或 <code>net.minecraft.client</code>。</p></div><div class="card"><h3>协议区别</h3><p>逻辑滤镜 ID 与 PostChain 资源路径用途不同，不能混用。</p></div></div></section>
-<p class="footer">事实来源：<span class="path">docs/Java_API_调用说明.md</span>　总览：<span class="path">docs/API_使用指南.md</span></p>
+<header class="hero">
+<p class="badge">Prismod · 客户端 API</p>
+<h1>两个入口，各做一件事</h1>
+<p>想改变行为，用 <b>submit</b>。<br>想了解当前情况，用 <b>query</b>。</p>
+<p class="muted">旧公开业务方法已移除。内部注册、状态和渲染实现继续复用。</p>
+</header>
+<nav aria-label="页面导航"><a href="#entry">入口</a><a href="#resources">生命周期</a><a href="#abilities">能力</a><a href="#example">示例</a><a href="#boundary">实现边界</a></nav>
+<section id="entry">
+<h2>先分清输入和查询</h2>
+<div class="grid">
+<article class="card blue"><h3>输入 · submit</h3><p>接收明确类型的业务请求。</p><p>注册、选择、覆盖、订阅、创建会话、释放资源。</p><p><code>CompletionStage&lt;FilterReceipt&gt;</code></p><p class="muted">执行后给一次最终回执，不提供后续查询。</p></article>
+<article class="card green"><h3>查询 · query</h3><p>读取最近发布的不可变数据。</p><p>状态快照、滤镜列表、资源详情、owner 和会话资源。</p><p><code>&lt;R&gt; R query(FilterQuery&lt;R&gt;)</code></p><p class="muted">不会修改状态，也不会创建资源或订阅。</p></article>
+</div>
+</section>
+<section id="resources">
+<h2>回执结束，资源继续存在</h2>
+<div class="flow"><div class="node">提交创建请求</div><span class="arrow" aria-hidden="true">→</span><div class="node">最终回执<br><small>结果 + 资源 UUID</small></div><span class="arrow" aria-hidden="true">→</span><div class="node">保存资源 UUID</div></div>
+<div class="grid"><article class="card"><h3>以后想知道状态</h3><p><code>query(new FilterQuery.Resource(id))</code></p><p class="muted">资源存在不代表当前赢得覆盖优先级；最终效果看 Snapshot。</p></article><article class="card"><h3>业务结束，释放资源</h3><p><code>submit(new FilterRequest.Release(id))</code></p><p class="muted">释放后查询为空。重复释放成功，影响数量为零。</p></article></div>
+<p class="muted">回执是固定的数据，没有 close() 或 operation()。业务成功也不等于 GPU 已经渲染成功。</p>
+</section>
+<section id="abilities">
+<h2>按需展开，不必一次记住</h2>
+<details><summary>注册与注销</summary><p>Register 注册自定义 PostChain，Release 注销单个注册，ClearRegistrations 按 owner 清理。</p><p>逻辑滤镜使用 namespace:path；postEffect 使用实际 JSON 资源路径。旧注册资源不能注销替换后的新版本。</p></details>
+<details><summary>临时选择、强制与覆盖</summary><p>Select / ClearSelection 控制临时选择，不写玩家配置。Force / ClearForced 管理旧式强制状态。Override 支持 owner 和 priority，同优先级较新者胜出。</p><p>Snapshot 查询最终效果与回退原因。</p></details>
+<details><summary>状态和事件监听</summary><p>SubscribeState / SubscribeEvents 建立订阅，回执返回订阅 UUID，Release 取消。</p><p>回调在客户端线程执行，异常隔离；不补发初始快照。需要初始状态时单独 query。操作完成事件通过 receipt() 提供最终回执。</p></details>
+<details><summary>Session 与批量操作</summary><p>OpenSession 创建会话；Batch 只接收 Register 和 Override，按顺序执行、允许部分成功。</p><p>ClearSession 清空后可复用；CloseSession 关闭后拒绝新增。只管理自身资源，不影响同 owner 的其他会话。</p></details>
+<details><summary>曝光、饱和度等调参</summary><p>本步尚未接入，留待下一步。内部 FilterDebugSettings 保持原位；外部模组不要直接使用调试预览代替 API。</p></details>
+</section>
+<section id="example">
+<h2>最小示例：强制 → 查询 → 恢复</h2>
+<pre><code>var filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");
+
+FilterClientApi.submit(new FilterRequest.Force(filter, 0.75F))
+    .thenAccept(receipt -&gt; {
+        var snapshot = FilterClientApi.query(new FilterQuery.Snapshot());
+        // 根据 receipt 的状态和反馈代码处理失败。
+    });
+
+// 在业务结束时恢复普通选择。
+FilterClientApi.submit(new FilterRequest.ClearForced());</code></pre>
+<p class="muted">仅限物理客户端调用。不要在客户端线程阻塞等待异步结果。完整 imports 和资源管理示例见 <a href="Java_API_调用说明.md">Java API 规范</a>。</p>
+</section>
+<section id="boundary">
+<h2>实现放在边界之后</h2>
+<div class="flow"><div class="node">外部模组<br><small>FilterClientApi</small></div><span class="arrow" aria-hidden="true">→</span><div class="node">应用层<br><small>校验、调度、资源管理</small></div><span class="arrow" aria-hidden="true">→</span><div class="node">注册与状态<br><small>渲染器读取最终状态</small></div></div>
+<details><summary>源码位置与依赖边界</summary><p><code>api/client/FilterClientApi.java</code>：公开两个业务入口。<br><code>api/client/request</code>、<code>query</code>、<code>contract</code>：输入、查询及不可变数据。<br><code>client/application</code>、<code>client/filter</code>、<code>client/render</code>：内部实现，不供外部模组调用。</p><p>专用服务器不得加载 api.client 或 net.minecraft.client。滤镜只作用于世界画面和手持物品，不进入 HUD、聊天、菜单或容器。</p></details>
+<details><summary>服务端：保持现有契约</summary><p>FilterServerApi → ServerFilterApplication → PolicyTransport → PolicyNetwork。通道 prismod:policy，版本 1。</p><p>服务端 OperationResult 表示接受并保存策略，不是客户端渲染回执。本步只迁移客户端接收适配，不改变网络协议。</p><p><a href="API_使用指南.md">查看服务端 API、网络和命令总览</a></p></details>
+</section>
+<footer>客户端规范来源：<a href="Java_API_调用说明.md">Java_API_调用说明.md</a> · <a href="API_与指令架构审查.md">架构审查</a></footer>
 </main>
-<script>
-const tabs=[...document.querySelectorAll('.tab')],panels=[...document.querySelectorAll('.panel')];tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.toggle('active',x===t));panels.forEach(p=>p.classList.toggle('active',p.id===t.dataset.tab));}));
-</script>
 </body>
 </html>

@@ -64,23 +64,30 @@ strength_night_vision = 1.0
 
 滤镜调试界面在世界内从支持统一 uniform 契约的 LUT 或 `post_chain` 滤镜行进入，不改变 `FilterManager` 普通选择或 `custom_strengths`。它提供强度、曝光、对比度、高光、阴影、饱和度、色温、色调和伽马参数；处理顺序为预处理、滤镜处理、后处理和强度混合。调试预设独立保存于 `config/prismod/config/resourcepacks/<namespace>/<filter-id>.json`，文件包含 `schema: prismod.filter_debug`、`format_version: 1`、完整 `filter` 身份和 `settings`。保存按钮才写文件，取消/关闭/窗口重建不保存临时修改；未知版本、身份不匹配或损坏文件回退默认值。缺少任意 uniform 的普通 post_chain 仍可正常使用，但不显示调试入口并记录资源校验错误。旧 `lut-presets.json` 不读取，资源包暂时缺失时调参文件保留。
 
-公开客户端 API 位于 `com.xkmxz.prismod.api.client`，外部模组不得依赖 `client.filter` 内部类：
+公开客户端 API 位于 `com.xkmxz.prismod.api.client`，门面只保留 `submit(FilterRequest)` 和 `query(FilterQuery<R>)`，旧业务方法已移除。外部模组不得依赖应用层、状态管理器、注册表、渲染器或内部句柄。
 
 ```java
-FilterClientApi.setForcedFilter(ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F);
-FilterClientApi.clearForcedFilter();
-FilterSnapshot effective = FilterClientApi.snapshot();
-FilterRegistration registration = FilterClientApi.registerCustomFilter(ownerId, postEffect, metadata);
+import com.xkmxz.prismod.api.client.FilterClientApi;
+import com.xkmxz.prismod.api.client.request.FilterRequest;
+import com.xkmxz.prismod.api.client.query.FilterQuery;
+import net.minecraft.resources.ResourceLocation;
+
+FilterClientApi.submit(new FilterRequest.Force(
+        ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F))
+        .thenAccept(receipt -> {
+            var effective = FilterClientApi.query(new FilterQuery.Snapshot());
+        });
+// 在业务结束时恢复普通选择。
+FilterClientApi.submit(new FilterRequest.ClearForced());
 ```
 
-`setForcedFilter` 只接受逻辑滤镜 ID：内置滤镜使用 `prismod:<name>`，自定义滤镜使用完整 `namespace:path`；注册 API 的 `postEffect` 才使用实际 PostChain 资源路径。强制滤镜优先于玩家总开关、F8 和普通选择；重复设置会替换原强制状态，清除后恢复用户选择和最新配置。写 API 会调度到 Minecraft 客户端线程，`snapshot()` 返回最近一次发布的不可变最终渲染快照。专用服务器不得加载 `api.client` 或任何 `net.minecraft.client` 类。
+写请求调度到客户端线程，返回 CompletionStage 并交付一次不可变最终 FilterReceipt，不在客户端线程阻塞等待。业务状态和资源视图发布后交付回执及对应事件，回调内再次提交的写请求排后。回执只有结果和资源 UUID，不提供后续状态查询。状态监听和事件监听通过 submit 注册，以 Release(UUID) 取消；监听器异常隔离，订阅时不补发快照。
 
-客户端 `FilterSnapshot` 表示最终渲染视图；跨端状态使用 `api.common.model.FilterSnapshot`。两者只能通过 `toCommonSnapshot()` 与 `FilterSnapshot.fromCommonSnapshot(...)` 显式转换，common 模型不承载客户端专属的 `forced` 字段。
+注册、覆盖、订阅及 Session 使用独立资源 UUID；query 返回不可变数据，释放后查询为空，重复释放成功且影响数量为零。Session 只管理自身注册和覆盖，清空可复用、关闭后拒绝新增；批量仅接受 Register 和 Override，逐项尽力执行。旧注册 ID 不能注销替换后的新版本。
 
-需要观察客户端线程排队结果时，使用 `setForcedFilterOperation`、`setSessionSelectionOperation`、`clearForcedFilterOperation` 和 `clearSessionSelectionOperation` 等 `Operation` 后缀入口；注册和覆盖句柄通过 `operation()` 查询创建操作。跨线程调用先返回 `QUEUED`，完成后发布一次 `OPERATION_COMPLETED` 事件；旧的 `void` 与句柄入口继续保留。`registerCustomFilter` 与 `createOverride` 是规范句柄入口，旧的 `registerCustomFilterOperation` 与 `createOverrideOperation` 仅作为 deprecated 兼容别名。Operation 还提供稳定的 `failureReason()` 与 `failureDetail()`；无变化操作成功但影响数量为 0，排队期间关闭句柄不会取消创建。
-客户端模组还可以通过 `FilterClientApi.openSession("example-mod")` 创建 owner 会话，使用 `registerAll(...)` 和 `createOverrides(...)` 批量管理注册和覆盖。批量结果逐项报告，混合成功与失败时状态为 `PARTIAL`；`session.close()` 只清理该 owner 的注册和覆盖，排队项目执行后立即关闭。
+选择与覆盖请求使用逻辑滤镜 ID，注册 postEffect 使用实际资源路径。保留现有优先级、强度和回退规则，不修改玩家配置。客户端 Snapshot 与 common Snapshot 通过 toCommonSnapshot()/fromCommonSnapshot(...) 显式转换。
 
-状态和事件监听器始终在 Minecraft 客户端线程按变更顺序同步执行，订阅时不补发初始快照；监听器异常会被隔离并记录日志。注册和覆盖句柄的 `close()` 同样调度到客户端线程，重复关闭没有副作用。
+调参输入留待后续独立步骤，FilterDebugSettings 保持 client.filter.debug 内部位置。本次不修改服务端 API、网络协议、shader 或调试预设。完整契约和示例统一维护在 docs/Java_API_调用说明.md。
 
 ## 架构和模块职责
 
@@ -225,13 +232,14 @@ private void registerCommands(RegisterCommandsEvent event) {
 新增客户端 API 时，至少应留下类似下面的完整用法，而不是只记录方法签名：
 
 ```java
-// 在客户端入口调用：让 Prismod 临时使用复古滤镜，强度为 75%。
-FilterClientApi.setForcedFilter(ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F);
-
-FilterSnapshot effective = FilterClientApi.snapshot();
-
-// 用完后解除强制状态，恢复玩家在配置界面中的选择。
-FilterClientApi.clearForcedFilter();
+// 在物理客户端提交请求；最终回执表示业务结果。
+FilterClientApi.submit(new FilterRequest.Force(
+        ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F))
+        .thenAccept(receipt -> {
+            var effective = FilterClientApi.query(new FilterQuery.Snapshot());
+        });
+// 在业务结束时解除强制状态。
+FilterClientApi.submit(new FilterRequest.ClearForced());
 ```
 
 同时说明调用环境、线程要求、状态优先级、配置是否落盘、失败时的回退行为，以及一个用户可复现的操作路径。例如资源包功能必须写明放置目录、`prismod.pack.json` 最小内容、导入入口、启用/禁用位置和资源重载时机。

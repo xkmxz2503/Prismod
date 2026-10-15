@@ -4,14 +4,12 @@ import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import com.xkmxz.prismod.client.filter.*;
 import com.xkmxz.prismod.client.filter.registry.FilterDefinition;
 import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
-import com.xkmxz.prismod.api.client.contract.FilterOverride;
+import com.xkmxz.prismod.client.application.handle.FilterOverride;
 import com.xkmxz.prismod.api.client.contract.FilterSnapshot;
 import com.xkmxz.prismod.api.client.contract.FilterStateListener;
-import com.xkmxz.prismod.api.client.contract.FilterSubscription;
+import com.xkmxz.prismod.client.application.handle.FilterSubscription;
 import com.xkmxz.prismod.api.client.event.FilterEvent;
 import com.xkmxz.prismod.api.client.event.FilterEventListener;
-import com.xkmxz.prismod.api.client.operation.FilterOperation;
-import com.xkmxz.prismod.api.client.operation.FilterBatchOperation;
 import com.xkmxz.prismod.api.common.state.lifecycle.FilterOverrideState;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
@@ -31,6 +29,7 @@ public final class FilterManager {
     private static final FilterManager INSTANCE = new FilterManager();
     private static final Logger LOGGER = LogUtils.getLogger();
     private final FilterController controller = new FilterController();
+    private volatile FilterSnapshot published = buildSnapshot();
     private final CopyOnWriteArrayList<FilterStateListener> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<FilterEventListener> eventListeners = new CopyOnWriteArrayList<>();
 
@@ -124,15 +123,11 @@ public final class FilterManager {
         notifyEvent(FilterEvent.availabilityChanged(FilterRegistry.get().descriptors()));
     }
 
-    public void operationCompleted(FilterOperation operation) {
-        notifyEvent(FilterEvent.operationCompleted(operation));
-    }
-
-    public void batchOperationCompleted(FilterBatchOperation operation) {
-        notifyEvent(FilterEvent.batchOperationCompleted(operation));
-    }
-
     public FilterSnapshot snapshot() {
+        return published;
+    }
+
+    private FilterSnapshot buildSnapshot() {
         FilterSelection effective = controller.effectiveSelection();
         FilterSelection selected = controller.selectedSelection();
         return new FilterSnapshot(effective.key().id(), effective.strength(), effective.forced(),
@@ -203,6 +198,7 @@ public final class FilterManager {
 
     public void reportRenderFailure() {
         controller.setRenderAvailable(false);
+        notifyListeners();
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player != null) {
             minecraft.player.displayClientMessage(Component.translatable("message.prismod.render_failed"), true);
@@ -225,7 +221,8 @@ public final class FilterManager {
     }
 
     private void notifyListeners() {
-        FilterSnapshot snapshot = snapshot();
+        FilterSnapshot snapshot = buildSnapshot();
+        published = snapshot;
         for (FilterStateListener listener : listeners) {
             try { listener.onChanged(snapshot); }
             catch (Throwable error) { LOGGER.warn("Prismod client filter state listener failed", error); }
@@ -254,8 +251,8 @@ public final class FilterManager {
         @Override public net.minecraft.resources.ResourceLocation id() { return filter; }
         @Override public String ownerId() { return ownerId; }
         @Override public int priority() { return priority; }
-        @Override public FilterOverrideState state() { return closed.get() ? FilterOverrideState.CLOSED : FilterOverrideState.ACTIVE; }
-        @Override public boolean isActive() { return !closed.get(); }
+        @Override public FilterOverrideState state() { return isActive() ? FilterOverrideState.ACTIVE : FilterOverrideState.CLOSED; }
+        @Override public boolean isActive() { return !closed.get() && controller.containsOverride(id); }
         @Override public void close() {
             if (!closed.compareAndSet(false, true)) return;
             Runnable remove = () -> {

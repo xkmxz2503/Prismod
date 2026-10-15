@@ -6,7 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
 import com.xkmxz.prismod.api.client.contract.CustomFilterMetadata;
-import com.xkmxz.prismod.api.client.contract.FilterRegistration;
+import com.xkmxz.prismod.client.application.handle.FilterRegistration;
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
 import com.xkmxz.prismod.api.common.state.filter.FilterFailureReason;
 import com.xkmxz.prismod.api.common.state.lifecycle.FilterRegistrationState;
@@ -264,10 +264,9 @@ public final class FilterRegistry {
         @Override public String ownerId() { return id.ownerId(); }
         @Override public FilterRegistrationState state() {
             if (closed) return FilterRegistrationState.CLOSED;
-            if (failures.containsKey(id.key())) return FilterRegistrationState.FAILED;
             RegistrationRecord current = registrations.get(id);
-            return current != null && current.version() == version
-                    ? FilterRegistrationState.ACTIVE : FilterRegistrationState.CLOSED;
+            if (current == null || current.version() != version) return FilterRegistrationState.CLOSED;
+            return failures.containsKey(id.key()) ? FilterRegistrationState.FAILED : FilterRegistrationState.ACTIVE;
         }
         @Override public FilterFailureReason failureReason() {
             return failures.containsKey(id.key()) ? FilterFailureReason.RESOURCE_INVALID : FilterFailureReason.NONE;

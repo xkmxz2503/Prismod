@@ -1,8 +1,7 @@
 package com.xkmxz.prismod.api.client.event;
 
 import com.xkmxz.prismod.api.client.contract.FilterSnapshot;
-import com.xkmxz.prismod.api.client.operation.FilterOperation;
-import com.xkmxz.prismod.api.client.operation.FilterBatchOperation;
+import com.xkmxz.prismod.api.client.contract.FilterReceipt;
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
 
 import java.util.List;
@@ -10,7 +9,7 @@ import java.util.Objects;
 
 /** Immutable notification for client filter state, registry, availability, or operation changes. */
 public record FilterEvent(FilterEventType type, FilterSnapshot snapshot,
-                          List<FilterDescriptor> filters, FilterOperation operation) {
+                          List<FilterDescriptor> filters, FilterReceipt receipt) {
     public FilterEvent {
         type = Objects.requireNonNull(type, "type");
         filters = filters == null ? List.of() : List.copyOf(filters);
@@ -28,13 +27,13 @@ public record FilterEvent(FilterEventType type, FilterSnapshot snapshot,
         return new FilterEvent(FilterEventType.AVAILABILITY_CHANGED, null, filters, null);
     }
 
-    public static FilterEvent operationCompleted(FilterOperation operation) {
+    public static FilterEvent operationCompleted(FilterReceipt receipt) {
         return new FilterEvent(FilterEventType.OPERATION_COMPLETED, null, List.of(),
-                Objects.requireNonNull(operation, "operation"));
+                Objects.requireNonNull(receipt, "receipt"));
     }
 
-    public static FilterEvent batchOperationCompleted(FilterBatchOperation operation) {
+    public static FilterEvent batchOperationCompleted(FilterReceipt receipt) {
         return new FilterEvent(FilterEventType.BATCH_OPERATION_COMPLETED, null, List.of(),
-                Objects.requireNonNull(operation, "operation"));
+                Objects.requireNonNull(receipt, "receipt"));
     }
 }

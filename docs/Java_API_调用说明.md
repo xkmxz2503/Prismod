@@ -1,209 +1,125 @@
 # Prismod Java API 规范
 
-本文档是客户端公开 Java API 的事实来源，适用于 Minecraft 1.20.1、Forge 47.3.32 和 Java 17。
+本文是客户端公开 Java API 的规范来源，适用于 Minecraft 1.20.1、Forge 47.3.32、Java 17。
 
-## 1. API 使用边界
+## 1. 两个入口
 
-客户端公开入口位于 `com.xkmxz.prismod.api.client`。外部模组只依赖公开 API，不直接访问 `ClientFilterApplication`、`FilterManager`、`FilterController`、`FilterRegistry` 或渲染器。
-
-专用服务器不得加载 `api.client` 或任何 `net.minecraft.client` 类。逻辑滤镜 ID 使用完整的 `namespace:path`；注册自定义 PostChain 时，`postEffect` 使用实际资源路径，例如 `example:shaders/post/debug.json`。
-
-## 2. 客户端 API 总览
-
-### 2.1 注册与注销
-
-**规范入口：**
+外部客户端模组只通过 `com.xkmxz.prismod.api.client.FilterClientApi` 提交业务或读取数据：
 
 ```java
-FilterRegistration registration = FilterClientApi.registerCustomFilter(
-        "example-mod",
-        ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"),
-        new CustomFilterMetadata("filter.example.debug", 0.75F));
-
-registration.close();
+CompletionStage<FilterReceipt> submit(FilterRequest request);
+<R> R query(FilterQuery<R> request);
 ```
 
-支持显式逻辑 ID 的重载：
+`submit` 接收明确类型的请求并交付一次最终回执；`query` 返回最近发布的不可变数据，不修改状态。旧公开业务方法已移除，这是不兼容的客户端 API 调整，不保留 deprecated 别名。
 
-```java
-FilterRegistration registration = FilterClientApi.registerCustomFilter(
-        ResourceLocation.fromNamespaceAndPath("example", "debug"),
-        "example-mod",
-        postEffect,
-        metadata);
-```
+专用服务器不得加载 `api.client`。外部模组不得依赖应用层、注册表、状态管理器、渲染器或内部句柄。
 
-`ownerId` 不能为空；强度规范化到 `[0.0, 1.0]`，非有限值按 `0.0` 处理。`FilterRegistration` 表示一个注册句柄，关闭后该注册不再生效。
+## 2. 输入请求清单
 
-**兼容入口：** `registerCustomFilterOperation(...)` 继续保留并标记为 deprecated。新代码使用 `registerCustomFilter(...)`，通过返回句柄的 `operation()` 查看创建结果。
+请求位于 `api.client.request.FilterRequest`，以下均为嵌套 record。
 
-### 2.2 普通选择
+| 分类 | 请求 | 含义 |
+| --- | --- | --- |
+| 注册 | `Register(ownerId, logicalId, postEffect, metadata, sessionId)` | 注册 PostChain；可省略 sessionId，另有推导逻辑 ID 的便捷构造 |
+| 释放 | `Release(resourceId)` | 释放注册、覆盖、订阅或 Session |
+| 清理注册 | `ClearRegistrations(ownerId)` | 清理 owner 的注册 |
+| 临时选择 | `Select(filter, strength)`、`ClearSelection()` | 不写玩家配置 |
+| 强制 | `Force(filter, strength)`、`ClearForced()` | 替换或解除旧式强制覆盖 |
+| 覆盖 | `Override(ownerId, filter, strength, priority, sessionId)` | sessionId 可省略；同优先级较新者胜出 |
+| 清理覆盖 | `ClearOverrides(ownerId)` | 清理 owner 的覆盖 |
+| 监听 | `SubscribeState(ownerId, listener)`、`SubscribeEvents(ownerId, listener)` | 创建订阅，使用资源 ID 取消 |
+| Session | `OpenSession(ownerId)`、`ClearSession(sessionId)`、`CloseSession(sessionId)` | 创建、清空或关闭会话 |
+| 批量 | `Batch(sessionId, requests)` | 仅接收 Register 和 Override，按顺序尽力执行 |
 
-会话选择不修改玩家配置，适合临时选择：
+逻辑滤镜 ID 使用完整 `namespace:path`，例如 `prismod:vintage`；`postEffect` 使用实际 PostChain JSON 路径，例如 `example:shaders/post/debug.json`，不能混用。
 
-```java
-FilterClientApi.setSessionSelection(filter, 0.5F);
-FilterClientApi.clearSessionSelection();
-```
+强度限制在 `[0, 1]`，非有限值按 `0` 处理。普通选择、强制、优先级覆盖沿用现有规则；强制覆盖可以优先于玩家总开关，渲染不可用时仍回退原色。
 
-不需要观察排队结果时使用以上 void 入口；需要结果时使用 `setSessionSelectionOperation(...)` 和 `clearSessionSelectionOperation()`。
+## 3. 只读查询清单
 
-### 2.3 强制滤镜
+查询位于 `api.client.query.FilterQuery`，结果类型由查询本身决定。
 
-强制滤镜优先于总开关、F8 循环和普通选择：
-
-```java
-FilterClientApi.setForcedFilter(filter, 0.75F);
-FilterClientApi.clearForcedFilter();
-```
-
-需要观察结果时使用 `setForcedFilterOperation(...)` 和 `clearForcedFilterOperation()`。
-
-### 2.4 覆盖
-
-覆盖按优先级决定生效项，同一优先级使用较新的覆盖：
-
-```java
-FilterOverride override = FilterClientApi.createOverride(
-        "example-mod", filter, 0.8F, 100);
-
-override.close();
-FilterClientApi.clearOverrides("example-mod");
-```
-
-**规范入口：** `createOverride(...)`，通过 `override.operation()` 查看创建操作。
-
-**兼容入口：** `createOverrideOperation(...)` 继续保留并标记为 deprecated。
-
-覆盖句柄的生命周期状态只有 `PENDING`、`ACTIVE` 和 `CLOSED`。如果排队创建失败，失败状态、`FilterFailureReason` 和诊断详情以 `override.operation()` 为准；句柄本身不会增加独立的 `FAILED` 状态。
-
-### 2.5 快照查询
-
-```java
-FilterSnapshot snapshot = FilterClientApi.snapshot();
-snapshot.filter();
-snapshot.strength();
-snapshot.forced();
-snapshot.renderAvailable();
-snapshot.selectedFilter();
-snapshot.fallbackReason();
-snapshot.generation();
-```
-
-`snapshot()` 返回不可变的最终渲染视图。渲染资源不可用时，最终滤镜可能回退为 `prismod:original`，但用户选择、回退原因和 generation 会保留。
-
-滤镜列表：
-
-```java
-List<FilterDescriptor> all = FilterClientApi.filters();
-List<FilterDescriptor> available = FilterClientApi.availableFilters();
-```
-
-### 2.6 状态监听
-
-```java
-FilterSubscription subscription = FilterClientApi.subscribe(snapshot -> {
-    System.out.println(snapshot.filter());
-});
-
-FilterSubscription events = FilterClientApi.subscribeEvents(event -> {
-    System.out.println(event.type());
-});
-
-subscription.close();
-events.close();
-```
-
-订阅不会补发初始状态；回调在 Minecraft 客户端线程按变更顺序同步执行。监听器异常会被隔离并记录日志。
-
-### 2.7 Owner 会话与批量操作
-
-```java
-try (FilterClientSession session = FilterClientApi.openSession("example-mod")) {
-    FilterBatchResult<FilterRegistration> result = session.registerAll(requests);
-}
-```
-
-会话只管理该 owner 创建的注册和覆盖。批量操作按输入顺序尽力执行，混合成功和失败时总体状态为 `PARTIAL`。关闭会话不会取消已经排队的项目；项目执行后会立即关闭对应句柄。
-
-## 3. 服务端 API 总览
-
-服务端公开入口是 `com.xkmxz.prismod.api.server.FilterServerApi`，详细协议说明见 [`API_使用指南.md`](API_使用指南.md) 和 [`服务端_API_与命令.md`](服务端_API_与命令.md)。
-
-| 用途 | 规范入口 |
+| 查询 | 返回值 |
 | --- | --- |
-| 查询服务状态 | `status()`、`filterStatus()` |
-| 广播选择 | `broadcastSelection(...)` |
-| 指定玩家选择 | `sendSelection(...)` |
-| 广播覆盖 | `broadcastOverride(...)` |
-| 指定玩家覆盖 | `sendOverride(...)` |
-| 清理策略 | `clearBroadcastOverride(...)`、`clearPlayerOverride(...)`、`clearAllOverrides()`、`clearSelection()` |
+| `Snapshot()` | `api.client.contract.FilterSnapshot` |
+| `Filters(false)` | 全部滤镜的不可变 `List<FilterDescriptor>` |
+| `Filters(true)` | 当前可用滤镜列表 |
+| `Resource(resourceId)` | `Optional<FilterResourceView>` |
+| `Resources(ownerId)` | owner 当前存活的资源列表 |
+| `SessionResources(sessionId)` | Session 当前管理的注册和覆盖列表，不含 Session 自身 |
 
-服务端返回 `OperationResult`，表示服务端是否接受并保存策略，不表示客户端已经完成渲染。
+`FilterResourceView` 包含 UUID、种类、owner、Session UUID、滤镜、优先级、生命周期状态和诊断信息。资源存活不代表赢得覆盖优先级，最终画面状态应查询 Snapshot。
 
-服务端写操作使用两个公共请求模型：
+客户端 Snapshot 保存最终滤镜、强度、forced、渲染可用性、玩家选择、回退原因和 generation。它与 `api.common.model.FilterSnapshot` 不同，通过 `toCommonSnapshot()` 和 `fromCommonSnapshot(...)` 显式转换。
 
-- `FilterSelectionRequest(filter, strength)`：`filter` 不能为空；`strength` 在构造时归一化到 `0.0–1.0`，非有限值按 `0.0` 处理；
-- `FilterOverrideRequest(ownerId, filter, strength, priority)`：`ownerId` 会去除首尾空白且不能为空，`filter` 不能为空，`strength` 同样归一化到 `0.0–1.0`；同一作用域内使用相同 `ownerId` 会更新该 owner 的覆盖。
-
-这些规则在请求对象创建时执行，因此调用服务端 API 前不需要再复制一套强度或 owner 校验。
-
-## 4. Operation、句柄和线程语义
+## 4. 回执、线程与生命周期
 
 ```text
-注册 / 创建覆盖
-        │
-        ▼
-返回生命周期句柄
-        │
-        ├─ state()
-        ├─ isActive()
-        ├─ operation()
-        └─ close()
-
-Operation：QUEUED → SUCCESS / FAILED
+submit(创建) → 排队／执行 → 最终 FilterReceipt
+                              └─ resourceIds
+                                   ├─ query(Resource) 读取当前状态
+                                   └─ submit(Release) 结束生命周期
 ```
 
-- 写操作会自动调度到 Minecraft 客户端线程；
-- void 入口适合不关心执行结果的调用；
-- `...Operation` 入口适合需要观察排队、完成和失败原因的调用；
-- 重复 `close()` 没有副作用；
-- 排队期间关闭句柄不会取消已提交的创建；
-- 覆盖创建失败通过覆盖句柄的 `operation()` 读取，覆盖状态仍按 `PENDING`、`ACTIVE`、`CLOSED` 表示生命周期；
-- 无变化操作仍可返回 `SUCCESS`，但 `affectedCount()` 为 `0`，generation 不递增；
-- 状态事件先发布，随后发布一次 `OPERATION_COMPLETED`。
+`FilterReceipt` 是不可变 record：
 
-## 5. 规范入口与兼容入口
+| 字段 | 含义 |
+| --- | --- |
+| `requestId` | 本次客户端操作的 UUID |
+| `status`、`code` | 最终状态及稳定反馈代码 |
+| `failureReason`、`failureDetail` | 失败分类及诊断详情 |
+| `affectedCount` | 影响数量，无变化可成功且为零 |
+| `resourceIds` | 本次建立的资源标识；注册失败时也可能包含用于查询诊断和释放的资源 ID |
+| `items` | 按输入顺序排列的批量逐项回执 |
 
-| 类别 | 方法 | 规则 |
-| --- | --- | --- |
-| 规范入口 | `registerCustomFilter(...)` | 新代码使用 |
-| 兼容入口 | `registerCustomFilterOperation(...)` | deprecated，仅兼容旧调用方 |
-| 规范入口 | `createOverride(...)` | 新代码使用 |
-| 兼容入口 | `createOverrideOperation(...)` | deprecated，仅兼容旧调用方 |
-| 简单调用入口 | `setForcedFilter(...)`、`setSessionSelection(...)` 等 void 方法 | 不需要观察结果时使用 |
-| 可观察入口 | `...Operation(...)` 方法 | 需要线程排队或失败信息时使用 |
-| 内部实现 | `ClientFilterApplication`、`FilterManager`、`FilterController`、`FilterRegistry` | 外部模组不得依赖 |
+异步返回值表示等待过程，最终回执没有 QUEUED。回执不包含 `close()`、`operation()` 或持续变化的资源状态。不要通过 `join()`／`get()` 阻塞客户端线程。
 
-本步骤不删除任何兼容入口，也不修改方法签名。
+业务请求在客户端线程执行。业务状态和资源视图发布后交付回执及对应事件；回调中再次 submit 的写请求排在当前请求之后。业务失败通过回执表达；成功表示业务状态已提交，不表示 GPU 渲染已完成。
 
-## 6. 最小示例
+监听器在客户端线程按顺序执行、异常隔离，订阅时不补发初始快照。初始数据单独 query。`FilterEvent.receipt()` 提供操作完成事件的最终回执，替代公开 Operation。
+
+释放后资源查询为空；重复释放成功且影响数量为零。注册替换保持现有版本规则，旧注册 ID 不能注销新版本。
+
+注册失败回执若带有资源 ID，可通过 Resource 查询其 FAILED 状态，也可通过 Release 释放；ClearRegistrations 会一并清理该 owner 的失败注册资源。资源 ID 非空不代表操作成功，应先检查回执 status。
+
+Session 只管理自身创建的注册和覆盖，同 owner 的其他资源不受影响。清空后可复用，关闭后拒绝新增操作；批量允许部分成功，不执行事务回滚。批量项目的 owner 必须与 Session 一致；未指定 sessionId 的项目继承批量 Session。
+
+## 5. 最小客户端示例
 
 ```java
-ResourceLocation filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");
+import com.xkmxz.prismod.api.client.FilterClientApi;
+import com.xkmxz.prismod.api.client.request.FilterRequest;
+import com.xkmxz.prismod.api.client.query.FilterQuery;
+import net.minecraft.resources.ResourceLocation;
 
-FilterClientApi.setForcedFilter(filter, 0.75F);
-FilterSnapshot snapshot = FilterClientApi.snapshot();
+var filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");
 
-// 功能关闭时恢复普通选择。
-FilterClientApi.clearForcedFilter();
+FilterClientApi.submit(new FilterRequest.Override("example-mod", filter, 0.75F, 100))
+        .thenAccept(receipt -> {
+            if (receipt.resourceIds().isEmpty()) {
+                return; // 根据 status/code/failureReason 处理失败。
+            }
+            var resourceId = receipt.resourceIds().get(0);
+            var resource = FilterClientApi.query(new FilterQuery.Resource(resourceId));
+            var snapshot = FilterClientApi.query(new FilterQuery.Snapshot());
+            // 示例到此结束；实际集成保存 ID，在业务结束时释放。
+            FilterClientApi.submit(new FilterRequest.Release(resourceId));
+        });
 ```
+
+注册使用 `new FilterRequest.Register("example-mod", logicalId, postEffect, metadata)`；回执返回注册资源 ID，注销同样提交 Release。订阅返回订阅资源 ID，也通过 Release 取消。
+
+## 6. 服务端与后续调参边界
+
+本次不修改 `FilterServerApi`、服务端请求或返回值。服务端 API 与冻结协议见 [API 使用指南](API_使用指南.md) 和 [服务端 API 与命令](服务端_API_与命令.md)。服务端 `OperationResult` 表示接受并保存策略，不是客户端渲染回执。
+
+调参是后续独立步骤；当前请求尚不接收曝光、饱和度等参数。`client.filter.debug.FilterDebugSettings` 保持内部位置，不作为公开模型，也不要直接启动调试预览代替 API 调用。
 
 ## 7. 常见错误
 
-- 把逻辑滤镜 ID 和 PostChain 资源路径混用；
-- 从专用服务器加载 `api.client`；
-- 直接调用内部状态类；
-- 忘记保存并关闭注册或覆盖句柄；
-- 把服务端 `OperationResult` 当成客户端渲染回执；
-- 只读取最终 `filter()`，却忽略回退时的 `selectedFilter()` 和 `fallbackReason()`。
+- 从专用服务器加载客户端 API，或继续调用已移除的旧方法。
+- 把回执当成可持续查询的句柄，或把 UUID 当成滤镜逻辑 ID。
+- 在客户端线程阻塞等待 CompletionStage。
+- 忘记释放资源，或以为 Session 会清理同 owner 的所有资源。
+- 只读最终 filter，忽略 selectedFilter、fallbackReason 和 renderAvailable。

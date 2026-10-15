@@ -121,6 +121,10 @@ final class FilterController {
         return removed;
     }
 
+    boolean containsOverride(long id) {
+        return overrides.containsKey(id);
+    }
+
     int removeOverridesByOwner(String ownerId) {
         if (ownerId == null || ownerId.isBlank()) return 0;
         int before = overrides.size();

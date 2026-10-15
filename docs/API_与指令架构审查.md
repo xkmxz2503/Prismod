@@ -72,7 +72,7 @@ flowchart LR
 | 测试指令适配器 | `command/test/server/PrismodServerApiCommands` | 通过公开服务端 API 执行逐步测试 |
 | 网络抽象端口 | `network/contract/PolicyTransport` | 只暴露广播和指定玩家发送能力 |
 | Forge 网络实现 | `network/transport/PolicyNetwork` | 创建通道、编解码、路由和客户端 sink 分发 |
-| 客户端接收适配器 | `client/network/PrismodClientNetwork` | 把策略消息翻译为客户端 API 调用，并维护网络覆盖句柄 |
+| 客户端接收适配器 | `client/network/PrismodClientNetwork` | 把策略消息翻译为客户端 API 调用，并维护网络请求 ID 到客户端资源 UUID 的映射 |
 
 服务端命令不得直接调用 `ServerFilterApplication` 的状态表；服务端应用层不得直接依赖 `SimpleChannel`、`PacketDistributor` 或编解码细节。
 
@@ -94,16 +94,15 @@ flowchart LR
 
 客户端公开契约包括：
 
-- `FilterSnapshot`：不可变最终状态和用户选择状态；
-- `FilterDescriptor`：滤镜身份、类型、owner、可用性和失败原因；
-- `FilterRegistration`：自定义滤镜注册句柄；
-- `FilterOverride`：覆盖句柄；
-- `FilterSubscription`：订阅生命周期句柄；
-- `FilterOperation`：异步或线程调度操作的状态；
-- `FilterEvent`：快照、注册表、可用性和操作完成事件；
+- `FilterRequest`：有类型的业务输入，包含监听和生命周期请求；
+- `FilterQuery<R>`：有类型的只读查询；
+- `FilterReceipt`：本次操作的不可变最终回执；
+- `FilterResourceView`：资源 UUID、归属和生命周期的只读视图；
+- `FilterSnapshot`、`FilterDescriptor`：状态和滤镜描述；
+- `FilterEvent`：通知数据，操作完成事件携带 `receipt()`；
 - `CustomFilterMetadata`：显示翻译键和默认强度。
 
-这些类型只能表达稳定业务状态，不能暴露 `FilterManager`、`FilterRegistry`、`PostChain`、OpenGL 对象或 Forge 网络对象。
+注册、覆盖、订阅及 Session 的可操作句柄仅在内部使用。公开契约不暴露状态管理器、渲染资源或 Forge 网络对象。
 
 ### 3.3 服务端抽象契约
 
@@ -133,16 +132,13 @@ flowchart LR
 
 ### 4.1 客户端 API
 
-公开入口为 `com.xkmxz.prismod.api.client.FilterClientApi`，当前操作分为：
+公开门面 `FilterClientApi` 只保留 `submit(FilterRequest)` 和 `query(FilterQuery<R>)`。
 
-- 注册：`registerCustomFilter`、`clearRegistrations`；
-- 选择：`setSessionSelection`、`clearSessionSelection`；
-- 强制：`setForcedFilter`、`clearForcedFilter`；
-- 覆盖：`createOverride`、`clearOverrides`；
-- 查询：`snapshot`、`filters`、`availableFilters`；
-- 监听：`subscribe`、`subscribeEvents`。
+submit 承接注册、选择、强制、覆盖、订阅和 Session，返回 CompletionStage，最终交付一次 FilterReceipt。query 读取最近发布的不可变快照、列表及资源视图，不创建资源或订阅。旧公开业务方法已删除，不保留兼容入口。
 
-写操作由 `ClientFilterApplication` 统一调度到客户端线程。句柄通过 `close()` 结束生命周期，快照和描述通过不可变 record 返回。
+创建回执返回 UUID，释放使用 Release，后续状态通过 query 查询。资源不存在返回空；重复释放成功且影响数量为零。Session 只管理自身注册和覆盖，清空可复用，关闭后拒绝新增；批量按顺序尽力执行。
+
+业务状态及资源视图发布后交付回执及事件，回调内重入的写请求排后。内部继续复用注册、状态和渲染实现；不改变现有优先级或画面行为。调参留待独立步骤，FilterDebugSettings 不迁移、不直接公开。
 
 ### 4.2 服务端 API
 
@@ -261,11 +257,11 @@ ServerFilterApplication
 
 | 网络操作 | 客户端接收行为 |
 | --- | --- |
-| `SELECT` | 调用 `FilterClientApi.setSessionSelection` |
-| `OVERRIDE` | 调用 `FilterClientApi.createOverride` |
-| `CLEAR_SELECTION` | 调用 `FilterClientApi.clearSessionSelection` |
-| `CLEAR_OVERRIDE` | 关闭对应 request ID 的 `FilterOverride` 句柄 |
-| `CLEAR_ALL_OVERRIDES` | 关闭并清空全部网络覆盖句柄 |
+| `SELECT` | 提交 `FilterRequest.Select` |
+| `OVERRIDE` | 提交 `FilterRequest.Override` |
+| `CLEAR_SELECTION` | 提交 `FilterRequest.ClearSelection` |
+| `CLEAR_OVERRIDE` | 按 request ID 找到资源 UUID 并提交 Release |
+| `CLEAR_ALL_OVERRIDES` | 释放并清空全部网络覆盖资源 |
 
 客户端网络适配器以 request ID 做覆盖幂等键。重复 `OVERRIDE` request ID 会被忽略；退出世界时会关闭网络创建的覆盖并清除会话选择。
 
