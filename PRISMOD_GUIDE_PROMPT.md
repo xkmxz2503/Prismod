@@ -68,6 +68,10 @@ strength_night_vision = 1.0
 
 `api/client` 根目录仅保留 `FilterClientApi.java` 和两个职责目录：`submit/` 存放 `request`（请求）、`model`（输入数据）、`result`（回执）、`listener`（订阅回调）及 `event`（通知）；`query/` 存放 `request`（查询请求）与 `view`（只读视图）。监听通过输入建立，因此监听相关类型归入 submit；回调可以引用 query.view 的不可变数据，不复制另一套快照。
 
+`api/common` 同样只按 `submit/` 和 `query/` 分组：`submit/result` 保存共享反馈代码，`submit/state/operation` 保存操作结果状态；`query/view` 保存共享快照与滤镜描述，`query/state/filter`、`query/state/lifecycle` 保存滤镜及资源生命周期枚举。状态类型按所描述的对象归类，输入回执也可引用查询侧诊断枚举，不另建重复类型。
+
+`api/server` 根目录保留 `FilterServerApi.java`；`submit/request` 保存 FilterSelectionRequest 和 FilterOverrideRequest，`submit/result` 保存 OperationResult；`query/view` 保存 ServerStatus 和 ServerFilterStatus。例如服务端选择请求导入 `com.xkmxz.prismod.api.server.submit.request.FilterSelectionRequest`，仍使用 `FilterServerApi.broadcastSelection(new FilterSelectionRequest(id, 1.0F))`。这次仅整理类型位置，服务端业务方法和协议行为保持不变；common 不反向引用 server。
+
 ```java
 import com.xkmxz.prismod.api.client.FilterClientApi;
 import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
@@ -103,7 +107,7 @@ FilterClientApi.submit(new FilterRequest.ClearForced());
 - `server/application/ServerFilterApplication.java`：服务端 API 与命令共用的用例层，持有策略状态并调用 `PolicyTransport`。
 - `command/server/PrismodServerCommands.java`：注册 `/prismod` 命令树并将结果转换为 i18n 组件；命令不加载客户端类。
 - `network/transport/PolicyNetwork.java`：维护冻结的 `prismod:policy`、协议版本 `1` 和固定策略消息。
-- `api/server/FilterServerApi.java`、`ServerStatus.java`：服务端内部 API 和不可变状态快照。
+- `api/server/FilterServerApi.java`、`api/server/query/view/ServerStatus.java`、`api/server/query/view/ServerFilterStatus.java`：服务端 API 门面和不可变状态快照。
 - 专用服务器路径不得加载 `net.minecraft.client`、`api.client` 或 `client` 包；缺少 Prismod 的对端仍允许连接，双方安装时才校验网络协议版本。
 
 ### 状态与配置

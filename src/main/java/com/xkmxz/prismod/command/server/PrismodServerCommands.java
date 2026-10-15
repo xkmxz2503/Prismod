@@ -2,9 +2,9 @@ package com.xkmxz.prismod.command.server;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.xkmxz.prismod.api.server.FilterServerApi;
-import com.xkmxz.prismod.api.server.ServerStatus;
-import com.xkmxz.prismod.api.server.ServerFilterStatus;
-import com.xkmxz.prismod.api.common.result.OperationResult;
+import com.xkmxz.prismod.api.server.query.view.ServerStatus;
+import com.xkmxz.prismod.api.server.query.view.ServerFilterStatus;
+import com.xkmxz.prismod.api.server.submit.result.OperationResult;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -13,8 +13,8 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.resources.ResourceLocation;
-import com.xkmxz.prismod.api.common.request.FilterOverrideRequest;
-import com.xkmxz.prismod.api.common.request.FilterSelectionRequest;
+import com.xkmxz.prismod.api.server.submit.request.FilterOverrideRequest;
+import com.xkmxz.prismod.api.server.submit.request.FilterSelectionRequest;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.event.RegisterCommandsEvent;
 

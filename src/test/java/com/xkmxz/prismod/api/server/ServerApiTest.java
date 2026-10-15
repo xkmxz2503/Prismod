@@ -1,6 +1,7 @@
 package com.xkmxz.prismod.api.server;
 
 import com.xkmxz.prismod.network.contract.PolicyTransport;
+import com.xkmxz.prismod.api.server.query.view.ServerStatus;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 

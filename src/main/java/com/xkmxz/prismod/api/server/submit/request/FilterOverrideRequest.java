@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.api.common.request;
+package com.xkmxz.prismod.api.server.submit.request;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -7,7 +7,7 @@ import java.util.Objects;
 /**
  * 可序列化的滤镜覆盖请求。
  *
- * <p>请求由 {@code ownerId} 标识所属覆盖者。服务端或客户端保存覆盖时，
+ * <p>请求由 {@code ownerId} 标识所属覆盖者。服务端保存覆盖时，
  * 同一作用域内再次使用相同 owner 提交请求，表示更新该 owner 的现有策略，
  * 而不是创建无法管理的匿名覆盖。</p>
  *

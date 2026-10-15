@@ -1,6 +1,7 @@
-package com.xkmxz.prismod.api.common.result;
+package com.xkmxz.prismod.api.server.submit.result;
 
-import com.xkmxz.prismod.api.common.state.operation.FilterOperationStatus;
+import com.xkmxz.prismod.api.common.submit.result.FeedbackCode;
+import com.xkmxz.prismod.api.common.submit.state.operation.FilterOperationStatus;
 
 import java.util.Map;
 import java.util.UUID;

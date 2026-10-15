@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.api.common.state.filter;
+package com.xkmxz.prismod.api.common.query.state.filter;
 
 /**
  * 对外暴露的稳定失败分类，不泄露底层实现异常类型。

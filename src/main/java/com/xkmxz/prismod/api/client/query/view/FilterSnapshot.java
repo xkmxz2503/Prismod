@@ -1,7 +1,7 @@
 package com.xkmxz.prismod.api.client.query.view;
 
 import net.minecraft.resources.ResourceLocation;
-import com.xkmxz.prismod.api.common.state.filter.FilterFallbackReason;
+import com.xkmxz.prismod.api.common.query.state.filter.FilterFallbackReason;
 
 import java.util.Objects;
 
@@ -39,15 +39,15 @@ public record FilterSnapshot(
     }
 
     /** Converts the client rendering view to the cross-side state model. */
-    public com.xkmxz.prismod.api.common.model.FilterSnapshot toCommonSnapshot() {
-        return new com.xkmxz.prismod.api.common.model.FilterSnapshot(
+    public com.xkmxz.prismod.api.common.query.view.FilterSnapshot toCommonSnapshot() {
+        return new com.xkmxz.prismod.api.common.query.view.FilterSnapshot(
                 filter, strength, selectedFilter, selectedStrength,
                 overrideOwner, overridePriority, renderAvailable, fallbackReason, generation);
     }
 
     /** Restores a client view from the cross-side state model with an explicit forced flag. */
     public static FilterSnapshot fromCommonSnapshot(
-            com.xkmxz.prismod.api.common.model.FilterSnapshot snapshot, boolean forced) {
+            com.xkmxz.prismod.api.common.query.view.FilterSnapshot snapshot, boolean forced) {
         Objects.requireNonNull(snapshot, "snapshot");
         return new FilterSnapshot(snapshot.filter(), snapshot.strength(), forced,
                 snapshot.renderAvailable(), snapshot.selectedFilter(), snapshot.selectedStrength(),

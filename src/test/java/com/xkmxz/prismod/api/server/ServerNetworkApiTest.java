@@ -1,9 +1,9 @@
 package com.xkmxz.prismod.api.server;
 
-import com.xkmxz.prismod.api.common.request.FilterOverrideRequest;
-import com.xkmxz.prismod.api.common.request.FilterSelectionRequest;
-import com.xkmxz.prismod.api.common.state.operation.FilterOperationStatus;
-import com.xkmxz.prismod.api.common.result.OperationResult;
+import com.xkmxz.prismod.api.server.submit.request.FilterOverrideRequest;
+import com.xkmxz.prismod.api.server.submit.request.FilterSelectionRequest;
+import com.xkmxz.prismod.api.common.submit.state.operation.FilterOperationStatus;
+import com.xkmxz.prismod.api.server.submit.result.OperationResult;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 

@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.api.common.request;
+package com.xkmxz.prismod.api.server.submit.request;
 
 import net.minecraft.resources.ResourceLocation;
 

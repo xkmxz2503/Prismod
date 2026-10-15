@@ -2,7 +2,7 @@ package com.xkmxz.prismod.api.client.submit.event;
 
 import com.xkmxz.prismod.api.client.query.view.FilterSnapshot;
 import com.xkmxz.prismod.api.client.submit.result.FilterReceipt;
-import com.xkmxz.prismod.api.common.model.FilterDescriptor;
+import com.xkmxz.prismod.api.common.query.view.FilterDescriptor;
 
 import java.util.List;
 import java.util.Objects;

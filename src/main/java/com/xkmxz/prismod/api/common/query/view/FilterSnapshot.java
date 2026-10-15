@@ -1,6 +1,6 @@
-package com.xkmxz.prismod.api.common.model;
+package com.xkmxz.prismod.api.common.query.view;
 
-import com.xkmxz.prismod.api.common.state.filter.FilterFallbackReason;
+import com.xkmxz.prismod.api.common.query.state.filter.FilterFallbackReason;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Objects;

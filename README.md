@@ -52,7 +52,13 @@ Prismod 提供一套可配置、可调试、可扩展的客户端世界滤镜：
 Prismod
 ├─ Prismod.java                         通用 Forge 入口
 ├─ server/                              服务端生命周期、命令和网络基础框架
-├─ api/server/                          服务端内部 API
+├─ api/common/                          两端共享契约
+│  ├─ submit/                           结果代码、操作状态
+│  └─ query/                            只读视图、滤镜及生命周期状态
+├─ api/server/
+│  ├─ FilterServerApi                   服务端 API 入口
+│  ├─ submit/                           服务端请求、操作结果
+│  └─ query/                            服务端只读状态视图
 ├─ client/
 │  ├─ PrismodClient                     客户端事件、配置和资源重载
 │  ├─ filter/

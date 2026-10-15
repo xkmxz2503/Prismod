@@ -40,9 +40,33 @@
 
 ## 服务端 API
 
+入口仍为 `api.server.FilterServerApi`，其余类型先分输入和查询，再按职责细分：
+
+```text
+api/server/
+├─ FilterServerApi.java
+├─ submit/
+│  ├─ request/    FilterSelectionRequest、FilterOverrideRequest
+│  └─ result/     OperationResult
+└─ query/
+   └─ view/       ServerStatus、ServerFilterStatus
+
+api/common/
+├─ submit/
+│  ├─ result/          FeedbackCode
+│  └─ state/operation/ FilterOperationStatus
+└─ query/
+   ├─ view/            FilterSnapshot、FilterDescriptor
+   └─ state/
+      ├─ filter/       滤镜类型、失败与回退原因
+      └─ lifecycle/    注册和覆盖生命周期
+```
+
+服务端专用的选择、覆盖请求及 OperationResult 已从 common 移至 server。共享枚举仍供两端复用，不保留旧包桥接类；集成代码需更新 import，业务调用方式、字段和网络协议不变。
+
 ```java
-import com.xkmxz.prismod.api.common.request.FilterOverrideRequest;
-import com.xkmxz.prismod.api.common.request.FilterSelectionRequest;
+import com.xkmxz.prismod.api.server.submit.request.FilterOverrideRequest;
+import com.xkmxz.prismod.api.server.submit.request.FilterSelectionRequest;
 import com.xkmxz.prismod.api.server.FilterServerApi;
 import net.minecraft.resources.ResourceLocation;
 

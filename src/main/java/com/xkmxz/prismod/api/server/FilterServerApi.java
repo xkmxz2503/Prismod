@@ -1,12 +1,14 @@
 package com.xkmxz.prismod.api.server;
 
 import com.xkmxz.prismod.server.application.ServerFilterApplication;
+import com.xkmxz.prismod.api.server.query.view.ServerStatus;
+import com.xkmxz.prismod.api.server.query.view.ServerFilterStatus;
 
 import net.minecraft.resources.ResourceLocation;
 import com.xkmxz.prismod.network.contract.PolicyTransport;
-import com.xkmxz.prismod.api.common.result.OperationResult;
-import com.xkmxz.prismod.api.common.request.FilterOverrideRequest;
-import com.xkmxz.prismod.api.common.request.FilterSelectionRequest;
+import com.xkmxz.prismod.api.server.submit.result.OperationResult;
+import com.xkmxz.prismod.api.server.submit.request.FilterOverrideRequest;
+import com.xkmxz.prismod.api.server.submit.request.FilterSelectionRequest;
 import net.minecraft.server.level.ServerPlayer;
 
 /**

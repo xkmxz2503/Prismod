@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.api.common.result;
+package com.xkmxz.prismod.api.common.submit.result;
 
 /**
  * API 操作返回的稳定、与语言无关的反馈代码。

@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.api.common.state.filter;
+package com.xkmxz.prismod.api.common.query.state.filter;
 
 /**
  * 说明最终生效滤镜为何不同于请求或选择的滤镜。

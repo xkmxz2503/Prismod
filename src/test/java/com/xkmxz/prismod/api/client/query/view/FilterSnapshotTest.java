@@ -48,10 +48,10 @@ class FilterSnapshotTest {
                 new com.xkmxz.prismod.api.client.query.view.FilterSnapshot(
                         effective, 0.75F, true, false, selected, 0.5F,
                         "example-mod", 42,
-                        com.xkmxz.prismod.api.common.state.filter.FilterFallbackReason.RENDER_UNAVAILABLE,
+                        com.xkmxz.prismod.api.common.query.state.filter.FilterFallbackReason.RENDER_UNAVAILABLE,
                         9L);
 
-        com.xkmxz.prismod.api.common.model.FilterSnapshot common = client.toCommonSnapshot();
+        com.xkmxz.prismod.api.common.query.view.FilterSnapshot common = client.toCommonSnapshot();
         assertEquals(effective, common.filter());
         assertEquals(selected, common.selectedFilter());
         assertEquals(42, common.overridePriority());

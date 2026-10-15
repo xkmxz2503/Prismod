@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.api.server;
+package com.xkmxz.prismod.api.server.query.view;
 
 import net.minecraft.resources.ResourceLocation;
 

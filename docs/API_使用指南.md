@@ -33,6 +33,8 @@ ResourceLocation postEffect = ResourceLocation.fromNamespaceAndPath(
 
 ### 公共数据约束
 
+公共类型先按 `api.common.submit`（结果代码与操作状态）、`api.common.query`（只读视图、滤镜状态及生命周期状态）分类，再分子包。一个类型只保留一份定义，输入回执可以引用共享的查询诊断枚举。
+
 - 强度会规范化到 `[0.0, 1.0]`；非有限值按 `0.0` 处理。
 - 客户端写操作会调度到 Minecraft 客户端线程；状态和事件监听器也只在客户端线程同步执行。
 - 客户端快照、滤镜描述、服务端请求和服务端结果都是不可变数据。
@@ -64,12 +66,14 @@ Session 清空后可复用，关闭后不能新增，只管理自身注册和覆
 
 服务端公开入口是 `com.xkmxz.prismod.api.server.FilterServerApi`。服务端 API、服务端管理命令和服务端测试命令共享同一个 `ServerFilterApplication` 用例层。
 
+服务端目录只保留入口文件和 `submit`、`query` 两个职责目录：选择与覆盖请求位于 `submit.request`，OperationResult 位于 `submit.result`，ServerStatus 与 ServerFilterStatus 位于 `query.view`。服务端仍沿用现有业务方法，本次仅调整类型的包位置。
+
 ### 3.1 请求模型
 
 选择请求：
 
 ```java
-import com.xkmxz.prismod.api.common.request.FilterSelectionRequest;
+import com.xkmxz.prismod.api.server.submit.request.FilterSelectionRequest;
 import net.minecraft.resources.ResourceLocation;
 
 ResourceLocation filter = ResourceLocation.fromNamespaceAndPath("prismod", "original");
@@ -79,7 +83,7 @@ FilterSelectionRequest selection = new FilterSelectionRequest(filter, 1.0F);
 覆盖请求：
 
 ```java
-import com.xkmxz.prismod.api.common.request.FilterOverrideRequest;
+import com.xkmxz.prismod.api.server.submit.request.FilterOverrideRequest;
 
 FilterOverrideRequest override = new FilterOverrideRequest(
         "server-rule", filter, 1.0F, 100);

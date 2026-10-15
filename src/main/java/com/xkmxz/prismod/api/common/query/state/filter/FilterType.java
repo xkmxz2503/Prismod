@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.api.common.state.filter;
+package com.xkmxz.prismod.api.common.query.state.filter;
 
 /**
  * 公开滤镜描述中的来源类型。

@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.api.common.state.operation;
+package com.xkmxz.prismod.api.common.submit.state.operation;
 
 /**
  * 客户端或服务端滤镜操作的结果状态。

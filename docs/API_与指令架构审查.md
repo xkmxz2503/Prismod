@@ -144,6 +144,8 @@ submit 承接注册、选择、强制、覆盖、订阅和 Session，返回 Comp
 
 公开入口为 `com.xkmxz.prismod.api.server.FilterServerApi`，当前操作分为：
 
+类型按入口职责归类：服务端请求与操作结果位于 `api.server.submit.request`、`api.server.submit.result`，状态快照位于 `api.server.query.view`。共享类型也先按 `api.common.submit`、`api.common.query` 分组，再区分结果、视图和状态；不复制跨入口复用的枚举。
+
 - 查询：`status`、`filterStatus`；
 - 全局选择：`broadcastSelection`；
 - 玩家选择：`sendSelection`；

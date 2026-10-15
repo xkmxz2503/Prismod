@@ -2,9 +2,9 @@ package com.xkmxz.prismod.api.client.submit.result;
 
 import com.xkmxz.prismod.api.client.submit.result.FilterReceipt;
 import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
-import com.xkmxz.prismod.api.common.result.FeedbackCode;
-import com.xkmxz.prismod.api.common.state.filter.FilterFailureReason;
-import com.xkmxz.prismod.api.common.state.operation.FilterOperationStatus;
+import com.xkmxz.prismod.api.common.submit.result.FeedbackCode;
+import com.xkmxz.prismod.api.common.query.state.filter.FilterFailureReason;
+import com.xkmxz.prismod.api.common.submit.state.operation.FilterOperationStatus;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
