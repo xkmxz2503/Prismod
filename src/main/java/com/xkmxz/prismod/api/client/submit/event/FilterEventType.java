@@ -1,0 +1,10 @@
+package com.xkmxz.prismod.api.client.submit.event;
+
+/** Stable categories emitted by the client filter API. */
+public enum FilterEventType {
+    SNAPSHOT_CHANGED,
+    REGISTRY_CHANGED,
+    AVAILABILITY_CHANGED,
+    OPERATION_COMPLETED,
+    BATCH_OPERATION_COMPLETED
+}
