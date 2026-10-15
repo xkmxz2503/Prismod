@@ -41,177 +41,23 @@ ResourceLocation postEffect = ResourceLocation.fromNamespaceAndPath(
 
 ## 2. 客户端 Java API
 
-客户端公开入口是 `com.xkmxz.prismod.api.client.FilterClientApi`。客户端模组应直接依赖这个门面，不要依赖 `FilterManager`、`FilterRegistry`、`FilterController` 或渲染器。
+客户端公开 API 的规范清单、入口分类、句柄生命周期和最小示例统一维护在 [`Java_API_调用说明.md`](Java_API_调用说明.md)。本节只保留总览，避免和专题文档重复。
 
-### 2.1 注册自定义滤镜
+公开入口为 `com.xkmxz.prismod.api.client.FilterClientApi`，按用途分为：
 
-最简注册形式会根据 PostChain 路径推导逻辑滤镜 ID：
+| 用途 | 规范入口 |
+| --- | --- |
+| 注册 | `registerCustomFilter(...)` |
+| 普通选择 | `setSessionSelection(...)`、`clearSessionSelection()` |
+| 强制滤镜 | `setForcedFilter(...)`、`clearForcedFilter()` |
+| 覆盖 | `createOverride(...)`、`clearOverrides(...)` |
+| 查询 | `snapshot()`、`filters()`、`availableFilters()` |
+| 监听 | `subscribe(...)`、`subscribeEvents(...)` |
+| 批量生命周期 | `openSession(...)` |
 
-```java
-import com.xkmxz.prismod.api.client.FilterClientApi;
-import com.xkmxz.prismod.api.client.contract.CustomFilterMetadata;
-import com.xkmxz.prismod.api.client.contract.FilterRegistration;
-import net.minecraft.resources.ResourceLocation;
+带 `Operation` 后缀的方法用于观察客户端线程排队、完成状态和失败原因。`registerCustomFilterOperation(...)` 与 `createOverrideOperation(...)` 是 deprecated 兼容入口；新代码使用不带后缀的规范入口，并通过返回句柄的 `operation()` 查看创建结果。
 
-FilterRegistration registration = FilterClientApi.registerCustomFilter(
-        "example-mod",
-        ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"),
-        new CustomFilterMetadata("filter.example.debug", 0.75F));
-```
-
-需要明确逻辑 ID 时使用重载：
-
-```java
-FilterRegistration registration = FilterClientApi.registerCustomFilter(
-        ResourceLocation.fromNamespaceAndPath("example", "debug"),
-        "example-mod",
-        ResourceLocation.fromNamespaceAndPath("example", "shaders/post/debug.json"),
-        new CustomFilterMetadata("filter.example.debug", 0.75F));
-```
-
-`ownerId` 不能为空。`CustomFilterMetadata` 的翻译键用于显示名称，默认强度会规范化到 `[0.0, 1.0]`。注册句柄提供以下状态：
-
-```java
-registration.id();
-registration.ownerId();
-registration.state();
-registration.isActive();
-registration.failureReason();
-registration.failureDetail();
-```
-
-`registerCustomFilter(...)` 是规范入口；旧的 `registerCustomFilterOperation(...)` 继续保留但已标记为 deprecated。异步注册失败时，句柄和 `registration.operation()` 都会提供稳定的失败原因与简短详情。
-
-功能关闭或模组卸载时关闭句柄：
-
-```java
-registration.close();
-```
-
-关闭操作可以重复调用。批量清理某个 owner 的注册：
-
-```java
-var operation = FilterClientApi.clearRegistrations("example-mod");
-operation.status();
-operation.code();
-operation.affectedCount();
-operation.completed();
-```
-
-### 2.2 选择、强制和覆盖
-
-强制滤镜优先于玩家总开关、F8 循环和普通选择：
-
-```java
-ResourceLocation filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");
-
-FilterClientApi.setForcedFilter(filter, 0.75F);
-FilterClientApi.clearForcedFilter();
-```
-
-会话选择不会修改玩家配置，关闭后恢复本地选择：
-
-```java
-FilterClientApi.setSessionSelection(filter, 0.5F);
-FilterClientApi.clearSessionSelection();
-```
-
-覆盖按优先级决定生效项，同一优先级使用较新的覆盖：
-
-```java
-var override = FilterClientApi.createOverride(
-        "example-mod", filter, 0.8F, 100);
-
-override.id();
-override.ownerId();
-override.priority();
-override.state();
-override.isActive();
-
-override.close();
-FilterClientApi.clearOverrides("example-mod");
-```
-
-覆盖句柄关闭后不再生效。离开世界时客户端会清理网络会话覆盖；本地 API 创建的句柄也应由调用方在功能关闭时主动关闭。
-
-### 2.3 快照和滤镜列表
-
-`snapshot()` 返回当前最终渲染快照：
-
-```java
-import com.xkmxz.prismod.api.client.contract.FilterSnapshot;
-
-FilterSnapshot snapshot = FilterClientApi.snapshot();
-snapshot.filter();
-snapshot.strength();
-snapshot.forced();
-snapshot.renderAvailable();
-snapshot.selectedFilter();
-snapshot.selectedStrength();
-snapshot.overrideOwner();
-snapshot.overridePriority();
-snapshot.fallbackReason();
-snapshot.generation();
-```
-
-`filter()` 是最终实际滤镜，`selectedFilter()` 是用户选择。渲染资源暂时不可用时，最终滤镜可能回退为 `prismod:original`，但用户选择和回退原因仍保留。
-
-客户端契约中的 `FilterSnapshot` 表示最终渲染视图；`api.common.model.FilterSnapshot` 只表示跨端状态。使用 `toCommonSnapshot()` 和 `FilterSnapshot.fromCommonSnapshot(...)` 显式转换，避免让客户端专属字段进入 common 模型。
-
-获取完整滤镜描述或当前可用滤镜：
-
-```java
-var allFilters = FilterClientApi.filters();
-var availableFilters = FilterClientApi.availableFilters();
-```
-
-`FilterDescriptor` 包含 `id`、`ownerId`、`type`、`translationKey`、`defaultStrength`、`available`、`failureReason` 和 `failureDetail`。返回列表是不可变视图。
-
-### 2.4 状态与事件订阅
-
-监听最终状态变化：
-
-```java
-var stateSubscription = FilterClientApi.subscribe(snapshot -> {
-    System.out.println(snapshot.filter());
-    System.out.println(snapshot.generation());
-});
-
-stateSubscription.close();
-```
-
-监听类型化事件：
-
-```java
-var eventSubscription = FilterClientApi.subscribeEvents(event -> {
-    System.out.println(event.type());
-    System.out.println(event.filters().size());
-    if (event.operation() != null) {
-        System.out.println(event.operation().status());
-    }
-});
-
-eventSubscription.close();
-```
-
-订阅句柄是生命周期对象，关闭后停止接收事件。订阅时不会补发初始状态；监听器异常会被隔离并记录日志。事件类型包括快照变化、注册表变化、可用性变化和操作完成。所有回调都在客户端线程按状态变更顺序执行。
-
-需要观察排队和完成结果时，使用 `setForcedFilterOperation`、`setSessionSelectionOperation`、`clearForcedFilterOperation` 和 `clearSessionSelectionOperation`。`FilterOperation` 提供 `status()`、`code()`、`affectedCount()`、`failureReason()` 和 `failureDetail()`。跨线程调用先返回 `QUEUED`，同线程调用立即完成；无变化操作仍成功但影响数量为 `0`，generation 不递增。一次操作产生的状态事件先发布，随后发布一次 `OPERATION_COMPLETED`。
-
-### 2.5 客户端线程和优先级
-
-以下写操作会自动调度到 Minecraft 客户端线程：
-
-- 注册和注销自定义滤镜；
-- 设置或清除强制滤镜；
-- 设置或清除会话选择；
-- 创建或清除覆盖。
-
-读取 API 返回最近一次发布的不可变快照。渲染优先级为：渲染不可用时的临时原色、有效强制状态、玩家总开关与普通选择。隐藏或不可用滤镜可能回退为原色，但不会丢失用户选择。
-
-### 2.6 Owner 会话与批量操作
-
-使用 `FilterClientApi.openSession(ownerId)` 可以统一管理一个 owner 创建的注册和覆盖。`registerAll(...)` 与 `createOverrides(...)` 返回逐项结果和 `FilterBatchOperation`；批量尽力执行，部分成功时总体状态为 `PARTIAL`。会话关闭只影响自身资源，不影响强制滤镜或会话选择。
+外部模组不得依赖 `ClientFilterApplication`、`FilterManager`、`FilterController`、`FilterRegistry` 或渲染器。客户端写操作会自动调度到 Minecraft 客户端线程，读取 API 返回最近一次发布的不可变快照。
 
 ## 3. 服务端 Java API
 
