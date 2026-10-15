@@ -25,4 +25,16 @@ class FilterOperationTest {
         assertEquals(FeedbackCode.OK, operation.code());
         assertTrue(operation.completed());
     }
+
+    @Test
+    void completedOperationCannotBeCompletedAgain() {
+        MutableFilterOperation operation = new MutableFilterOperation(UUID.randomUUID());
+
+        operation.complete(FilterOperationStatus.SUCCESS, FeedbackCode.OK, 3);
+        operation.complete(FilterOperationStatus.FAILED, FeedbackCode.FAILED, 9);
+
+        assertEquals(FilterOperationStatus.SUCCESS, operation.status());
+        assertEquals(FeedbackCode.OK, operation.code());
+        assertEquals(3, operation.affectedCount());
+    }
 }

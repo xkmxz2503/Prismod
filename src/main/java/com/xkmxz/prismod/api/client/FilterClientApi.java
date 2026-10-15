@@ -24,9 +24,19 @@ public final class FilterClientApi {
         return ClientFilterApplication.registerCustomFilter(ownerId, postEffect, metadata);
     }
 
+    public static FilterRegistration registerCustomFilterOperation(String ownerId, ResourceLocation postEffect,
+                                                                    CustomFilterMetadata metadata) {
+        return ClientFilterApplication.registerCustomFilterOperation(ownerId, postEffect, metadata);
+    }
+
     public static FilterRegistration registerCustomFilter(ResourceLocation logicalId, String ownerId,
                                                            ResourceLocation postEffect, CustomFilterMetadata metadata) {
         return ClientFilterApplication.registerCustomFilter(logicalId, ownerId, postEffect, metadata);
+    }
+
+    public static FilterRegistration registerCustomFilterOperation(ResourceLocation logicalId, String ownerId,
+                                                                    ResourceLocation postEffect, CustomFilterMetadata metadata) {
+        return ClientFilterApplication.registerCustomFilterOperation(logicalId, ownerId, postEffect, metadata);
     }
 
     public static FilterOperation clearRegistrations(String ownerId) {
@@ -37,16 +47,32 @@ public final class FilterClientApi {
         ClientFilterApplication.setForcedFilter(filter, strength);
     }
 
+    public static FilterOperation setForcedFilterOperation(ResourceLocation filter, float strength) {
+        return ClientFilterApplication.setForcedFilterOperation(filter, strength);
+    }
+
     public static void setSessionSelection(ResourceLocation filter, float strength) {
         ClientFilterApplication.setSessionSelection(filter, strength);
+    }
+
+    public static FilterOperation setSessionSelectionOperation(ResourceLocation filter, float strength) {
+        return ClientFilterApplication.setSessionSelectionOperation(filter, strength);
     }
 
     public static void clearSessionSelection() {
         ClientFilterApplication.clearSessionSelection();
     }
 
+    public static FilterOperation clearSessionSelectionOperation() {
+        return ClientFilterApplication.clearSessionSelectionOperation();
+    }
+
     public static FilterOverride createOverride(String ownerId, ResourceLocation filter, float strength, int priority) {
         return ClientFilterApplication.createOverride(ownerId, filter, strength, priority);
+    }
+
+    public static FilterOverride createOverrideOperation(String ownerId, ResourceLocation filter, float strength, int priority) {
+        return ClientFilterApplication.createOverrideOperation(ownerId, filter, strength, priority);
     }
 
     public static FilterOperation clearOverrides(String ownerId) {
@@ -67,6 +93,10 @@ public final class FilterClientApi {
 
     public static void clearForcedFilter() {
         ClientFilterApplication.clearForcedFilter();
+    }
+
+    public static FilterOperation clearForcedFilterOperation() {
+        return ClientFilterApplication.clearForcedFilterOperation();
     }
 
     public static List<FilterDescriptor> filters() {

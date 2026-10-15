@@ -14,11 +14,13 @@ import com.xkmxz.prismod.api.client.operation.FilterOperation;
 import com.xkmxz.prismod.api.common.state.operation.FilterOperationStatus;
 import com.xkmxz.prismod.api.common.result.FeedbackCode;
 import com.xkmxz.prismod.api.common.model.FilterDescriptor;
+import com.xkmxz.prismod.api.common.state.filter.FilterFailureReason;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.Minecraft;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntSupplier;
 
 /** Client-only API; writes are scheduled on the client thread and reads return immutable snapshots. */
@@ -28,22 +30,48 @@ public final class ClientFilterApplication {
 
     public static FilterRegistration registerCustomFilter(String ownerId, ResourceLocation postEffect,
                                                            CustomFilterMetadata metadata) {
+        return registerCustomFilterOperation(ownerId, postEffect, metadata);
+    }
+
+    public static FilterRegistration registerCustomFilterOperation(String ownerId, ResourceLocation postEffect,
+                                                                    CustomFilterMetadata metadata) {
         if (postEffect == null) throw new NullPointerException("postEffect");
-        return registerCustomFilter(FilterKey.fromPostEffect(postEffect).id(), ownerId, postEffect, metadata);
+        return registerCustomFilterOperation(FilterKey.fromPostEffect(postEffect).id(), ownerId, postEffect, metadata);
     }
 
     public static FilterRegistration registerCustomFilter(ResourceLocation logicalId, String ownerId,
                                                            ResourceLocation postEffect, CustomFilterMetadata metadata) {
+        return registerCustomFilterOperation(logicalId, ownerId, postEffect, metadata);
+    }
+
+    public static FilterRegistration registerCustomFilterOperation(ResourceLocation logicalId, String ownerId,
+                                                                    ResourceLocation postEffect, CustomFilterMetadata metadata) {
         if (logicalId == null) throw new NullPointerException("logicalId");
         if (ownerId == null || ownerId.isBlank()) throw new IllegalArgumentException("ownerId must not be blank");
         if (postEffect == null) throw new NullPointerException("postEffect");
         String normalizedOwner = ownerId.trim();
+        PendingOperation operation = new PendingOperation();
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.isSameThread()) return refreshAfterRegistration(
-                FilterRegistry.get().register(logicalId, normalizedOwner, postEffect, metadata));
-        DeferredRegistration deferred = new DeferredRegistration(logicalId, normalizedOwner);
-        minecraft.execute(() -> deferred.attach(refreshAfterRegistration(
-                FilterRegistry.get().register(logicalId, normalizedOwner, postEffect, metadata))));
+        if (minecraft.isSameThread()) {
+            FilterRegistration registration = refreshAfterRegistration(
+                    FilterRegistry.get().register(logicalId, normalizedOwner, postEffect, metadata));
+            completeRegistrationOperation(operation, registration);
+            FilterManager.get().operationCompleted(operation);
+            return new RefreshingRegistration(registration, operation);
+        }
+        DeferredRegistration deferred = new DeferredRegistration(logicalId, normalizedOwner, operation);
+        minecraft.execute(() -> {
+            try {
+                FilterRegistration registration = refreshAfterRegistration(
+                        FilterRegistry.get().register(logicalId, normalizedOwner, postEffect, metadata));
+                deferred.attach(registration);
+                completeRegistrationOperation(operation, registration);
+            } catch (RuntimeException exception) {
+                deferred.fail();
+                operation.complete(FilterOperationStatus.FAILED, FeedbackCode.FAILED, 0);
+            }
+            FilterManager.get().operationCompleted(operation);
+        });
         return deferred;
     }
 
@@ -58,31 +86,60 @@ public final class ClientFilterApplication {
 
     /** Sets one logical filter ID as the forced filter. */
     public static void setForcedFilter(ResourceLocation filter, float strength) {
+        setForcedFilterOperation(filter, strength);
+    }
+
+    public static FilterOperation setForcedFilterOperation(ResourceLocation filter, float strength) {
         if (filter == null) throw new NullPointerException("filter");
-        runOnClientThread(() -> FilterManager.get().setForced(filter, strength));
+        return executeOperation(() -> applyState(() -> FilterManager.get().setForced(filter, strength)));
     }
 
     /** Applies a session-only selection without changing the user's local selection or configuration. */
     public static void setSessionSelection(ResourceLocation filter, float strength) {
+        setSessionSelectionOperation(filter, strength);
+    }
+
+    public static FilterOperation setSessionSelectionOperation(ResourceLocation filter, float strength) {
         if (filter == null) throw new NullPointerException("filter");
-        runOnClientThread(() -> FilterManager.get().selectSession(new FilterKey(filter), strength));
+        return executeOperation(() -> applyState(() -> FilterManager.get().selectSession(new FilterKey(filter), strength)));
     }
 
     /** Clears the session-only selection and restores the user's local selection. */
     public static void clearSessionSelection() {
-        runOnClientThread(FilterManager.get()::clearSessionSelection);
+        clearSessionSelectionOperation();
+    }
+
+    public static FilterOperation clearSessionSelectionOperation() {
+        return executeOperation(() -> applyState(FilterManager.get()::clearSessionSelection));
     }
 
     public static FilterOverride createOverride(String ownerId, ResourceLocation filter, float strength, int priority) {
+        return createOverrideOperation(ownerId, filter, strength, priority);
+    }
+
+    public static FilterOverride createOverrideOperation(String ownerId, ResourceLocation filter, float strength, int priority) {
         if (ownerId == null || ownerId.isBlank()) throw new IllegalArgumentException("ownerId must not be blank");
         if (filter == null) throw new NullPointerException("filter");
+        PendingOperation operation = new PendingOperation();
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.isSameThread()) {
-            return FilterManager.get().addOverride(ownerId, new FilterKey(filter), strength, priority);
+            FilterOverride override = FilterManager.get().addOverride(ownerId, new FilterKey(filter), strength, priority);
+            operation.complete(FilterOperationStatus.SUCCESS, FeedbackCode.OK, 1);
+            FilterManager.get().operationCompleted(operation);
+            return new OperationOverride(override, operation);
         }
-        DeferredOverride deferred = new DeferredOverride(ownerId.trim(), filter, priority);
-        minecraft.execute(() -> deferred.attach(FilterManager.get().addOverride(
-                deferred.ownerName(), new FilterKey(filter), strength, priority)));
+        DeferredOverride deferred = new DeferredOverride(ownerId.trim(), filter, priority, operation);
+        minecraft.execute(() -> {
+            try {
+                deferred.attach(FilterManager.get().addOverride(
+                        deferred.ownerName(), new FilterKey(filter), strength, priority));
+                operation.complete(FilterOperationStatus.SUCCESS, FeedbackCode.OK, 1);
+            } catch (RuntimeException exception) {
+                deferred.close();
+                operation.complete(FilterOperationStatus.FAILED, FeedbackCode.FAILED, 0);
+            }
+            FilterManager.get().operationCompleted(operation);
+        });
         return deferred;
     }
 
@@ -105,7 +162,11 @@ public final class ClientFilterApplication {
 
     /** Clears the forced filter and restores the current user selection. */
     public static void clearForcedFilter() {
-        runOnClientThread(FilterManager.get()::clearForced);
+        clearForcedFilterOperation();
+    }
+
+    public static FilterOperation clearForcedFilterOperation() {
+        return executeOperation(() -> applyState(FilterManager.get()::clearForced));
     }
 
     /** Returns the final snapshot currently used by the renderer. */
@@ -135,12 +196,6 @@ public final class ClientFilterApplication {
         return getFilters().stream().filter(FilterDescriptor::available).toList();
     }
 
-    private static void runOnClientThread(Runnable action) {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.isSameThread()) action.run();
-        else minecraft.execute(action);
-    }
-
     private static String requireOwner(String ownerId) {
         if (ownerId == null || ownerId.isBlank()) throw new IllegalArgumentException("ownerId must not be blank");
         return ownerId.trim();
@@ -148,7 +203,29 @@ public final class ClientFilterApplication {
 
     private static FilterRegistration refreshAfterRegistration(FilterRegistration registration) {
         FilterManager.get().registryChanged();
-        return new RefreshingRegistration(registration);
+        return registration;
+    }
+
+    private static void completeRegistrationOperation(PendingOperation operation, FilterRegistration registration) {
+        if (registration.state() == com.xkmxz.prismod.api.common.state.lifecycle.FilterRegistrationState.FAILED) {
+            FeedbackCode code = registration.failureReason() == FilterFailureReason.ID_CONFLICT
+                    ? FeedbackCode.INVALID_ARGUMENT : FeedbackCode.FAILED;
+            operation.complete(FilterOperationStatus.FAILED, code, 0);
+        } else {
+            operation.complete(FilterOperationStatus.SUCCESS, FeedbackCode.OK, 1);
+        }
+    }
+
+    private static int applyState(Runnable action) {
+        long before = FilterManager.get().snapshot().generation();
+        action.run();
+        return FilterManager.get().snapshot().generation() == before ? 0 : 1;
+    }
+
+    private static void runOnClientThread(Runnable action) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.isSameThread()) action.run();
+        else minecraft.execute(action);
     }
 
     private static FilterOperation executeOperation(IntSupplier action) {
@@ -169,11 +246,13 @@ public final class ClientFilterApplication {
 
     private static final class PendingOperation implements FilterOperation {
         private final UUID id = UUID.randomUUID();
+        private final AtomicBoolean completed = new AtomicBoolean();
         private volatile FilterOperationStatus status = FilterOperationStatus.QUEUED;
         private volatile FeedbackCode code = FeedbackCode.OK;
         private volatile int affectedCount;
 
         private void complete(FilterOperationStatus status, FeedbackCode code, int affectedCount) {
+            if (!completed.compareAndSet(false, true)) return;
             this.status = status;
             this.code = code;
             this.affectedCount = Math.max(0, affectedCount);
@@ -183,19 +262,24 @@ public final class ClientFilterApplication {
         @Override public FilterOperationStatus status() { return status; }
         @Override public FeedbackCode code() { return code; }
         @Override public int affectedCount() { return affectedCount; }
-        @Override public boolean completed() { return status != FilterOperationStatus.QUEUED; }
+        @Override public boolean completed() { return completed.get(); }
     }
 
     private static final class RefreshingRegistration implements FilterRegistration {
         private final FilterRegistration delegate;
+        private final FilterOperation operation;
 
-        private RefreshingRegistration(FilterRegistration delegate) { this.delegate = delegate; }
+        private RefreshingRegistration(FilterRegistration delegate, FilterOperation operation) {
+            this.delegate = delegate;
+            this.operation = operation;
+        }
 
         @Override public ResourceLocation id() { return delegate.id(); }
         @Override public String ownerId() { return delegate.ownerId(); }
         @Override public com.xkmxz.prismod.api.common.state.lifecycle.FilterRegistrationState state() { return delegate.state(); }
         @Override public com.xkmxz.prismod.api.common.state.filter.FilterFailureReason failureReason() { return delegate.failureReason(); }
         @Override public String failureDetail() { return delegate.failureDetail(); }
+        @Override public FilterOperation operation() { return operation; }
         @Override public void close() {
             runOnClientThread(() -> {
                 delegate.close();
@@ -208,13 +292,15 @@ public final class ClientFilterApplication {
         private final String ownerId;
         private final ResourceLocation id;
         private final int priority;
+        private final FilterOperation operation;
         private volatile FilterOverride delegate;
         private volatile boolean closed;
 
-        private DeferredOverride(String ownerId, ResourceLocation id, int priority) {
+        private DeferredOverride(String ownerId, ResourceLocation id, int priority, FilterOperation operation) {
             this.ownerId = ownerId;
             this.id = id;
             this.priority = priority;
+            this.operation = operation;
         }
 
         private String ownerName() { return ownerId; }
@@ -233,6 +319,7 @@ public final class ClientFilterApplication {
             return current == null ? com.xkmxz.prismod.api.common.state.lifecycle.FilterOverrideState.PENDING : current.state();
         }
         @Override public boolean isActive() { return state() == com.xkmxz.prismod.api.common.state.lifecycle.FilterOverrideState.ACTIVE; }
+        @Override public FilterOperation operation() { return operation; }
         @Override public void close() {
             closed = true;
             FilterOverride current = delegate;
@@ -243,12 +330,15 @@ public final class ClientFilterApplication {
     private static final class DeferredRegistration implements FilterRegistration {
         private final ResourceLocation id;
         private final String ownerId;
+        private final FilterOperation operation;
         private volatile FilterRegistration delegate;
         private volatile boolean closed;
+        private volatile boolean failed;
 
-        private DeferredRegistration(ResourceLocation id, String ownerId) {
+        private DeferredRegistration(ResourceLocation id, String ownerId, FilterOperation operation) {
             this.id = id;
             this.ownerId = ownerId;
+            this.operation = operation;
         }
 
         private void attach(FilterRegistration registration) {
@@ -256,11 +346,16 @@ public final class ClientFilterApplication {
             if (closed) registration.close();
         }
 
+        private void fail() {
+            failed = true;
+        }
+
         @Override public ResourceLocation id() { return id; }
         @Override public String ownerId() { return ownerId; }
         @Override public com.xkmxz.prismod.api.common.state.lifecycle.FilterRegistrationState state() {
             FilterRegistration current = delegate;
             if (closed) return com.xkmxz.prismod.api.common.state.lifecycle.FilterRegistrationState.CLOSED;
+            if (failed) return com.xkmxz.prismod.api.common.state.lifecycle.FilterRegistrationState.FAILED;
             return current == null ? com.xkmxz.prismod.api.common.state.lifecycle.FilterRegistrationState.PENDING : current.state();
         }
         @Override public com.xkmxz.prismod.api.common.state.filter.FilterFailureReason failureReason() {
@@ -271,10 +366,29 @@ public final class ClientFilterApplication {
             FilterRegistration current = delegate;
             return current == null ? "" : current.failureDetail();
         }
+        @Override public FilterOperation operation() { return operation; }
         @Override public void close() {
             closed = true;
             FilterRegistration current = delegate;
             if (current != null) current.close();
         }
+    }
+
+    private static final class OperationOverride implements FilterOverride {
+        private final FilterOverride delegate;
+        private final FilterOperation operation;
+
+        private OperationOverride(FilterOverride delegate, FilterOperation operation) {
+            this.delegate = delegate;
+            this.operation = operation;
+        }
+
+        @Override public ResourceLocation id() { return delegate.id(); }
+        @Override public String ownerId() { return delegate.ownerId(); }
+        @Override public int priority() { return delegate.priority(); }
+        @Override public com.xkmxz.prismod.api.common.state.lifecycle.FilterOverrideState state() { return delegate.state(); }
+        @Override public boolean isActive() { return delegate.isActive(); }
+        @Override public FilterOperation operation() { return operation; }
+        @Override public void close() { delegate.close(); }
     }
 }

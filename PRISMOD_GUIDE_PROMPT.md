@@ -75,6 +75,8 @@ FilterRegistration registration = FilterClientApi.registerCustomFilter(ownerId, 
 
 `setForcedFilter` 只接受逻辑滤镜 ID：内置滤镜使用 `prismod:<name>`，自定义滤镜使用完整 `namespace:path`；注册 API 的 `postEffect` 才使用实际 PostChain 资源路径。强制滤镜优先于玩家总开关、F8 和普通选择；重复设置会替换原强制状态，清除后恢复用户选择和最新配置。写 API 会调度到 Minecraft 客户端线程，`snapshot()` 返回最近一次发布的不可变最终渲染快照。专用服务器不得加载 `api.client` 或任何 `net.minecraft.client` 类。
 
+需要观察客户端线程排队结果时，使用 `setForcedFilterOperation`、`setSessionSelectionOperation`、`clearForcedFilterOperation` 和 `clearSessionSelectionOperation` 等 `Operation` 后缀入口；注册和覆盖句柄通过 `operation()` 查询创建操作。跨线程调用先返回 `QUEUED`，完成后发布一次 `OPERATION_COMPLETED` 事件；旧的 `void` 与句柄入口继续保留。
+
 ## 架构和模块职责
 
 资源包编辑器的完整版本备份位于 `config/prismod/backup/resourcepacks/.prismod-backup/<资源包目录>/`；删除滤镜的文件按时间批次位于 `config/prismod/backup/resourcepacks/.prismod-recycle/<资源包>/<时间戳>/`，两者都不进入 `config/prismod/resourcepacks/` 的资源包本体。资源包管理页的“备份管理”页面分别管理两类备份，不处理旧版资源包内部回收站。
