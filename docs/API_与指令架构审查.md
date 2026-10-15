@@ -278,7 +278,7 @@ ServerFilterApplication
 3. 该玩家的个人选择；
 4. 该玩家的个人覆盖。
 
-网络层不提供服务端状态查询、通用 RPC 或操作回执。`OperationResult` 是服务端本地用例结果，不是客户端确认消息。
+网络层不提供服务端状态查询、通用 RPC 或操作回执。`OperationResult` 是服务端本地用例结果，不是客户端确认消息。当前 `PolicyNetwork.broadcast(...)` 和 `send(...)` 在通道未初始化或 Forge 网络发送抛出 `RuntimeException` 时会静默返回，因此 `OperationResult.SUCCESS` 只能证明服务端用例层已接受并保存策略，不能证明网络发送、客户端接收或客户端渲染成功；发送失败的可观测性保留为后续独立决策。
 
 ## 6. 依赖方向审查
 

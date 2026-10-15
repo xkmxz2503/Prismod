@@ -153,7 +153,7 @@ FilterServerApi.clearSelection();
 - `clearAllOverrides()` 清理广播覆盖和玩家覆盖；
 - 没有可清理对象时返回 `NOT_FOUND`；
 - 服务端停止时清空全部状态并将 generation 重置为 `0`；
-- API 调用不提供网络回执，返回值表示服务端用例是否接受并保存了操作。
+- API 调用不提供网络回执，返回值表示服务端用例是否接受并保存了操作；当前网络发送异常由传输实现隔离，`SUCCESS` 不证明网络发送、客户端接收或客户端渲染成功。
 
 ### 3.4 OperationResult
 
