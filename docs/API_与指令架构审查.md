@@ -70,7 +70,7 @@ flowchart LR
 | 服务端应用层 | `server/application/ServerFilterApplication` | 校验请求、保存策略、递增 generation、调用网络端口、登录补发 |
 | 管理指令适配器 | `command/server/PrismodServerCommands` | 解析 Brigadier 参数、创建公共请求、转换 i18n 反馈 |
 | 测试指令适配器 | `command/test/server/PrismodServerApiCommands` | 通过公开服务端 API 执行逐步测试 |
-| 网络抽象端口 | `network/contract/PolicyTransport` | 暴露广播和指定玩家发送能力 |
+| 网络抽象端口 | `network/contract/PolicyTransport` | 只暴露广播和指定玩家发送能力 |
 | Forge 网络实现 | `network/transport/PolicyNetwork` | 创建通道、编解码、路由和客户端 sink 分发 |
 | 客户端接收适配器 | `client/network/PrismodClientNetwork` | 把策略消息翻译为客户端 API 调用，并维护网络覆盖句柄 |
 
@@ -223,13 +223,14 @@ flowchart LR
 | 消息类型 | `PolicyMessage` |
 | 编解码 | `FriendlyByteBuf`，仅存在于网络实现边界 |
 
-`PolicyTransport` 当前提供三个能力：
+`PolicyTransport` 当前只提供服务端发送能力：
 
 ```java
-void registerClientSink(Consumer<PolicyMessage> sink);
 void broadcast(PolicyMessage message);
 void send(ServerPlayer player, PolicyMessage message);
 ```
+
+客户端接收 sink 注册属于 `PolicyNetwork` 的客户端实现能力，不属于服务端业务端口；客户端启动时直接注册 `PrismodClientNetwork::handle`。
 
 业务层只能依赖这个端口；`SimpleChannel`、`PacketDistributor`、`NetworkEvent.Context` 和 packet wrapper 不应向上泄漏。
 
@@ -321,7 +322,7 @@ network/transport -> Forge 网络实现
 
 以下项目是当前源码层面的架构审查问题，不代表已经批准的改动：
 
-1. `PolicyTransport.registerClientSink(...)` 同时出现在服务端业务端口和客户端接收注册中。需要决定是否继续保留这一共享接口，还是拆成服务端发送端口与客户端接收端口，进一步收窄依赖方向。
+1. `PolicyTransport` 已收窄为服务端发送端口；客户端接收注册保留在 `PolicyNetwork` 实现中。后续只需验证是否需要独立的客户端接收接口，不应重新把接收能力放回服务端端口。
 2. `FilterServerApi` 当前从 `PolicyTransport` 读取通道和协议常量。需要确认公开 API 是否允许直接依赖网络契约，或改为独立的只读协议元数据契约。
 3. `PolicyNetwork.broadcast(...)` 和 `send(...)` 当前捕获 `RuntimeException` 后静默返回。需要决定失败是否必须写入日志、暴露监控事件或反映到服务端操作结果。
 4. 同 owner 覆盖更新时复用已有 request ID。需要确认 request ID 的语义是“owner 策略身份”还是“每次调用唯一请求”；这会影响客户端幂等、审计和调试日志。

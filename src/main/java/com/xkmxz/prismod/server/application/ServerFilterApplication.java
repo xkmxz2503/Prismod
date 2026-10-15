@@ -25,7 +25,6 @@ public final class ServerFilterApplication {
     private static PolicyTransport transport = new PolicyTransport() {
         @Override public void broadcast(PolicyMessage message) { }
         @Override public void send(ServerPlayer player, PolicyMessage message) { }
-        @Override public void registerClientSink(java.util.function.Consumer<PolicyMessage> sink) { }
     };
     private static long generation;
     private static UUID broadcastSelectionId;

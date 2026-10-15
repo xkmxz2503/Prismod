@@ -75,6 +75,8 @@ FilterClientApi.clearOverrides("example-mod");
 
 **兼容入口：** `createOverrideOperation(...)` 继续保留并标记为 deprecated。
 
+覆盖句柄的生命周期状态只有 `PENDING`、`ACTIVE` 和 `CLOSED`。如果排队创建失败，失败状态、`FilterFailureReason` 和诊断详情以 `override.operation()` 为准；句柄本身不会增加独立的 `FAILED` 状态。
+
 ### 2.5 快照查询
 
 ```java
@@ -160,6 +162,7 @@ Operation：QUEUED → SUCCESS / FAILED
 - `...Operation` 入口适合需要观察排队、完成和失败原因的调用；
 - 重复 `close()` 没有副作用；
 - 排队期间关闭句柄不会取消已提交的创建；
+- 覆盖创建失败通过覆盖句柄的 `operation()` 读取，覆盖状态仍按 `PENDING`、`ACTIVE`、`CLOSED` 表示生命周期；
 - 无变化操作仍可返回 `SUCCESS`，但 `affectedCount()` 为 `0`，generation 不递增；
 - 状态事件先发布，随后发布一次 `OPERATION_COMPLETED`。
 

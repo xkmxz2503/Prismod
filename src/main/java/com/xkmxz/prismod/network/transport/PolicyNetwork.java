@@ -41,7 +41,6 @@ public final class PolicyNetwork implements PolicyTransport {
         return channel != null;
     }
 
-    @Override
     public void registerClientSink(Consumer<PolicyMessage> sink) {
         clientSink = sink;
     }

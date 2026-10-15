@@ -2,17 +2,15 @@ package com.xkmxz.prismod.network.contract;
 
 import net.minecraft.server.level.ServerPlayer;
 
-import java.util.function.Consumer;
-
-/** Stable transport port used by server application services. */
+/** Stable server-side transport port used by application services. */
 public interface PolicyTransport {
     String CHANNEL_NAMESPACE = "prismod";
     String CHANNEL_PATH = "policy";
     String PROTOCOL_VERSION = "1";
 
-    void registerClientSink(Consumer<PolicyMessage> sink);
-
+    /** Sends a policy message to every connected client. */
     void broadcast(PolicyMessage message);
 
+    /** Sends a policy message to one connected player. */
     void send(ServerPlayer player, PolicyMessage message);
 }
