@@ -81,15 +81,15 @@ public final class LutDebugScreen extends Screen {
         settingsBottom = buttonY - 12;
         int sliderLeft = panelLeft + 12;
         int sliderWidth = Math.max(140, previewRight - sliderLeft);
-        addSetting("screen.prismod.filter_debug.intensity", 0, 1, settings.intensity(), sliderLeft, 0, sliderWidth);
-        addSetting("screen.prismod.filter_debug.exposure", -2, 2, settings.exposure(), sliderLeft, 0, sliderWidth);
-        addSetting("screen.prismod.filter_debug.contrast", -1, 1, settings.contrast(), sliderLeft, 0, sliderWidth);
-        addSetting("screen.prismod.filter_debug.highlights", -1, 1, settings.highlights(), sliderLeft, 0, sliderWidth);
-        addSetting("screen.prismod.filter_debug.shadows", -1, 1, settings.shadows(), sliderLeft, 0, sliderWidth);
-        addSetting("screen.prismod.filter_debug.saturation", 0, 2, settings.saturation(), sliderLeft, 0, sliderWidth);
-        addSetting("screen.prismod.filter_debug.temperature", -1, 1, settings.temperature(), sliderLeft, 0, sliderWidth);
-        addSetting("screen.prismod.filter_debug.tint", -1, 1, settings.tint(), sliderLeft, 0, sliderWidth);
-        addSetting("screen.prismod.filter_debug.gamma", 0.1F, 3, settings.gamma(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.intensity", 0, 100, settings.intensity(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.exposure", -100, 100, settings.exposure(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.contrast", 0, 200, settings.contrast(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.highlights", -100, 100, settings.highlights(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.shadows", -100, 100, settings.shadows(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.saturation", 0, 200, settings.saturation(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.temperature", -100, 100, settings.temperature(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.tint", -100, 100, settings.tint(), sliderLeft, 0, sliderWidth);
+        addSetting("screen.prismod.filter_debug.gamma", 10, 300, settings.gamma(), sliderLeft, 0, sliderWidth);
         arrangeSettings();
 
         int buttonWidth = (panelWidth - 28) / 4;

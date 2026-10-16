@@ -16,8 +16,8 @@ class FilterDebugPresetStoreTest {
     @Test
     void namespaceAndFilterFilesAreIndependent() throws Exception {
         FilterDebugPresetStore store = new FilterDebugPresetStore(temp);
-        FilterDebugSettings first = new FilterDebugSettings(.25F, .5F, 0, 0, 0, 1, 0, 0, 1);
-        FilterDebugSettings second = new FilterDebugSettings(.75F, -.5F, 0, 0, 0, 1, 0, 0, 1);
+        FilterDebugSettings first = new FilterDebugSettings(25F, 50F, 100F, 0, 0, 100F, 0, 0, 100F);
+        FilterDebugSettings second = new FilterDebugSettings(75F, -50F, 100F, 0, 0, 100F, 0, 0, 100F);
         store.put("example", "cinematic", first);
         store.put("other", "cinematic", second);
         assertEquals(first, store.get("example", "cinematic"));
@@ -36,10 +36,10 @@ class FilterDebugPresetStoreTest {
     void invalidIdentitySchemaAndVersionUseDefaults() throws Exception {
         Path file = temp.resolve("example/cinematic.json");
         Files.createDirectories(file.getParent());
-        String validSettings = new FilterDebugSettings(.4F, 0, 0, 0, 0, 1, 0, 0, 1).toJson().toString();
+        String validSettings = new FilterDebugSettings(40F, 0, 100F, 0, 0, 100F, 0, 0, 100F).toJson().toString();
         Files.writeString(file, "{\"schema\":\"prismod.other\",\"format_version\":1,\"filter\":\"example:cinematic\",\"settings\":" + validSettings + "}");
         assertEquals(FilterDebugSettings.defaults(), new FilterDebugPresetStore(temp).get("example", "cinematic"));
-        Files.writeString(file, "{\"schema\":\"prismod.filter_debug\",\"format_version\":2,\"filter\":\"example:cinematic\",\"settings\":" + validSettings + "}");
+        Files.writeString(file, "{\"schema\":\"prismod.filter_debug\",\"format_version\":3,\"filter\":\"example:cinematic\",\"settings\":" + validSettings + "}");
         assertEquals(FilterDebugSettings.defaults(), new FilterDebugPresetStore(temp).get("example", "cinematic"));
         Files.writeString(file, "{\"schema\":\"prismod.filter_debug\",\"format_version\":1,\"filter\":\"other:cinematic\",\"settings\":" + validSettings + "}");
         assertEquals(FilterDebugSettings.defaults(), new FilterDebugPresetStore(temp).get("example", "cinematic"));
@@ -47,7 +47,7 @@ class FilterDebugPresetStoreTest {
 
     @Test
     void saveAndReloadPreservesAllNineFields() throws Exception {
-        FilterDebugSettings expected = new FilterDebugSettings(.4F, .2F, -.3F, .4F, -.5F, 1.2F, .1F, -.1F, 1.8F);
+        FilterDebugSettings expected = new FilterDebugSettings(40F, 20F, 80F, 40F, -50F, 120F, 10F, -10F, 180F);
         FilterDebugPresetStore store = new FilterDebugPresetStore(temp);
         store.put("example", "cinematic", expected);
         assertEquals(expected, new FilterDebugPresetStore(temp).get("example", "cinematic"));

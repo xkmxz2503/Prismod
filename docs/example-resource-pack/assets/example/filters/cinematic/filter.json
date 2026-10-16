@@ -5,5 +5,5 @@
   "display_name": "filter.example.cinematic",
   "source": "lut.cube",
   "color_space": "sRGB",
-  "default_strength": 1.0
+  "default_strength": 100.0
 }

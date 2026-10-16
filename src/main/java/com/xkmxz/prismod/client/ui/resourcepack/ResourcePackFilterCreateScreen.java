@@ -52,7 +52,7 @@ public final class ResourcePackFilterCreateScreen extends Screen {
         int right = left + column + 24;
         int top = 26;
         idBox = field(left, top + 20, column, "screen.prismod.filter_id", suggestedId());
-        strengthBox = field(left, top + 62, column, "screen.prismod.filter_default_strength", "1.0");
+        strengthBox = field(left, top + 62, column, "screen.prismod.filter_default_strength", "100");
         typeButton = addRenderableWidget(Button.builder(typeLabel(), button -> {
             type = "lut3d".equals(type) ? "post_chain" : "lut3d";
             button.setMessage(typeLabel());

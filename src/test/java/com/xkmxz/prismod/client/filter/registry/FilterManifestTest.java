@@ -11,7 +11,7 @@ class FilterManifestTest {
     void parsesPostChainAndLutManifests() {
         FilterManifest post = FilterManifest.parse(JsonParser.parseString("{\"schema\":\"prismod.filter\",\"format_version\":1,\"type\":\"post_chain\",\"display_name\":\"filter.example.gray\",\"source\":\"post.json\"}").getAsJsonObject());
         assertEquals(FilterType.POST_CHAIN, post.type());
-        assertEquals(1.0F, post.defaultStrength());
+        assertEquals(100.0F, post.defaultStrength());
 
         FilterManifest lut = FilterManifest.parse(JsonParser.parseString("{\"schema\":\"prismod.filter\",\"format_version\":1,\"type\":\"lut3d\",\"display_name\":\"filter.example.cinematic\",\"source\":\"lut.cube\",\"color_space\":\"sRGB\"}").getAsJsonObject());
         assertEquals(FilterType.LUT3D, lut.type());
@@ -23,7 +23,7 @@ class FilterManifestTest {
         assertThrows(IllegalArgumentException.class, () -> FilterManifest.parse(JsonParser.parseString("{\"schema\":\"prismod.filter\",\"format_version\":1,\"type\":\"lut3d\",\"display_name\":\"x\",\"source\":\"lut.json\",\"color_space\":\"srgb\"}").getAsJsonObject()));
         assertThrows(IllegalArgumentException.class, () -> FilterManifest.parse(JsonParser.parseString("{\"schema\":\"prismod.filter\",\"format_version\":1,\"type\":\"lut3d\",\"display_name\":\"x\",\"source\":\"lut.cube\"}").getAsJsonObject()));
         assertThrows(IllegalArgumentException.class, () -> FilterManifest.parse(JsonParser.parseString("{\"schema\":\"prismod.filter\",\"format_version\":1,\"type\":\"post_chain\",\"display_name\":\"x\",\"source\":\"../post.json\"}").getAsJsonObject()));
-        assertThrows(IllegalArgumentException.class, () -> FilterManifest.parse(JsonParser.parseString("{\"schema\":\"prismod.filter\",\"format_version\":1,\"type\":\"post_chain\",\"display_name\":\"x\",\"source\":\"post.json\",\"default_strength\":1.1}").getAsJsonObject()));
+        assertThrows(IllegalArgumentException.class, () -> FilterManifest.parse(JsonParser.parseString("{\"schema\":\"prismod.filter\",\"format_version\":1,\"type\":\"post_chain\",\"display_name\":\"x\",\"source\":\"post.json\",\"default_strength\":100.1}").getAsJsonObject()));
     }
 
     @Test

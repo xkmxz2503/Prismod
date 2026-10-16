@@ -5,9 +5,9 @@ public final class FilterStrength {
     private FilterStrength() {
     }
 
-    /** Non-finite values become zero; finite values are clamped to [0, 1]. */
+    /** 非有限值归零；有限值裁剪到百分制 [0, 100]。 */
     public static float normalize(double strength) {
         if (!Double.isFinite(strength)) return 0.0F;
-        return (float) Math.max(0.0D, Math.min(1.0D, strength));
+        return (float) Math.max(0.0D, Math.min(100.0D, strength));
     }
 }

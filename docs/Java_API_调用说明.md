@@ -115,7 +115,7 @@ import net.minecraft.resources.ResourceLocation;
 
 var filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");
 
-FilterClientApi.submit(new FilterRequest.Override("example-mod", filter, 0.75F, 100))
+FilterClientApi.submit(new FilterRequest.Override("example-mod", filter, 75F, 100))
         .thenAccept(receipt -> {
             if (receipt.resourceIds().isEmpty()) {
                 return; // 根据 status/code/failureReason 处理失败。
@@ -140,11 +140,11 @@ FilterClientApi.submit(new FilterRequest.Override("example-mod", filter, 0.75F, 
 
 ```java
 var adjustments = FilterAdjustments.builder()
-        .exposure(1.0F)
-        .saturation(1.25F)
+        .exposure(25F)
+        .saturation(125F)
         .build();
 
-FilterClientApi.submit(new FilterRequest.Select(filter, 0.75F, adjustments));
+FilterClientApi.submit(new FilterRequest.Select(filter, 75F, adjustments));
 ```
 
 支持曝光、对比度、高光、阴影、饱和度、色温、色调和伽马。`strength` 仍表示整体混合强度。没有传入调参对象时，继续使用玩家调试预设；API 参数只覆盖明确填写的字段。现有 `client.filter.debug.FilterDebugSettings` 保持内部位置，服务端和网络协议暂未接入调参。
@@ -156,3 +156,29 @@ FilterClientApi.submit(new FilterRequest.Select(filter, 0.75F, adjustments));
 - 在客户端线程阻塞等待 CompletionStage。
 - 忘记释放资源，或以为 Session 会清理同 owner 的所有资源。
 - 只读最终 filter，忽略 selectedFilter、fallbackReason 和 renderAvailable。
+
+## 参数单位（百分制）
+
+客户端公开 API 的 `strength` 使用 `0-100`：`0` 表示不应用滤镜，`100` 表示完整应用。`FilterAdjustments` 是稀疏对象，字段单位如下：
+
+| 字段 | 范围 | 中性值 |
+|---|---:|---:|
+| exposure | -100 到 100 | 0 |
+| contrast | 0 到 200 | 100 |
+| highlights / shadows | -100 到 100 | 0 |
+| saturation | 0 到 200 | 100 |
+| temperature / tint | -100 到 100 | 0 |
+| gamma | 10 到 300 | 100 |
+
+示例：
+
+```java
+FilterAdjustments.builder()
+        .exposure(25)
+        .contrast(120)
+        .saturation(80)
+        .gamma(100)
+        .build();
+```
+
+调试预设 JSON 同样保存百分制值，格式版本为 `2`。旧格式不会按新单位解释，会回退到默认预设。

@@ -29,10 +29,10 @@ class FilterControllerTest {
     void forcedFilterOverridesDisabledUserConfig() {
         FilterController controller = new FilterController();
         controller.select(FilterId.WARM);
-        controller.refreshConfig(false, FilterId.defaultOrder(), Map.of(FilterId.COOL, 0.1F));
-        controller.setForced(FilterId.COOL, 0.75F);
+        controller.refreshConfig(false, FilterId.defaultOrder(), Map.of(FilterId.COOL, 10F));
+        controller.setForced(FilterId.COOL, 75F);
         assertEquals(FilterKey.of(FilterId.COOL), controller.effectiveSelection().key());
-        assertEquals(0.75F, controller.effectiveSelection().strength());
+        assertEquals(75F, controller.effectiveSelection().strength());
         assertTrue(controller.effectiveSelection().forced());
         assertEquals(FilterKey.of(FilterId.WARM), controller.selectedSelection().key());
     }
@@ -41,12 +41,12 @@ class FilterControllerTest {
     void forcedSelectionRemainsAvailableForUiWhenRenderingFallsBack() {
         FilterController controller = new FilterController();
         controller.select(FilterId.WARM);
-        controller.setForced(FilterId.COOL, 0.75F);
+        controller.setForced(FilterId.COOL, 75F);
         controller.setRenderAvailable(false);
 
         assertNotNull(controller.forcedSelection());
         assertEquals(FilterKey.of(FilterId.COOL), controller.forcedSelection().key());
-        assertEquals(0.75F, controller.forcedSelection().strength());
+        assertEquals(75F, controller.forcedSelection().strength());
         assertTrue(controller.forcedSelection().forced());
         assertEquals(FilterKey.of(FilterId.ORIGINAL), controller.effectiveSelection().key());
     }
@@ -55,12 +55,12 @@ class FilterControllerTest {
     void clearingOverrideRestoresLatestUserStrength() {
         FilterController controller = new FilterController();
         controller.select(FilterId.VINTAGE);
-        controller.setForced(FilterId.NIGHT_VISION, 0.9F);
-        controller.refreshConfig(true, FilterId.defaultOrder(), Map.of(FilterId.VINTAGE, 0.25F));
-        assertEquals(0.9F, controller.effectiveSelection().strength());
+        controller.setForced(FilterId.NIGHT_VISION, 90F);
+        controller.refreshConfig(true, FilterId.defaultOrder(), Map.of(FilterId.VINTAGE, 25F));
+        assertEquals(90F, controller.effectiveSelection().strength());
         controller.clearForced();
         assertEquals(FilterKey.of(FilterId.VINTAGE), controller.effectiveSelection().key());
-        assertEquals(0.25F, controller.effectiveSelection().strength());
+        assertEquals(25F, controller.effectiveSelection().strength());
         assertFalse(controller.effectiveSelection().forced());
     }
 
@@ -69,7 +69,7 @@ class FilterControllerTest {
         FilterController controller = new FilterController();
         controller.select(FilterId.GRAYSCALE);
         controller.refreshConfig(false, FilterId.defaultOrder(), Map.of());
-        controller.setForced(FilterId.COOL, 0.5F);
+        controller.setForced(FilterId.COOL, 50F);
         controller.clearForced();
         assertEquals(FilterKey.of(FilterId.ORIGINAL), controller.effectiveSelection().key());
         assertEquals(FilterKey.of(FilterId.GRAYSCALE), controller.selectedSelection().key());
@@ -79,19 +79,19 @@ class FilterControllerTest {
     void selectedStrengthChangesImmediatelyOnConfigRefresh() {
         FilterController controller = new FilterController();
         controller.select(FilterId.WARM);
-        controller.refreshConfig(true, FilterId.defaultOrder(), Map.of(FilterId.WARM, 0.125F));
-        assertEquals(0.125F, controller.effectiveSelection().strength());
-        assertEquals(0.125F, controller.selectedSelection().strength());
+        controller.refreshConfig(true, FilterId.defaultOrder(), Map.of(FilterId.WARM, 12.5F));
+        assertEquals(12.5F, controller.effectiveSelection().strength());
+        assertEquals(12.5F, controller.selectedSelection().strength());
     }
 
     @Test
     void newOverrideReplacesPreviousOverrideInsteadOfStacking() {
         FilterController controller = new FilterController();
         controller.select(FilterId.WARM);
-        controller.setForced(FilterId.COOL, 0.2F);
-        controller.setForced(FilterId.VINTAGE, 0.8F);
+        controller.setForced(FilterId.COOL, 20F);
+        controller.setForced(FilterId.VINTAGE, 80F);
         assertEquals(FilterKey.of(FilterId.VINTAGE), controller.effectiveSelection().key());
-        assertEquals(0.8F, controller.effectiveSelection().strength());
+        assertEquals(80F, controller.effectiveSelection().strength());
         controller.clearForced();
         assertEquals(FilterKey.of(FilterId.WARM), controller.effectiveSelection().key());
     }
@@ -99,14 +99,14 @@ class FilterControllerTest {
     @Test
     void clearingLegacyForcedFilterKeepsOtherOwnerOverrides() {
         FilterController controller = new FilterController();
-        controller.addOverride("another-mod", FilterKey.of(FilterId.WARM), 0.6F, 100);
-        controller.setForced(FilterId.COOL, 1.0F);
+        controller.addOverride("another-mod", FilterKey.of(FilterId.WARM), 60F, 100);
+        controller.setForced(FilterId.COOL, 100F);
 
         controller.clearForced();
 
         assertTrue(controller.isForced());
         assertEquals(FilterKey.of(FilterId.WARM), controller.effectiveSelection().key());
-        assertEquals(0.6F, controller.effectiveSelection().strength());
+        assertEquals(60F, controller.effectiveSelection().strength());
     }
 
     @Test
@@ -114,11 +114,11 @@ class FilterControllerTest {
         FilterController controller = new FilterController();
         controller.select(FilterId.WARM);
 
-        controller.selectSession(FilterKey.of(FilterId.COOL), 0.4F);
+        controller.selectSession(FilterKey.of(FilterId.COOL), 40F);
 
         assertEquals(FilterKey.of(FilterId.WARM), controller.selectedSelection().key());
         assertEquals(FilterKey.of(FilterId.COOL), controller.effectiveSelection().key());
-        assertEquals(0.4F, controller.effectiveSelection().strength());
+        assertEquals(40F, controller.effectiveSelection().strength());
         controller.clearSessionSelection();
         assertEquals(FilterKey.of(FilterId.WARM), controller.effectiveSelection().key());
     }
@@ -127,7 +127,7 @@ class FilterControllerTest {
     void cycleDoesNotAlterSelectionDuringForcedOverride() {
         FilterController controller = new FilterController();
         controller.select(FilterId.WARM);
-        controller.setForced(FilterId.COOL, 0.5F);
+        controller.setForced(FilterId.COOL, 50F);
         controller.cycle();
         controller.clearForced();
         assertEquals(FilterKey.of(FilterId.WARM), controller.effectiveSelection().key());
@@ -159,12 +159,12 @@ class FilterControllerTest {
         FilterController controller = new FilterController();
         List<FilterId> order = new ArrayList<>(FilterId.defaultOrder());
         EnumMap<FilterId, Float> strengths = new EnumMap<>(FilterId.class);
-        strengths.put(FilterId.WARM, 0.25F);
+        strengths.put(FilterId.WARM, 25F);
         controller.refreshConfig(true, order, strengths);
         order.clear();
-        strengths.put(FilterId.WARM, 0.9F);
+        strengths.put(FilterId.WARM, 90F);
         controller.select(FilterId.WARM);
-        assertEquals(0.25F, controller.effectiveSelection().strength());
+        assertEquals(25F, controller.effectiveSelection().strength());
         controller.cycle();
         assertEquals(FilterKey.of(FilterId.COOL), controller.effectiveSelection().key());
     }
@@ -172,7 +172,7 @@ class FilterControllerTest {
     @Test
     void renderFailureReportsOriginalWhileRetainingForcedMarker() {
         FilterController controller = new FilterController();
-        controller.setForced(FilterId.NIGHT_VISION, 0.7F);
+        controller.setForced(FilterId.NIGHT_VISION, 70F);
         controller.setRenderAvailable(false);
         assertEquals(FilterKey.of(FilterId.ORIGINAL), controller.effectiveSelection().key());
         assertEquals(0.0F, controller.effectiveSelection().strength());
@@ -195,7 +195,7 @@ class FilterControllerTest {
     void leavingWorldClearsOverrideWithoutLosingUserChoice() {
         FilterController controller = new FilterController();
         controller.select(FilterId.COOL);
-        controller.setForced(FilterId.GRAYSCALE, 0.4F);
+        controller.setForced(FilterId.GRAYSCALE, 40F);
         controller.resetSession();
         assertFalse(controller.isForced());
         assertEquals(FilterKey.of(FilterId.COOL), controller.effectiveSelection().key());
@@ -206,9 +206,9 @@ class FilterControllerTest {
         FilterController controller = new FilterController();
         controller.select(FilterId.WARM);
         FilterSelection old = controller.effectiveSelection();
-        controller.setForced(FilterId.COOL, 0.6F);
+        controller.setForced(FilterId.COOL, 60F);
         assertEquals(FilterKey.of(FilterId.WARM), old.key());
-        assertEquals(1.0F, old.strength());
+        assertEquals(100F, old.strength());
         assertNotEquals(old, controller.effectiveSelection());
     }
 
@@ -236,8 +236,8 @@ class FilterControllerTest {
     @Timeout(5)
     void backgroundReadsSeeCompleteImmutableSelectionsWithoutGameRuntime() throws InterruptedException {
         FilterController controller = new FilterController();
-        FilterSelection warm = new FilterSelection(FilterKey.of(FilterId.WARM), 0.25F, true);
-        FilterSelection cool = new FilterSelection(FilterKey.of(FilterId.COOL), 0.75F, true);
+        FilterSelection warm = new FilterSelection(FilterKey.of(FilterId.WARM), 25F, true);
+        FilterSelection cool = new FilterSelection(FilterKey.of(FilterId.COOL), 75F, true);
         controller.setForced(warm.key(), warm.strength());
         AtomicReference<Throwable> failure = new AtomicReference<>();
         CountDownLatch started = new CountDownLatch(1);

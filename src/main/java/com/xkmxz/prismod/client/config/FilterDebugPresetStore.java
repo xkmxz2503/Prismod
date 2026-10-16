@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 /** 按资源包 namespace 和滤镜路径独立保存调参。 */
 public final class FilterDebugPresetStore {
-    public static final int FORMAT_VERSION = 1;
+    public static final int FORMAT_VERSION = 2;
     public static final String SCHEMA = "prismod.filter_debug";
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

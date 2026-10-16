@@ -11,7 +11,7 @@ class LutPresetStoreTest {
     @Test void savesByFilterIdAndIgnoresUnknownFields() throws Exception {
         var file = Files.createTempFile("prismod-lut", ".json");
         var store = new LutPresetStore(file);
-        var settings = new LutDebugSettings(.4F, 1, 0, 0, 0, 1.1F, 0, 0, 1.2F);
+        var settings = new LutDebugSettings(40F, 100F, 100F, 0, 0, 110F, 0, 0, 120F);
         store.put("example:cinematic", settings);
         var loaded = new LutPresetStore(file);
         assertEquals(settings, loaded.get("example:cinematic"));

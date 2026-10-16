@@ -9,6 +9,6 @@ public record CustomFilterMetadata(String translationKey, float defaultStrength)
     }
 
     public static CustomFilterMetadata defaults() {
-        return new CustomFilterMetadata(null, 1.0F);
+        return new CustomFilterMetadata(null, 100.0F);
     }
 }

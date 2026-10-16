@@ -55,7 +55,7 @@ public final class ResourcePackFilterScreen extends Screen {
         idBox = field(left, top + 24, column, "screen.prismod.filter_id", filterId);
         displayNameBox = field(left, top + 60, column, "screen.prismod.filter_display_name", value(filter, "display_name", ""));
         sourceBox = field(left, top + 96, column, "screen.prismod.filter_source", value(filter, "source", ""));
-        strengthBox = field(left, top + 132, column, "screen.prismod.filter_default_strength", value(filter, "default_strength", "1.0"));
+        strengthBox = field(left, top + 132, column, "screen.prismod.filter_default_strength", value(filter, "default_strength", "100"));
         previewBox = field(right, top + 24, column, "screen.prismod.filter_preview_file", value(filter, "preview", ""));
         colorSpaceBox = field(right, top + 60, column, "screen.prismod.filter_color_space", value(filter, "color_space", "sRGB"));
         typeButton = addRenderableWidget(Button.builder(typeLabel(), button -> {

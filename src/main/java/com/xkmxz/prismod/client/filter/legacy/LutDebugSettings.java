@@ -18,34 +18,34 @@ public record LutDebugSettings(
         float gamma
 ) {
     public LutDebugSettings {
-        intensity = clamp(intensity, 0.0F, 1.0F, 0.0F);
-        exposure = clamp(exposure, -2.0F, 2.0F, 0.0F);
-        contrast = clamp(contrast, -1.0F, 1.0F, 0.0F);
-        highlights = clamp(highlights, -1.0F, 1.0F, 0.0F);
-        shadows = clamp(shadows, -1.0F, 1.0F, 0.0F);
-        saturation = clamp(saturation, 0.0F, 2.0F, 1.0F);
-        temperature = clamp(temperature, -1.0F, 1.0F, 0.0F);
-        tint = clamp(tint, -1.0F, 1.0F, 0.0F);
-        gamma = clamp(gamma, 0.1F, 3.0F, 1.0F);
+        intensity = clamp(intensity, 0.0F, 100.0F, 0.0F);
+        exposure = clamp(exposure, -100.0F, 100.0F, 0.0F);
+        contrast = clamp(contrast, 0.0F, 200.0F, 100.0F);
+        highlights = clamp(highlights, -100.0F, 100.0F, 0.0F);
+        shadows = clamp(shadows, -100.0F, 100.0F, 0.0F);
+        saturation = clamp(saturation, 0.0F, 200.0F, 100.0F);
+        temperature = clamp(temperature, -100.0F, 100.0F, 0.0F);
+        tint = clamp(tint, -100.0F, 100.0F, 0.0F);
+        gamma = clamp(gamma, 10.0F, 300.0F, 100.0F);
     }
 
     public static LutDebugSettings defaults() {
-        return new LutDebugSettings(1.0F, 0.0F, 0.0F, 0.0F, 0.0F,
-                1.0F, 0.0F, 0.0F, 1.0F);
+        return new LutDebugSettings(100.0F, 0.0F, 100.0F, 0.0F, 0.0F,
+                100.0F, 0.0F, 0.0F, 100.0F);
     }
 
     public static LutDebugSettings fromJson(JsonObject object) {
         if (object == null) return defaults();
         return new LutDebugSettings(
-                number(object, "intensity", 1.0F),
+                number(object, "intensity", 100.0F),
                 number(object, "exposure", 0.0F),
-                number(object, "contrast", 0.0F),
+                number(object, "contrast", 100.0F),
                 number(object, "highlights", 0.0F),
                 number(object, "shadows", 0.0F),
-                number(object, "saturation", 1.0F),
+                number(object, "saturation", 100.0F),
                 number(object, "temperature", 0.0F),
                 number(object, "tint", 0.0F),
-                number(object, "gamma", 1.0F));
+                number(object, "gamma", 100.0F));
     }
 
     public JsonObject toJson() {

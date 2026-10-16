@@ -305,7 +305,7 @@ public final class FilterConfigScreen extends Screen {
         private final FilterKey id;
 
         private StrengthSlider(FilterKey id, int x, int y, int sliderWidth) {
-            super(x, y, sliderWidth, 20, Component.empty(), draftStrengths.get(id));
+            super(x, y, sliderWidth, 20, Component.empty(), draftStrengths.getOrDefault(id, 100.0D) / 100.0D);
             this.id = id;
             setTooltip(Tooltip.create(Component.translatable("screen.prismod.strength_hint", filterName(id))));
             updateMessage();
@@ -318,7 +318,7 @@ public final class FilterConfigScreen extends Screen {
 
         @Override
         protected void applyValue() {
-            draftStrengths.put(id, value);
+            draftStrengths.put(id, value * 100.0D);
         }
     }
 }

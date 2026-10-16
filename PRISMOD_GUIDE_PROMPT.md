@@ -42,7 +42,7 @@ strength_night_vision = 1.0
 
 `cycle_order` 使用 `FilterKey` 序列化值：内置滤镜继续接受短名称，自定义滤镜使用 `namespace:path`。解析时忽略非法项和重复项；如果解析后为空则回退内置默认顺序。资源重载完成时会补充已发现滤镜，并清理 `cycle_order`、`custom_strengths`、`hidden_filters` 中已经不再被注册表或现存资源包清单提供的滤镜；配置页面点击保存时也会执行一次同样的清理，不使用循环任务。暂时禁用的资源包仍在清单检查范围内，调试预设也不参与清理。
 
-`custom_strengths` 使用 `namespace:path=value` 字符串保存自定义滤镜强度；全部强度都会规范化到 `[0.0, 1.0]`，NaN 和无穷值按 `0.0` 处理。`disabled_packs` 保存资源包 namespace，`hidden_filters` 保存滤镜 ID。
+`custom_strengths` 使用 `namespace:path=value` 字符串保存自定义滤镜强度；全部强度都会规范化到百分制 `[0, 100]`，NaN 和无穷值按 `0.0` 处理。`disabled_packs` 保存资源包 namespace，`hidden_filters` 保存滤镜 ID。
 
 资源包扫描发生在 Forge 客户端配置加载之前。此阶段必须默认允许资源包进入首次扫描，不能直接读取尚未加载的 `ForgeConfigSpec.ConfigValue`；配置加载完成后由客户端 tick 触发一次资源重载，再应用 `disabled_packs`。不要删除这一启动兼容逻辑。
 
@@ -62,7 +62,7 @@ strength_night_vision = 1.0
 
 自定义滤镜名称通过资源包语言文件提供，例如 `assets/example/lang/zh_cn.json` 中为 `filter.example.debug` 提供翻译。资源包重载时 Prismod 将当前语言和 `en_us` 加载到私有显示翻译表，不注册到 Minecraft 全局 `LanguageManager`。当前语言缺失时回退 `en_us`；没有翻译时界面和 F8 提示必须显示 `example:debug`，不得回退为模组语言文件或内置滤镜名称。
 
-滤镜调试界面在世界内从支持统一 uniform 契约的 LUT 或 `post_chain` 滤镜行进入，不改变 `FilterManager` 普通选择或 `custom_strengths`。它提供强度、曝光、对比度、高光、阴影、饱和度、色温、色调和伽马参数；处理顺序为预处理、滤镜处理、后处理和强度混合。调试预设独立保存于 `config/prismod/config/resourcepacks/<namespace>/<filter-id>.json`，文件包含 `schema: prismod.filter_debug`、`format_version: 1`、完整 `filter` 身份和 `settings`。保存按钮才写文件，取消/关闭/窗口重建不保存临时修改；未知版本、身份不匹配或损坏文件回退默认值。缺少任意 uniform 的普通 post_chain 仍可正常使用，但不显示调试入口并记录资源校验错误。旧 `lut-presets.json` 不读取，资源包暂时缺失时调参文件保留。
+滤镜调试界面在世界内从支持统一 uniform 契约的 LUT 或 `post_chain` 滤镜行进入，不改变 `FilterManager` 普通选择或 `custom_strengths`。它提供强度、曝光、对比度、高光、阴影、饱和度、色温、色调和伽马参数；处理顺序为预处理、滤镜处理、后处理和强度混合。调试预设独立保存于 `config/prismod/config/resourcepacks/<namespace>/<filter-id>.json`，文件包含 `schema: prismod.filter_debug`、`format_version: 2`、完整 `filter` 身份和百分制 `settings`。保存按钮才写文件，取消/关闭/窗口重建不保存临时修改；未知版本、身份不匹配或损坏文件回退默认值。缺少任意 uniform 的普通 post_chain 仍可正常使用，但不显示调试入口并记录资源校验错误。旧 `lut-presets.json` 不读取，资源包暂时缺失时调参文件保留。
 
 公开客户端 API 位于 `com.xkmxz.prismod.api.client`，门面只保留 `submit(FilterRequest)` 和 `query(FilterQuery<R>)`，旧业务方法已移除。外部模组不得依赖应用层、状态管理器、注册表、渲染器或内部句柄。
 
@@ -117,7 +117,7 @@ FilterClientApi.submit(new FilterRequest.ClearForced());
 
 选择与覆盖请求使用逻辑滤镜 ID，注册 postEffect 使用实际资源路径。保留现有优先级、强度和回退规则，不修改玩家配置。客户端 Snapshot 与 common Snapshot 通过 toCommonSnapshot()/fromCommonSnapshot(...) 显式转换。
 
-客户端 API 已支持可选的 FilterAdjustments 稀疏调参对象：只填写的字段生效，未填写字段保持当前值，clearXxx() 恢复继承调试预设。FilterDebugSettings 保持 client.filter.debug 内部位置。服务端两入口只开放选择、覆盖及清理，不提供远程注册、Session、批量、订阅、调参或客户端状态查询；shader 和调试预设不变。客户端完整契约和示例统一维护在 docs/Java_API_调用说明.md。
+客户端 API 已支持可选的 FilterAdjustments 稀疏调参对象：强度使用 0-100 百分制，曝光使用 -100 到 100，contrast/saturation/gamma 使用各自百分制范围；只填写的字段生效，未填写字段保持当前值，clearXxx() 恢复继承调试预设。FilterDebugSettings 保持 client.filter.debug 内部位置。服务端两入口只开放选择、覆盖及清理，不提供远程注册、Session、批量、订阅、调参或客户端状态查询；shader uniform 名称和资源包结构不变，调试预设改用百分制 format_version 2。客户端完整契约和示例统一维护在 docs/Java_API_调用说明.md。
 
 ## 架构和模块职责
 

@@ -208,7 +208,7 @@ public final class FilterRegistry {
         for (FilterId id : FilterId.values()) {
             FilterKey key = FilterKey.of(id);
             definitions.put(key, new FilterDefinition(key, FilterType.POST_CHAIN, null, null,
-                    id.translationKey(), 1.0F, true, null, null, false));
+                    id.translationKey(), 100.0F, true, null, null, false));
         }
     }
 
@@ -224,10 +224,10 @@ public final class FilterRegistry {
         try {
             boolean debugSupported = validatePostChain(manager, postEffect);
             String translation = metadata != null && metadata.translationKey() != null ? metadata.translationKey() : generatedTranslationKey(key);
-            return new FilterDefinition(key, FilterType.POST_CHAIN, postEffect, postEffect, translation, metadata == null ? 1.0F : metadata.defaultStrength(), metadata == null, packNamespace, null, debugSupported);
+            return new FilterDefinition(key, FilterType.POST_CHAIN, postEffect, postEffect, translation, metadata == null ? 100.0F : metadata.defaultStrength(), metadata == null, packNamespace, null, debugSupported);
         } catch (Exception exception) {
             INSTANCE.failures.put(key, message(exception));
-            return new FilterDefinition(key, FilterType.POST_CHAIN, postEffect, postEffect, generatedTranslationKey(key), 1.0F, metadata == null, packNamespace, null, false);
+            return new FilterDefinition(key, FilterType.POST_CHAIN, postEffect, postEffect, generatedTranslationKey(key), 100.0F, metadata == null, packNamespace, null, false);
         }
     }
 

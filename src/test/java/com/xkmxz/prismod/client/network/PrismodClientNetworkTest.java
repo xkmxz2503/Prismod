@@ -38,7 +38,7 @@ class PrismodClientNetworkTest {
         FilterRequest.Override replacement = harness.requests.stream().filter(FilterRequest.Override.class::isInstance)
                 .map(FilterRequest.Override.class::cast).toList().get(1);
         assertEquals(nextFilter, replacement.filter());
-        assertEquals(0.9F, replacement.strength());
+        assertEquals(90F, replacement.strength());
         assertEquals(200, replacement.priority());
     }
 
@@ -102,7 +102,7 @@ class PrismodClientNetworkTest {
 
         FilterRequest.Select select = assertInstanceOf(FilterRequest.Select.class, harness.requests.get(0));
         assertEquals(FILTER, select.filter());
-        assertEquals(0.75F, select.strength());
+        assertEquals(75F, select.strength());
         assertInstanceOf(FilterRequest.ClearSelection.class, harness.requests.get(1));
     }
 
@@ -120,7 +120,7 @@ class PrismodClientNetworkTest {
         FilterRequest.Override request = assertInstanceOf(FilterRequest.Override.class, harness.requests.get(0));
         assertEquals("server-rule", request.ownerId());
         assertEquals(FILTER, request.filter());
-        assertEquals(0.6F, request.strength());
+        assertEquals(60F, request.strength());
         assertEquals(100, request.priority());
     }
 

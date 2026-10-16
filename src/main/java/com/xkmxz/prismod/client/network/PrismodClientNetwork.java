@@ -31,7 +31,7 @@ public final class PrismodClientNetwork {
         switch (message.operation()) {
             case SELECT -> {
                 if (message.filter() != null) submit.apply(
-                        new FilterRequest.Select(message.filter(), message.strength()));
+                        new FilterRequest.Select(message.filter(), percent(message.strength())));
             }
             case OVERRIDE -> {
                 OverrideCreation previous = overrides.get(message.policyId());
@@ -40,7 +40,7 @@ public final class PrismodClientNetwork {
                     if (previous != null) release(previous.creation());
                     overrides.put(message.policyId(), new OverrideCreation(message.requestId(), submit.apply(
                         new FilterRequest.Override(message.owner(), message.filter(),
-                                message.strength(), message.priority()))));
+                                percent(message.strength()), message.priority()))));
                 }
             }
             case CLEAR_OVERRIDE -> {
@@ -62,6 +62,10 @@ public final class PrismodClientNetwork {
         List<OverrideCreation> creations = List.copyOf(overrides.values());
         overrides.clear();
         creations.forEach(creation -> release(creation.creation()));
+    }
+
+    private static float percent(float normalized) {
+        return Math.round(normalized * 100.0F);
     }
 
     public static void resetSession() {

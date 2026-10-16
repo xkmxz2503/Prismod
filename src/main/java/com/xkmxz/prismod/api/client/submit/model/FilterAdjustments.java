@@ -2,11 +2,11 @@ package com.xkmxz.prismod.api.client.submit.model;
 
 import java.util.Objects;
 
-/**
- * 客户端滤镜高级调参的稀疏更新对象。
+    /**
+     * 客户端滤镜高级调参的稀疏更新对象，字段使用百分制语义。
  *
  * <p>未调用对应 builder 方法的字段保持当前有效值；调用 {@code clearXxx}
- * 会让该字段恢复继承当前调试预设。数值字段在构建时按现有调参范围裁剪。</p>
+     * 会让该字段恢复继承当前调试预设。数值字段在构建时按百分制范围裁剪。</p>
  */
 public final class FilterAdjustments {
     private final Float exposure;
@@ -139,14 +139,14 @@ public final class FilterAdjustments {
         private boolean clearExposure, clearContrast, clearHighlights, clearShadows;
         private boolean clearSaturation, clearTemperature, clearTint, clearGamma;
 
-        public Builder exposure(float value) { return set(Field.EXPOSURE, value, -2.0F, 2.0F, 0.0F); }
-        public Builder contrast(float value) { return set(Field.CONTRAST, value, -1.0F, 1.0F, 0.0F); }
-        public Builder highlights(float value) { return set(Field.HIGHLIGHTS, value, -1.0F, 1.0F, 0.0F); }
-        public Builder shadows(float value) { return set(Field.SHADOWS, value, -1.0F, 1.0F, 0.0F); }
-        public Builder saturation(float value) { return set(Field.SATURATION, value, 0.0F, 2.0F, 1.0F); }
-        public Builder temperature(float value) { return set(Field.TEMPERATURE, value, -1.0F, 1.0F, 0.0F); }
-        public Builder tint(float value) { return set(Field.TINT, value, -1.0F, 1.0F, 0.0F); }
-        public Builder gamma(float value) { return set(Field.GAMMA, value, 0.1F, 3.0F, 1.0F); }
+        public Builder exposure(float value) { return set(Field.EXPOSURE, value, -100.0F, 100.0F, 0.0F); }
+        public Builder contrast(float value) { return set(Field.CONTRAST, value, 0.0F, 200.0F, 100.0F); }
+        public Builder highlights(float value) { return set(Field.HIGHLIGHTS, value, -100.0F, 100.0F, 0.0F); }
+        public Builder shadows(float value) { return set(Field.SHADOWS, value, -100.0F, 100.0F, 0.0F); }
+        public Builder saturation(float value) { return set(Field.SATURATION, value, 0.0F, 200.0F, 100.0F); }
+        public Builder temperature(float value) { return set(Field.TEMPERATURE, value, -100.0F, 100.0F, 0.0F); }
+        public Builder tint(float value) { return set(Field.TINT, value, -100.0F, 100.0F, 0.0F); }
+        public Builder gamma(float value) { return set(Field.GAMMA, value, 10.0F, 300.0F, 100.0F); }
 
         public Builder clearExposure() { return clear(Field.EXPOSURE); }
         public Builder clearContrast() { return clear(Field.CONTRAST); }

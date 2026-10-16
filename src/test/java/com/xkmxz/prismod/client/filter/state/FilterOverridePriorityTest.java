@@ -13,7 +13,7 @@ class FilterOverridePriorityTest {
     void higherPriorityOverrideWinsAndClosingItRestoresNextOverride() {
         FilterController controller = new FilterController();
         controller.addOverride("low", FilterKey.of(FilterId.WARM), 0.2F, 1);
-        long high = controller.addOverride("high", FilterKey.of(FilterId.COOL), 0.8F, 5);
+        long high = controller.addOverride("high", FilterKey.of(FilterId.COOL), 080F, 5);
 
         assertEquals(FilterKey.of(FilterId.COOL), controller.effectiveSelection().key());
         controller.removeOverride(high);
@@ -24,15 +24,15 @@ class FilterOverridePriorityTest {
     void samePriorityUsesNewestOverride() {
         FilterController controller = new FilterController();
         controller.addOverride("first", FilterKey.of(FilterId.WARM), 0.2F, 3);
-        controller.addOverride("second", FilterKey.of(FilterId.COOL), 0.8F, 3);
+        controller.addOverride("second", FilterKey.of(FilterId.COOL), 080F, 3);
 
         assertEquals(FilterKey.of(FilterId.COOL), controller.effectiveSelection().key());
     }
 
     @Test
     void winningOverrideCarriesItsPartialAdjustmentsAndRestoresNextOverride() {
-        FilterAdjustments lowAdjustments = FilterAdjustments.builder().exposure(0.5F).build();
-        FilterAdjustments highAdjustments = FilterAdjustments.builder().saturation(1.4F).build();
+        FilterAdjustments lowAdjustments = FilterAdjustments.builder().exposure(050F).build();
+        FilterAdjustments highAdjustments = FilterAdjustments.builder().saturation(140F).build();
         controllerWithOverrides(lowAdjustments, highAdjustments);
     }
 
@@ -40,7 +40,7 @@ class FilterOverridePriorityTest {
                                                 FilterAdjustments highAdjustments) {
         FilterController controller = new FilterController();
         controller.addOverride("low", FilterKey.of(FilterId.WARM), 0.2F, 1, lowAdjustments);
-        long high = controller.addOverride("high", FilterKey.of(FilterId.COOL), 0.8F, 5, highAdjustments);
+        long high = controller.addOverride("high", FilterKey.of(FilterId.COOL), 080F, 5, highAdjustments);
         assertSame(highAdjustments, controller.effectiveSelection().adjustments());
         controller.removeOverride(high);
         assertSame(lowAdjustments, controller.effectiveSelection().adjustments());

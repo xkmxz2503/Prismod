@@ -243,7 +243,7 @@ requestId   = UUID
 policyId    = UUID；CLEAR_SELECTION、CLEAR_ALL_OVERRIDES 不携带
 owner       = String
 filter      = ResourceLocation，可为空
-strength    = float，规范化到 0.0 到 1.0
+客户端 strength = float，规范化到 0 到 100；服务端协议 strength 保持 0.0 到 1.0
 priority    = int
 ```
 
@@ -364,3 +364,7 @@ network/transport -> Forge 网络实现
 .\gradlew.bat test --console=plain
 git diff --check
 ```
+
+## 客户端参数单位
+
+客户端 API 的 `strength` 采用 `0-100` 百分制。高级参数使用字段专属百分制：曝光 `-100-100`，对比度/饱和度 `0-200`，gamma `10-300`，高光、阴影、色温、色调 `-100-100`。shader 继续使用原有 uniform 数值范围，由客户端渲染边界统一换算。

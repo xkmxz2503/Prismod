@@ -24,9 +24,9 @@ public record FilterManifest(
         String displayName = string(object, "display_name");
         String source = string(object, "source").replace('\\', '/');
         validateRelative(source, "source");
-        float strength = object.has("default_strength") ? object.get("default_strength").getAsFloat() : 1.0F;
-        if (!Float.isFinite(strength) || strength < 0.0F || strength > 1.0F) {
-            throw new IllegalArgumentException("default_strength must be between 0 and 1");
+        float strength = object.has("default_strength") ? object.get("default_strength").getAsFloat() : 100.0F;
+        if (!Float.isFinite(strength) || strength < 0.0F || strength > 100.0F) {
+            throw new IllegalArgumentException("default_strength must be between 0 and 100");
         }
         String preview = object.has("preview") ? object.get("preview").getAsString().replace('\\', '/') : null;
         if (preview != null) validateRelative(preview, "preview");

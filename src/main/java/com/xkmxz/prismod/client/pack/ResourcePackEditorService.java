@@ -347,7 +347,7 @@ public final class ResourcePackEditorService {
     }
 
     public static FilterCreation createFilter(Session session, String id, String type) throws IOException {
-        return createFilter(session, new FilterCreateRequest(id, type, 1.0F, Map.of(), Map.of()));
+        return createFilter(session, new FilterCreateRequest(id, type, 100.0F, Map.of(), Map.of()));
     }
 
     /** Creates a complete runnable filter and overlays imported files on the generated template. */
@@ -357,7 +357,7 @@ public final class ResourcePackEditorService {
             throw new IOException("滤镜 ID 无效");
         }
         String type = "lut3d".equalsIgnoreCase(request.type()) ? "lut3d" : "post_chain";
-        if (!Float.isFinite(request.defaultStrength()) || request.defaultStrength() < 0.0F || request.defaultStrength() > 1.0F) {
+        if (!Float.isFinite(request.defaultStrength()) || request.defaultStrength() < 0.0F || request.defaultStrength() > 100.0F) {
             throw new IOException("默认强度必须在 0 到 1 之间");
         }
         String namespace = session.metadata().namespace();

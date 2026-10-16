@@ -7,19 +7,19 @@ import com.xkmxz.prismod.client.filter.legacy.LutDebugSettings;
 /**
  * 通用于 LUT 和 PostChain 滤镜的内部不可变调参快照。
  *
- * <p>有限值在构造时裁剪到字段范围；非有限值按字段默认值处理，但
+ * <p>有限值在构造时裁剪到百分制字段范围；非有限值按字段默认值处理，但
  * {@code intensity} 的非有限值回退为 {@code 0}。本类型不执行渲染或保存文件。
  * 由调试界面、预设存储和渲染器使用，不属于公开 API 契约。</p>
  *
- * @param intensity 调参强度，范围 [0, 1]，默认 1，非有限值回退为 0
- * @param exposure 曝光（EV），范围 [-2, 2]，默认 0
- * @param contrast 对比度，范围 [-1, 1]，默认 0
- * @param highlights 高光，范围 [-1, 1]，默认 0
- * @param shadows 阴影，范围 [-1, 1]，默认 0
- * @param saturation 饱和度，范围 [0, 2]，默认 1
- * @param temperature 色温，范围 [-1, 1]，默认 0
- * @param tint 色调，范围 [-1, 1]，默认 0
- * @param gamma 伽马，范围 [0.1, 3]，默认 1
+ * @param intensity 调参强度，范围 [0, 100]，默认 100，非有限值回退为 0
+ * @param exposure 曝光百分比，范围 [-100, 100]，默认 0
+ * @param contrast 对比度百分比，范围 [0, 200]，默认 100
+ * @param highlights 高光百分比，范围 [-100, 100]，默认 0
+ * @param shadows 阴影百分比，范围 [-100, 100]，默认 0
+ * @param saturation 饱和度百分比，范围 [0, 200]，默认 100
+ * @param temperature 色温百分比，范围 [-100, 100]，默认 0
+ * @param tint 色调百分比，范围 [-100, 100]，默认 0
+ * @param gamma 伽马百分比，范围 [10, 300]，默认 100
  */
 public record FilterDebugSettings(
         float intensity,
@@ -34,20 +34,20 @@ public record FilterDebugSettings(
 ) {
     /** 创建调参快照，并归一化全部九个字段。 */
     public FilterDebugSettings {
-        intensity = clamp(intensity, 0.0F, 1.0F, 0.0F);
-        exposure = clamp(exposure, -2.0F, 2.0F, 0.0F);
-        contrast = clamp(contrast, -1.0F, 1.0F, 0.0F);
-        highlights = clamp(highlights, -1.0F, 1.0F, 0.0F);
-        shadows = clamp(shadows, -1.0F, 1.0F, 0.0F);
-        saturation = clamp(saturation, 0.0F, 2.0F, 1.0F);
-        temperature = clamp(temperature, -1.0F, 1.0F, 0.0F);
-        tint = clamp(tint, -1.0F, 1.0F, 0.0F);
-        gamma = clamp(gamma, 0.1F, 3.0F, 1.0F);
+        intensity = clamp(intensity, 0.0F, 100.0F, 0.0F);
+        exposure = clamp(exposure, -100.0F, 100.0F, 0.0F);
+        contrast = clamp(contrast, 0.0F, 200.0F, 100.0F);
+        highlights = clamp(highlights, -100.0F, 100.0F, 0.0F);
+        shadows = clamp(shadows, -100.0F, 100.0F, 0.0F);
+        saturation = clamp(saturation, 0.0F, 200.0F, 100.0F);
+        temperature = clamp(temperature, -100.0F, 100.0F, 0.0F);
+        tint = clamp(tint, -100.0F, 100.0F, 0.0F);
+        gamma = clamp(gamma, 10.0F, 300.0F, 100.0F);
     }
 
-    /** @return 强度为 1、其他颜色调整为中性值的快照 */
+    /** @return 强度为 100、其他颜色调整为中性值的快照 */
     public static FilterDebugSettings defaults() {
-        return new FilterDebugSettings(1.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F, 1.0F);
+        return new FilterDebugSettings(100.0F, 0.0F, 100.0F, 0.0F, 0.0F, 100.0F, 0.0F, 0.0F, 100.0F);
     }
 
     /**
@@ -59,10 +59,10 @@ public record FilterDebugSettings(
      */
     public static FilterDebugSettings fromJson(JsonObject object) {
         if (object == null) return defaults();
-        return new FilterDebugSettings(number(object, "intensity", 1.0F), number(object, "exposure", 0.0F),
-                number(object, "contrast", 0.0F), number(object, "highlights", 0.0F), number(object, "shadows", 0.0F),
-                number(object, "saturation", 1.0F), number(object, "temperature", 0.0F), number(object, "tint", 0.0F),
-                number(object, "gamma", 1.0F));
+        return new FilterDebugSettings(number(object, "intensity", 100.0F), number(object, "exposure", 0.0F),
+                number(object, "contrast", 100.0F), number(object, "highlights", 0.0F), number(object, "shadows", 0.0F),
+                number(object, "saturation", 100.0F), number(object, "temperature", 0.0F), number(object, "tint", 0.0F),
+                number(object, "gamma", 100.0F));
     }
 
     /** @return 包含全部九个字段的新 JSON 对象；不包含预设文件的 schema 或身份信息 */

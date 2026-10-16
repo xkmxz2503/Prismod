@@ -17,7 +17,7 @@ class FilterEventTest {
     void registryEventDefensivelyCopiesTheRuntimeList() {
         List<FilterDescriptor> filters = new ArrayList<>();
         filters.add(new FilterDescriptor(ResourceLocation.fromNamespaceAndPath("example", "test"), "owner",
-                FilterType.POST_CHAIN, "filter.example.test", 1.0F, true, FilterFailureReason.NONE, ""));
+                FilterType.POST_CHAIN, "filter.example.test", 100.0F, true, FilterFailureReason.NONE, ""));
 
         FilterEvent event = FilterEvent.registryChanged(filters);
         filters.clear();

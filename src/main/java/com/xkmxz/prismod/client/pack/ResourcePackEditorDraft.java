@@ -205,7 +205,7 @@ public final class ResourcePackEditorDraft {
     }
 
     public ResourcePackEditorService.FilterCreation addFilter(String type, String id) throws java.io.IOException {
-        return addFilter(new ResourcePackEditorService.FilterCreateRequest(id, type, 1.0F, Map.of(), Map.of()));
+        return addFilter(new ResourcePackEditorService.FilterCreateRequest(id, type, 100.0F, Map.of(), Map.of()));
     }
 
     public ResourcePackEditorService.FilterCreation addFilter(ResourcePackEditorService.FilterCreateRequest request) throws java.io.IOException {

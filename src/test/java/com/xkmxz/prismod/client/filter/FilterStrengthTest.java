@@ -8,8 +8,8 @@ class FilterStrengthTest {
     @Test
     void finiteStrengthsAreClampedToShaderRange() {
         assertEquals(0.0F, FilterStrength.normalize(-3.0F));
-        assertEquals(1.0F, FilterStrength.normalize(3.0F));
-        assertEquals(0.375F, FilterStrength.normalize(0.375F));
+        assertEquals(100.0F, FilterStrength.normalize(300.0F));
+        assertEquals(37.5F, FilterStrength.normalize(37.5F));
     }
 
     @Test
@@ -21,7 +21,7 @@ class FilterStrengthTest {
 
     @Test
     void veryLargeFiniteDoubleIsClampedBeforeFloatConversion() {
-        assertEquals(1.0F, FilterStrength.normalize(Double.MAX_VALUE));
+        assertEquals(100.0F, FilterStrength.normalize(Double.MAX_VALUE));
         assertEquals(0.0F, FilterStrength.normalize(-Double.MAX_VALUE));
     }
 }

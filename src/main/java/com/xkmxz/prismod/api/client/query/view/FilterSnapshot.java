@@ -32,16 +32,16 @@ public record FilterSnapshot(
         fallbackReason = fallbackReason == null ? FilterFallbackReason.NONE : fallbackReason;
     }
 
-    /** Non-finite values become zero; finite values are clamped to [0, 1]. */
+    /** 非有限值归零；有限值裁剪到百分制 [0, 100]。 */
     public static float normalizeStrength(double strength) {
         if (!Double.isFinite(strength)) return 0.0F;
-        return (float) Math.max(0.0D, Math.min(1.0D, strength));
+        return (float) Math.max(0.0D, Math.min(100.0D, strength));
     }
 
     /** Converts the client rendering view to the cross-side state model. */
     public com.xkmxz.prismod.api.common.query.view.FilterSnapshot toCommonSnapshot() {
         return new com.xkmxz.prismod.api.common.query.view.FilterSnapshot(
-                filter, strength, selectedFilter, selectedStrength,
+                filter, strength / 100.0F, selectedFilter, selectedStrength / 100.0F,
                 overrideOwner, overridePriority, renderAvailable, fallbackReason, generation);
     }
 
@@ -49,8 +49,8 @@ public record FilterSnapshot(
     public static FilterSnapshot fromCommonSnapshot(
             com.xkmxz.prismod.api.common.query.view.FilterSnapshot snapshot, boolean forced) {
         Objects.requireNonNull(snapshot, "snapshot");
-        return new FilterSnapshot(snapshot.filter(), snapshot.strength(), forced,
-                snapshot.renderAvailable(), snapshot.selectedFilter(), snapshot.selectedStrength(),
+        return new FilterSnapshot(snapshot.filter(), snapshot.strength() * 100.0F, forced,
+                snapshot.renderAvailable(), snapshot.selectedFilter(), snapshot.selectedStrength() * 100.0F,
                 snapshot.overrideOwner(), snapshot.overridePriority(), snapshot.fallbackReason(),
                 snapshot.generation());
     }

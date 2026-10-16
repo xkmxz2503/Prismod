@@ -35,15 +35,15 @@ public final class PrismodClientConfig {
         ENABLED = builder.comment("Whether Prismod world filters are enabled.").define("enabled", true);
         CYCLE_ORDER = builder.comment("Filter cycle order; built-in short names remain supported.")
                 .define("cycle_order", DEFAULT_ORDER, value -> value instanceof List<?>);
-        CUSTOM_STRENGTHS = builder.comment("Custom filter strengths as namespace:path=value entries.")
+        CUSTOM_STRENGTHS = builder.comment("Custom filter strengths as namespace:path=value entries, from 0 to 100 percent.")
                 .define("custom_strengths", List.of(), value -> value instanceof List<?>);
         DISABLED_PACKS = builder.comment("Disabled Prismod resource pack namespaces.")
                 .define("disabled_packs", List.of(), value -> value instanceof List<?>);
         HIDDEN_FILTERS = builder.comment("Hidden filter IDs.")
                 .define("hidden_filters", List.of(), value -> value instanceof List<?>);
         for (FilterId id : FilterId.values()) {
-            STRENGTHS[id.ordinal()] = builder.comment("Filter strength from 0.0 to 1.0.")
-                    .defineInRange("strength_" + id.serializedName(), 1.0D, 0.0D, 1.0D);
+            STRENGTHS[id.ordinal()] = builder.comment("Filter strength from 0 to 100 percent.")
+                    .defineInRange("strength_" + id.serializedName(), 100.0D, 0.0D, 100.0D);
         }
         SPEC = builder.build();
     }
@@ -274,7 +274,7 @@ public final class PrismodClientConfig {
 
     private static float defaultStrength(FilterKey key) {
         FilterDefinition definition = FilterRegistry.get().definition(key);
-        return definition == null ? 1.0F : definition.defaultStrength();
+        return definition == null ? 100.0F : definition.defaultStrength();
     }
 
     private static boolean isBuiltIn(FilterKey key) {

@@ -35,7 +35,7 @@ public final class PrismodClientApiCommands {
                         .then(Commands.literal("force")
                                 .then(Commands.argument("filter", ResourceLocationArgument.id())
                                         .executes(context -> force(context, 1.0F))
-                                        .then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 1.0F))
+                                        .then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 100.0F))
                                                 .executes(context -> force(context,
                                                         FloatArgumentType.getFloat(context, "strength"))))))
                         .then(Commands.literal("clear").executes(context -> clear()))

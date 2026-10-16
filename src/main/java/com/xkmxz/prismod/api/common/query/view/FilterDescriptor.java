@@ -13,7 +13,7 @@ import java.util.Objects;
  * PostChain 文件路径。{@code available} 表示当前资源是否可用；不可用时可通过
  * {@code failureReason} 与 {@code failureDetail} 诊断原因。</p>
  *
- * <p>{@code defaultStrength} 在构造时会归一化到 {@code 0.0F} 至 {@code 1.0F}。
+ * <p>{@code defaultStrength} 使用客户端百分制，在构造时会归一化到 {@code 0F} 至 {@code 100F}。
  * 缺省的 owner、类型和失败信息会被归一化为各自的空值或默认枚举。</p>
  *
  * @param id 滤镜的逻辑资源标识
@@ -51,6 +51,6 @@ public record FilterDescriptor(
 
     private static float normalizeStrength(float value) {
         if (!Float.isFinite(value)) return 0.0F;
-        return Math.max(0.0F, Math.min(1.0F, value));
+        return Math.max(0.0F, Math.min(100.0F, value));
     }
 }

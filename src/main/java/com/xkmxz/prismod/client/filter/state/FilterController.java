@@ -31,7 +31,7 @@ final class FilterController {
     private volatile Snapshot snapshot;
 
     FilterController() {
-        for (FilterId id : FilterId.values()) strengths.put(FilterKey.of(id), 1.0F);
+        for (FilterId id : FilterId.values()) strengths.put(FilterKey.of(id), 100.0F);
         publish();
     }
 
@@ -257,7 +257,7 @@ final class FilterController {
 
     private float strength(FilterKey key) {
         Float value = strengths.get(key);
-        return value == null ? 1.0F : value;
+        return value == null ? 100.0F : value;
     }
 
     private boolean isSelectable(FilterKey key) {

@@ -45,7 +45,7 @@ class ClientFilterDispatcherTest {
         FilterReceipt receipt = pending.toCompletableFuture().join();
         assertEquals(FilterOperationStatus.SUCCESS, receipt.status());
         assertEquals(1, backend.writes);
-        assertEquals(1, api.query(new FilterQuery.Snapshot()).strength());
+        assertEquals(2, api.query(new FilterQuery.Snapshot()).strength());
         assertEquals(FILTER, api.query(new FilterQuery.Snapshot()).filter());
         assertTrue(tasks.isEmpty());
     }
@@ -54,13 +54,13 @@ class ClientFilterDispatcherTest {
     void forwardsOptionalAdjustmentsWithoutChangingLegacyRequests() {
         MemoryBackend backend = new MemoryBackend();
         ClientFilterDispatcher api = new ClientFilterDispatcher(Runnable::run, backend);
-        FilterAdjustments adjustments = FilterAdjustments.builder().exposure(1.0F).build();
+        FilterAdjustments adjustments = FilterAdjustments.builder().exposure(100F).build();
 
-        submit(api, new FilterRequest.Select(FILTER, .8F, adjustments));
+        submit(api, new FilterRequest.Select(FILTER, 80F, adjustments));
         assertSame(adjustments, backend.selectedAdjustments);
-        submit(api, new FilterRequest.Force(FILTER, .7F));
+        submit(api, new FilterRequest.Force(FILTER, 70F));
         assertNull(backend.forcedAdjustments);
-        submit(api, new FilterRequest.Override("owner", FILTER, .6F, 10, adjustments));
+        submit(api, new FilterRequest.Override("owner", FILTER, 60F, 10, adjustments));
         assertSame(adjustments, backend.overrideAdjustments);
     }
 
@@ -80,7 +80,7 @@ class ClientFilterDispatcherTest {
     @Test
     void receiptIsFinalAndResourceReleaseIsIdempotent() {
         ClientFilterDispatcher api = direct();
-        FilterReceipt created = submit(api, new FilterRequest.Override("owner", FILTER, .5F, 10));
+        FilterReceipt created = submit(api, new FilterRequest.Override("owner", FILTER, 50F, 10));
         UUID resource = only(created);
         assertEquals(FilterResourceView.Kind.OVERRIDE, api.query(new FilterQuery.Resource(resource)).orElseThrow().kind());
         assertEquals(1, submit(api, new FilterRequest.Release(resource)).affectedCount());
@@ -235,7 +235,7 @@ class ClientFilterDispatcherTest {
             maximumDepth.accumulateAndGet(depth.incrementAndGet(), Math::max);
             states.add(snapshot.filter());
             assertEquals(snapshot, api.query(new FilterQuery.Snapshot()));
-            if (states.size() == 1) api.submit(new FilterRequest.Select(id("second"), .5F));
+            if (states.size() == 1) api.submit(new FilterRequest.Select(id("second"), 50F));
             depth.decrementAndGet();
         })));
         assertTrue(states.isEmpty());

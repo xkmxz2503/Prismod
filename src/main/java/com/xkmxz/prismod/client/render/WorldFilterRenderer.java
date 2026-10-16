@@ -9,6 +9,7 @@ import com.mojang.logging.LogUtils;
 import com.xkmxz.prismod.client.filter.*;
 import com.xkmxz.prismod.client.config.FilterDebugPresetStore;
 import com.xkmxz.prismod.client.filter.debug.FilterDebugSettings;
+import com.xkmxz.prismod.client.filter.debug.FilterParameterScale;
 import com.xkmxz.prismod.client.filter.lut.Lut3dData;
 import com.xkmxz.prismod.client.filter.registry.FilterDefinition;
 import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
@@ -359,19 +360,19 @@ public final class WorldFilterRenderer {
     }
 
     private static void setAdjustments(FilterDebugSettings settings) {
-        if (exposure != null) exposure.set(settings.exposure());
-        if (contrast != null) contrast.set(settings.contrast());
-        if (highlights != null) highlights.set(settings.highlights());
-        if (shadows != null) shadows.set(settings.shadows());
-        if (saturation != null) saturation.set(settings.saturation());
-        if (temperature != null) temperature.set(settings.temperature());
-        if (tint != null) tint.set(settings.tint());
-        if (gamma != null) gamma.set(settings.gamma());
+        if (exposure != null) exposure.set(FilterParameterScale.exposure(settings.exposure()));
+        if (contrast != null) contrast.set(FilterParameterScale.contrast(settings.contrast()));
+        if (highlights != null) highlights.set(FilterParameterScale.signed(settings.highlights()));
+        if (shadows != null) shadows.set(FilterParameterScale.signed(settings.shadows()));
+        if (saturation != null) saturation.set(FilterParameterScale.saturation(settings.saturation()));
+        if (temperature != null) temperature.set(FilterParameterScale.signed(settings.temperature()));
+        if (tint != null) tint.set(FilterParameterScale.signed(settings.tint()));
+        if (gamma != null) gamma.set(FilterParameterScale.gamma(settings.gamma()));
     }
 
     private static float combinedIntensity(float ordinaryStrength, FilterDebugSettings settings) {
         FilterDebugSettings safe = settings == null ? FilterDebugSettings.defaults() : settings;
-        return Mth.clamp(ordinaryStrength, 0.0F, 1.0F) * safe.intensity();
+        return FilterParameterScale.strength(ordinaryStrength) * FilterParameterScale.strength(safe.intensity());
     }
 
     private static FilterDebugSettings debugSettingsFor(FilterDefinition definition, FilterKey key) {
