@@ -1,7 +1,7 @@
 package com.xkmxz.prismod.client.application.handle;
 
 import com.xkmxz.prismod.api.common.query.state.filter.FilterFailureReason;
-import com.xkmxz.prismod.api.common.query.state.lifecycle.FilterRegistrationState;
+import com.xkmxz.prismod.api.client.query.state.lifecycle.FilterRegistrationState;
 import net.minecraft.resources.ResourceLocation;
 
 /** 注册表内部生命周期句柄，不属于外部模组 API。 */

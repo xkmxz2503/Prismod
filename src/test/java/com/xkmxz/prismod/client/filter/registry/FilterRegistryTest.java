@@ -4,7 +4,7 @@ import com.xkmxz.prismod.client.pack.PrismodPackLoader;
 import com.xkmxz.prismod.api.client.submit.model.CustomFilterMetadata;
 import com.xkmxz.prismod.client.application.handle.FilterRegistration;
 import com.xkmxz.prismod.api.common.query.state.filter.FilterFailureReason;
-import com.xkmxz.prismod.api.common.query.state.lifecycle.FilterRegistrationState;
+import com.xkmxz.prismod.api.client.query.state.lifecycle.FilterRegistrationState;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 

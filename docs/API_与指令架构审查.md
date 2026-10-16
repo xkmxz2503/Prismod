@@ -98,7 +98,7 @@ flowchart LR
 - `FilterQuery<R>`：有类型的只读查询；
 - `FilterReceipt`：本次操作的不可变最终回执；
 - `FilterResourceView`：资源 UUID、归属和生命周期的只读视图；
-- `FilterSnapshot`、`FilterDescriptor`：状态和滤镜描述；
+- `FilterSnapshot`、`FilterDescriptor`：客户端状态和滤镜描述；
 - `FilterEvent`：通知数据，操作完成事件携带 `receipt()`；
 - `CustomFilterMetadata`：显示翻译键和默认强度。
 
@@ -147,7 +147,7 @@ submit 承接注册、选择、强制、覆盖、订阅和 Session，返回 Comp
 
 公开入口为 `com.xkmxz.prismod.api.server.FilterServerApi`，业务方法只有 `CompletionStage<OperationResult> submit(ServerFilterRequest)` 和 `<R> R query(ServerFilterQuery<R>)`。频道和协议常量继续保留，旧业务方法删除，无兼容别名。
 
-类型按入口职责归类：服务端目标、请求与操作结果位于 `api.server.submit.model`、`api.server.submit.request`、`api.server.submit.result`，查询请求与状态快照位于 `api.server.query.request`、`api.server.query.view`。共享类型也先按 `api.common.submit`、`api.common.query` 分组，再区分结果、视图和状态；不复制跨入口复用的枚举。
+类型按入口职责归类：服务端目标、请求与操作结果位于 `api.server.submit.model`、`api.server.submit.request`、`api.server.submit.result`，查询请求与状态快照位于 `api.server.query.request`、`api.server.query.view`。`api.common` 只保留真正由两端共同依赖的反馈代码、操作状态和失败分类；客户端描述、回退原因、滤镜类型与生命周期状态归入 `api.client`。公共层不负责模型转换、单位换算或渲染状态解释。
 
 - submit 接收选择、覆盖和清理请求，使用明确的广播或玩家 UUID 目标；
 - query 读取最近发布的不可变 ServerStatus 与 ServerFilterStatus；

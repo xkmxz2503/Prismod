@@ -58,11 +58,11 @@ api/common/
 ├─ submit/
 │  ├─ result/          FeedbackCode
 │  └─ state/operation/ FilterOperationStatus
-└─ query/
-   ├─ view/            FilterSnapshot、FilterDescriptor
-   └─ state/
-      ├─ filter/       滤镜类型、失败与回退原因
-      └─ lifecycle/    注册和覆盖生命周期
+└─ query/state/filter/ FilterFailureReason
+
+api/client/query/
+├─ view/               FilterSnapshot、FilterDescriptor、FilterResourceView
+└─ state/              客户端滤镜类型、回退原因和生命周期状态
 ```
 
 公开业务方法只有 `CompletionStage<OperationResult> submit(ServerFilterRequest)` 和 `<R> R query(ServerFilterQuery<R>)`；频道、协议常量继续保留。旧业务方法已删除，这是不兼容的 API 调整。共享枚举仍供两端复用，不保留旧包桥接类。

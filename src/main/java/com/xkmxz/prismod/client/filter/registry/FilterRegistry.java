@@ -7,9 +7,9 @@ import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
 import com.xkmxz.prismod.api.client.submit.model.CustomFilterMetadata;
 import com.xkmxz.prismod.client.application.handle.FilterRegistration;
-import com.xkmxz.prismod.api.common.query.view.FilterDescriptor;
+import com.xkmxz.prismod.api.client.query.view.FilterDescriptor;
 import com.xkmxz.prismod.api.common.query.state.filter.FilterFailureReason;
-import com.xkmxz.prismod.api.common.query.state.lifecycle.FilterRegistrationState;
+import com.xkmxz.prismod.api.client.query.state.lifecycle.FilterRegistrationState;
 import com.xkmxz.prismod.client.filter.FilterId;
 import com.xkmxz.prismod.client.filter.FilterKey;
 import com.xkmxz.prismod.client.filter.lut.Lut3dData;
@@ -50,7 +50,7 @@ public final class FilterRegistry {
                 definition.key().id(),
                 definition.packNamespace() == null ? "prismod" : definition.packNamespace(),
                 definition.type() == com.xkmxz.prismod.client.filter.registry.FilterType.LUT3D
-                        ? com.xkmxz.prismod.api.common.query.state.filter.FilterType.LUT3D : com.xkmxz.prismod.api.common.query.state.filter.FilterType.POST_CHAIN,
+                        ? com.xkmxz.prismod.api.client.query.state.filter.FilterType.LUT3D : com.xkmxz.prismod.api.client.query.state.filter.FilterType.POST_CHAIN,
                 definition.translationKey(), definition.defaultStrength(),
                 isAvailable(definition.key()),
                 failures.containsKey(definition.key()) ? FilterFailureReason.RESOURCE_INVALID : FilterFailureReason.NONE,

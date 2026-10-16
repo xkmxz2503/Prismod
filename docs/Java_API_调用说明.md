@@ -32,7 +32,7 @@ api/client/
    └─ view/                        FilterSnapshot、FilterResourceView
 ```
 
-监听通过 submit 建立，相关接口及通知归入 submit；通知引用 query.view 中的只读快照。共享基础类型位于 api.common.submit（结果代码、操作状态）与 api.common.query（共享视图、滤镜及生命周期状态）。此处仅调整包位置，业务语义不变；集成代码需更新 import。
+监听通过 submit 建立，相关接口及通知归入 submit；通知引用 query.view 中的客户端只读快照。共享基础类型仅位于 api.common.submit（结果代码、操作状态）与 api.common.query.state.filter.FilterFailureReason；客户端描述、回退原因和生命周期状态属于 api.client。此处仅调整包位置，业务语义不变；集成代码需更新 import。
 
 ## 2. 输入请求清单
 
@@ -70,7 +70,7 @@ api/client/
 
 `FilterResourceView` 包含 UUID、种类、owner、Session UUID、滤镜、优先级、生命周期状态和诊断信息。资源存活不代表赢得覆盖优先级，最终画面状态应查询 Snapshot。
 
-客户端 Snapshot 保存最终滤镜、强度、forced、渲染可用性、玩家选择、回退原因和 generation。它与 `api.common.query.view.FilterSnapshot` 不同，通过 `toCommonSnapshot()` 和 `fromCommonSnapshot(...)` 显式转换。
+客户端 Snapshot 保存最终滤镜、强度、forced、渲染可用性、玩家选择、回退原因和 generation。它是客户端专属查询视图，不再转换为 common Snapshot；公共层不承担客户端与服务端模型转换。
 
 ## 4. 回执、线程与生命周期
 

@@ -33,7 +33,7 @@ ResourceLocation postEffect = ResourceLocation.fromNamespaceAndPath(
 
 ### 公共数据约束
 
-公共类型先按 `api.common.submit`（结果代码与操作状态）、`api.common.query`（只读视图、滤镜状态及生命周期状态）分类，再分子包。一个类型只保留一份定义，输入回执可以引用共享的查询诊断枚举。
+公共类型只保留真正由两端共同依赖的契约：`api.common.submit` 保存结果代码与操作状态，`api.common.query.state.filter` 保存共享失败分类。客户端快照、滤镜描述、回退原因、滤镜类型和生命周期状态归入 `api.client`。公共层不负责模型转换、单位换算、默认值或边界裁剪。
 
 - 客户端 strength 使用 `0-100` 百分制；服务端协议字段仍使用 `0.0-1.0` 的归一化值。非有限值按各侧默认值处理。
 - 客户端写操作会调度到 Minecraft 客户端线程；状态和事件监听器也只在客户端线程同步执行。

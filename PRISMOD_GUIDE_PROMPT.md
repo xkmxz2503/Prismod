@@ -68,7 +68,7 @@ strength_night_vision = 1.0
 
 `api/client` 根目录仅保留 `FilterClientApi.java` 和两个职责目录：`submit/` 存放 `request`（请求）、`model`（输入数据）、`result`（回执）、`listener`（订阅回调）及 `event`（通知）；`query/` 存放 `request`（查询请求）与 `view`（只读视图）。监听通过输入建立，因此监听相关类型归入 submit；回调可以引用 query.view 的不可变数据，不复制另一套快照。
 
-`api/common` 同样只按 `submit/` 和 `query/` 分组：`submit/result` 保存共享反馈代码，`submit/state/operation` 保存操作结果状态；`query/view` 保存共享快照与滤镜描述，`query/state/filter`、`query/state/lifecycle` 保存滤镜及资源生命周期枚举。状态类型按所描述的对象归类，输入回执也可引用查询侧诊断枚举，不另建重复类型。
+`api/common` 只保存真正由客户端和服务端共同依赖的稳定契约：`submit/result` 保存共享反馈代码，`submit/state/operation` 保存操作结果状态，`query/state/filter/FilterFailureReason` 保存共享失败分类。客户端描述、回退原因、滤镜类型和生命周期状态归入 `api.client`。公共层不负责模型转换、单位换算、默认值或边界裁剪。
 
 `api/server` 根目录保留 `FilterServerApi.java`，业务方法仅有 submit/query，旧方法已删除；`submit/model` 保存 ServerFilterTarget（广播或玩家 UUID），`submit/request` 保存 ServerFilterRequest 及选择、覆盖参数，`submit/result` 保存 OperationResult；`query/request` 保存 ServerFilterQuery，`query/view` 保存 ServerStatus 和 ServerFilterStatus。common 不反向引用 server。
 
@@ -115,7 +115,7 @@ FilterClientApi.submit(new FilterRequest.ClearForced());
 
 注册、覆盖、订阅及 Session 使用独立资源 UUID；query 返回不可变数据，释放后查询为空，重复释放成功且影响数量为零。Session 只管理自身注册和覆盖，清空可复用、关闭后拒绝新增；批量仅接受 Register 和 Override，逐项尽力执行。旧注册 ID 不能注销替换后的新版本。
 
-选择与覆盖请求使用逻辑滤镜 ID，注册 postEffect 使用实际资源路径。保留现有优先级、强度和回退规则，不修改玩家配置。客户端 Snapshot 与 common Snapshot 通过 toCommonSnapshot()/fromCommonSnapshot(...) 显式转换。
+选择与覆盖请求使用逻辑滤镜 ID，注册 postEffect 使用实际资源路径。保留现有优先级、强度和回退规则，不修改玩家配置。客户端 Snapshot 是 `api.client` 的客户端专属只读视图，不转换为 common Snapshot；模型转换由客户端应用、网络和渲染适配器负责。
 
 客户端 API 已支持可选的 FilterAdjustments 稀疏调参对象：强度使用 0-100 百分制，曝光使用 -100 到 100，contrast/saturation/gamma 使用各自百分制范围；只填写的字段生效，未填写字段保持当前值，clearXxx() 恢复继承调试预设。FilterDebugSettings 保持 client.filter.debug 内部位置。服务端两入口只开放选择、覆盖及清理，不提供远程注册、Session、批量、订阅、调参或客户端状态查询；shader uniform 名称和资源包结构不变，调试预设改用百分制 format_version 2。客户端完整契约和示例统一维护在 docs/Java_API_调用说明.md。
 

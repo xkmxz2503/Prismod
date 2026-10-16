@@ -1,7 +1,7 @@
-package com.xkmxz.prismod.api.common.query.view;
+package com.xkmxz.prismod.api.client.query.view;
 
 import com.xkmxz.prismod.api.common.query.state.filter.FilterFailureReason;
-import com.xkmxz.prismod.api.common.query.state.filter.FilterType;
+import com.xkmxz.prismod.api.client.query.state.filter.FilterType;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Objects;

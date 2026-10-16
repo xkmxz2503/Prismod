@@ -1,4 +1,4 @@
-package com.xkmxz.prismod.api.common.query.state.lifecycle;
+package com.xkmxz.prismod.api.client.query.state.lifecycle;
 
 public enum FilterOverrideState {
     PENDING,

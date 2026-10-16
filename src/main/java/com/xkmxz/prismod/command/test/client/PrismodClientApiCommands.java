@@ -8,7 +8,7 @@ import com.xkmxz.prismod.api.client.submit.result.FilterReceipt;
 import com.xkmxz.prismod.api.client.query.request.FilterQuery;
 import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
 import java.util.concurrent.CompletionStage;
-import com.xkmxz.prismod.api.common.query.view.FilterDescriptor;
+import com.xkmxz.prismod.api.client.query.view.FilterDescriptor;
 import com.xkmxz.prismod.api.common.submit.state.operation.FilterOperationStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;

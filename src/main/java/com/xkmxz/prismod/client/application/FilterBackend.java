@@ -4,7 +4,7 @@ import com.xkmxz.prismod.api.client.submit.model.CustomFilterMetadata;
 import com.xkmxz.prismod.api.client.submit.model.FilterAdjustments;
 import com.xkmxz.prismod.api.client.query.view.FilterSnapshot;
 import com.xkmxz.prismod.api.client.submit.event.FilterEvent;
-import com.xkmxz.prismod.api.common.query.view.FilterDescriptor;
+import com.xkmxz.prismod.api.client.query.view.FilterDescriptor;
 import com.xkmxz.prismod.client.application.handle.FilterOverride;
 import com.xkmxz.prismod.client.application.handle.FilterRegistration;
 import net.minecraft.resources.ResourceLocation;

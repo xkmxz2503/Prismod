@@ -11,7 +11,7 @@ import com.xkmxz.prismod.api.client.submit.listener.FilterStateListener;
 import com.xkmxz.prismod.client.application.handle.FilterSubscription;
 import com.xkmxz.prismod.api.client.submit.event.FilterEvent;
 import com.xkmxz.prismod.api.client.submit.listener.FilterEventListener;
-import com.xkmxz.prismod.api.common.query.state.lifecycle.FilterOverrideState;
+import com.xkmxz.prismod.api.client.query.state.lifecycle.FilterOverrideState;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
