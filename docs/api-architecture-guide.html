@@ -36,7 +36,7 @@
 <details><summary>临时选择、强制与覆盖</summary><p>Select / ClearSelection 控制临时选择，不写玩家配置。Force / ClearForced 管理旧式强制状态。Override 支持 owner 和 priority，同优先级较新者胜出。</p><p>Snapshot 查询最终效果与回退原因。</p></details>
 <details><summary>状态和事件监听</summary><p>SubscribeState / SubscribeEvents 建立订阅，回执返回订阅 UUID，Release 取消。</p><p>回调在客户端线程执行，异常隔离；不补发初始快照。需要初始状态时单独 query。操作完成事件通过 receipt() 提供最终回执。</p></details>
 <details><summary>Session 与批量操作</summary><p>OpenSession 创建会话；Batch 只接收 Register 和 Override，按顺序执行、允许部分成功。</p><p>ClearSession 清空后可复用；CloseSession 关闭后拒绝新增。只管理自身资源，不影响同 owner 的其他会话。</p></details>
-<details><summary>曝光、饱和度等调参</summary><p>本步尚未接入，留待下一步。内部 FilterDebugSettings 保持原位；外部模组不要直接使用调试预览代替 API。</p></details>
+<details><summary>曝光、饱和度等调参</summary><p>客户端请求可以携带可选的 <code>FilterAdjustments</code> 稀疏参数对象。例如 <code>FilterAdjustments.builder().exposure(1.0F).build()</code> 只修改曝光，未填写字段保持当前值；<code>clearExposure()</code> 恢复继承调试预设。</p><p>现有 <code>FilterDebugSettings</code> 保持内部位置。服务端和网络协议暂不接入调参。</p></details>
 </section>
 <section id="example">
 <h2>最小示例：强制 → 查询 → 恢复</h2>

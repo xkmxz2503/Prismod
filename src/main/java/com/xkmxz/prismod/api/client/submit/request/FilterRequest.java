@@ -1,6 +1,7 @@
 package com.xkmxz.prismod.api.client.submit.request;
 
 import com.xkmxz.prismod.api.client.submit.model.CustomFilterMetadata;
+import com.xkmxz.prismod.api.client.submit.model.FilterAdjustments;
 import com.xkmxz.prismod.api.client.submit.listener.FilterStateListener;
 import com.xkmxz.prismod.api.client.submit.listener.FilterEventListener;
 import net.minecraft.resources.ResourceLocation;
@@ -27,18 +28,30 @@ public sealed interface FilterRequest {
     /** 清理该 owner 的全部 API 注册。 */
     record ClearRegistrations(String ownerId) implements FilterRequest { }
     /** 临时选择逻辑滤镜，不写玩家配置。 */
-    record Select(ResourceLocation filter, float strength) implements FilterRequest { }
+    record Select(ResourceLocation filter, float strength, FilterAdjustments adjustments) implements FilterRequest {
+        public Select(ResourceLocation filter, float strength) { this(filter, strength, null); }
+    }
     /** 清除临时选择。 */
     record ClearSelection() implements FilterRequest { }
     /** 替换旧强制状态，保留 legacy 优先级规则。 */
-    record Force(ResourceLocation filter, float strength) implements FilterRequest { }
+    record Force(ResourceLocation filter, float strength, FilterAdjustments adjustments) implements FilterRequest {
+        public Force(ResourceLocation filter, float strength) { this(filter, strength, null); }
+    }
     /** 清除旧强制状态。 */
     record ClearForced() implements FilterRequest { }
     /** 创建覆盖；高优先级胜出，同级较新者胜出。 */
     record Override(String ownerId, ResourceLocation filter, float strength, int priority,
-                    UUID sessionId) implements FilterRequest {
+                    UUID sessionId, FilterAdjustments adjustments) implements FilterRequest {
         public Override(String ownerId, ResourceLocation filter, float strength, int priority) {
-            this(ownerId, filter, strength, priority, null);
+            this(ownerId, filter, strength, priority, null, null);
+        }
+        public Override(String ownerId, ResourceLocation filter, float strength, int priority,
+                        FilterAdjustments adjustments) {
+            this(ownerId, filter, strength, priority, null, adjustments);
+        }
+        public Override(String ownerId, ResourceLocation filter, float strength, int priority,
+                        UUID sessionId) {
+            this(ownerId, filter, strength, priority, sessionId, null);
         }
     }
     /** 清理该 owner 的全部 API 覆盖。 */

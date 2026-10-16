@@ -1,6 +1,7 @@
 package com.xkmxz.prismod.client.application;
 
 import com.xkmxz.prismod.api.client.submit.model.CustomFilterMetadata;
+import com.xkmxz.prismod.api.client.submit.model.FilterAdjustments;
 import com.xkmxz.prismod.api.client.query.view.FilterSnapshot;
 import com.xkmxz.prismod.api.client.submit.event.FilterEvent;
 import com.xkmxz.prismod.api.common.query.view.FilterDescriptor;
@@ -18,10 +19,11 @@ interface FilterBackend {
     FilterRegistration register(String owner, ResourceLocation logicalId,
                                 ResourceLocation postEffect, CustomFilterMetadata metadata);
     int clearRegistrations(String owner);
-    FilterOverride override(String owner, ResourceLocation filter, float strength, int priority);
+    FilterOverride override(String owner, ResourceLocation filter, float strength, int priority,
+                            FilterAdjustments adjustments);
     int clearOverrides(String owner);
-    void select(ResourceLocation filter, float strength);
+    void select(ResourceLocation filter, float strength, FilterAdjustments adjustments);
     void clearSelection();
-    void force(ResourceLocation filter, float strength);
+    void force(ResourceLocation filter, float strength, FilterAdjustments adjustments);
     void clearForced();
 }

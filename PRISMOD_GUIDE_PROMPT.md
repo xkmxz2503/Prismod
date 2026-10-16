@@ -117,7 +117,7 @@ FilterClientApi.submit(new FilterRequest.ClearForced());
 
 选择与覆盖请求使用逻辑滤镜 ID，注册 postEffect 使用实际资源路径。保留现有优先级、强度和回退规则，不修改玩家配置。客户端 Snapshot 与 common Snapshot 通过 toCommonSnapshot()/fromCommonSnapshot(...) 显式转换。
 
-调参输入留待后续独立步骤，FilterDebugSettings 保持 client.filter.debug 内部位置。服务端两入口只开放选择、覆盖及清理，不提供远程注册、Session、批量、订阅、调参或客户端状态查询；shader 和调试预设不变。客户端完整契约和示例统一维护在 docs/Java_API_调用说明.md。
+客户端 API 已支持可选的 FilterAdjustments 稀疏调参对象：只填写的字段生效，未填写字段保持当前值，clearXxx() 恢复继承调试预设。FilterDebugSettings 保持 client.filter.debug 内部位置。服务端两入口只开放选择、覆盖及清理，不提供远程注册、Session、批量、订阅、调参或客户端状态查询；shader 和调试预设不变。客户端完整契约和示例统一维护在 docs/Java_API_调用说明.md。
 
 ## 架构和模块职责
 

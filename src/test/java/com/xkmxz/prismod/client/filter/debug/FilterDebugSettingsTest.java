@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.xkmxz.prismod.api.client.submit.model.FilterAdjustments;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -90,6 +91,23 @@ class FilterDebugSettingsTest {
             for (String field : FIELDS) json.addProperty(field, value);
             assertArrayEquals(new float[]{0, 0, 0, 0, 0, 1, 0, 0, 1}, values(FilterDebugSettings.fromJson(json)));
         }
+    }
+
+    @Test
+    void sparseApiAdjustmentsOnlyChangeSelectedFields() {
+        FilterDebugSettings base = new FilterDebugSettings(1, .2F, .3F, .4F, .5F, 1.2F, .1F, .2F, 1.4F);
+        FilterDebugSettings result = base.apply(FilterAdjustments.builder().exposure(1.5F).build());
+        assertEquals(1.5F, result.exposure());
+        assertEquals(base.contrast(), result.contrast());
+        assertEquals(base.saturation(), result.saturation());
+        assertEquals(base.gamma(), result.gamma());
+    }
+
+    @Test
+    void clearingApiAdjustmentLeavesCurrentBaseValue() {
+        FilterDebugSettings base = new FilterDebugSettings(1, .2F, .3F, 0, 0, 1, 0, 0, 1);
+        FilterDebugSettings result = base.apply(FilterAdjustments.builder().clearExposure().build());
+        assertEquals(base.exposure(), result.exposure());
     }
 
     private static float[] filled(float value) {

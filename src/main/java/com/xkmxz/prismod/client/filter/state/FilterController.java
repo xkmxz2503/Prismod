@@ -1,5 +1,6 @@
 package com.xkmxz.prismod.client.filter.state;
 
+import com.xkmxz.prismod.api.client.submit.model.FilterAdjustments;
 import com.xkmxz.prismod.client.filter.*;
 import com.xkmxz.prismod.client.filter.registry.FilterDefinition;
 import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
@@ -45,7 +46,7 @@ final class FilterController {
     /** 返回当前优先级最高的覆盖目标，即使渲染已回退到原色画面。 */
     FilterSelection forcedSelection() {
         OverrideState forced = activeOverride();
-        return forced == null ? null : new FilterSelection(forced.key(), forced.strength(), true);
+        return forced == null ? null : new FilterSelection(forced.key(), forced.strength(), true, forced.adjustments());
     }
 
     boolean isForced() {
@@ -66,7 +67,13 @@ final class FilterController {
     }
 
     void selectSession(FilterKey key, float strength) {
-        sessionSelection = new FilterSelection(key, strength, false);
+        selectSession(key, strength, null);
+    }
+
+    void selectSession(FilterKey key, float strength, FilterAdjustments adjustments) {
+        FilterAdjustments merged = FilterAdjustments.merge(
+                sessionSelection == null ? null : sessionSelection.adjustments(), adjustments);
+        sessionSelection = new FilterSelection(key, strength, false, merged);
         publish();
     }
 
@@ -94,8 +101,14 @@ final class FilterController {
     }
 
     void setForced(FilterKey key, float strength) {
+        setForced(key, strength, null);
+    }
+
+    void setForced(FilterKey key, float strength, FilterAdjustments adjustments) {
+        FilterAdjustments previous = legacyOverrideId == 0 ? null : override(legacyOverrideId).adjustments();
         if (legacyOverrideId != 0) overrides.remove(legacyOverrideId);
-        legacyOverrideId = addOverride("legacy", key, strength, 0);
+        legacyOverrideId = addOverride("legacy", key, strength, 0,
+                FilterAdjustments.merge(previous, adjustments));
     }
 
     void clearForced() {
@@ -105,9 +118,15 @@ final class FilterController {
     }
 
     long addOverride(String ownerId, FilterKey key, float strength, int priority) {
+        return addOverride(ownerId, key, strength, priority, null);
+    }
+
+    long addOverride(String ownerId, FilterKey key, float strength, int priority,
+                     FilterAdjustments adjustments) {
         if (ownerId == null || ownerId.isBlank()) throw new IllegalArgumentException("ownerId must not be blank");
         long id = ++nextOverrideId;
-        overrides.put(id, new OverrideState(id, ownerId.trim(), key, strength, priority, ++nextSequence));
+        overrides.put(id, new OverrideState(id, ownerId.trim(), key, strength, priority,
+                ++nextSequence, adjustments));
         publish();
         return id;
     }
@@ -214,7 +233,7 @@ final class FilterController {
         FilterSelection selectedState = new FilterSelection(selected, strength(selected), false);
         OverrideState forced = activeOverride();
         FilterSelection forcedState = forced == null ? null
-                : new FilterSelection(forced.key(), forced.strength(), true);
+                : new FilterSelection(forced.key(), forced.strength(), true, forced.adjustments());
         FilterSelection requested = sessionSelection == null ? selectedState : sessionSelection;
         FilterSelection effective = forcedState != null
                 && (forcedState.key().isOriginal() || isSelectable(forcedState.key())) ? forcedState
@@ -230,6 +249,10 @@ final class FilterController {
         return overrides.values().stream()
                 .max(Comparator.comparingInt(OverrideState::priority).thenComparingLong(OverrideState::sequence))
                 .orElse(null);
+    }
+
+    private OverrideState override(long id) {
+        return overrides.get(id);
     }
 
     private float strength(FilterKey key) {
@@ -251,7 +274,7 @@ final class FilterController {
     }
 
     private record OverrideState(long id, String ownerId, FilterKey key, float strength,
-                                 int priority, long sequence) {
+                                 int priority, long sequence, FilterAdjustments adjustments) {
         private OverrideState {
             key = key == null ? FilterKey.of(FilterId.ORIGINAL) : key;
             strength = FilterStrength.normalize(strength);

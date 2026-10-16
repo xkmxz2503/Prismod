@@ -2,6 +2,7 @@ package com.xkmxz.prismod.client.application;
 
 import com.mojang.logging.LogUtils;
 import com.xkmxz.prismod.api.client.submit.model.CustomFilterMetadata;
+import com.xkmxz.prismod.api.client.submit.model.FilterAdjustments;
 import com.xkmxz.prismod.api.client.submit.result.FilterReceipt;
 import com.xkmxz.prismod.api.client.submit.listener.FilterStateListener;
 import com.xkmxz.prismod.api.client.query.view.FilterSnapshot;
@@ -169,7 +170,7 @@ final class ClientFilterDispatcher {
             checkSession(r.sessionId(), owner);
             Objects.requireNonNull(r.filter(), "filter");
             FilterOverride handle = backend.override(owner, r.filter(),
-                    FilterSnapshot.normalizeStrength(r.strength()), r.priority());
+                    FilterSnapshot.normalizeStrength(r.strength()), r.priority(), r.adjustments());
             Entry entry = new Entry(FilterResourceView.Kind.OVERRIDE, owner, r.sessionId(),
                     r.filter(), r.priority(), handle);
             resources.put(entry.id, entry);
@@ -191,13 +192,13 @@ final class ClientFilterDispatcher {
         if (request instanceof FilterRequest.Select r) {
             Objects.requireNonNull(r.filter(), "filter");
             long before = backend.snapshot().generation();
-            backend.select(r.filter(), FilterSnapshot.normalizeStrength(r.strength()));
+            backend.select(r.filter(), FilterSnapshot.normalizeStrength(r.strength()), r.adjustments());
             return success(id, changed(before), List.of());
         }
         if (request instanceof FilterRequest.Force r) {
             Objects.requireNonNull(r.filter(), "filter");
             long before = backend.snapshot().generation();
-            backend.force(r.filter(), FilterSnapshot.normalizeStrength(r.strength()));
+            backend.force(r.filter(), FilterSnapshot.normalizeStrength(r.strength()), r.adjustments());
             return success(id, changed(before), List.of());
         }
         if (request instanceof FilterRequest.ClearSelection) {
@@ -256,7 +257,7 @@ final class ClientFilterDispatcher {
             } else if (item instanceof FilterRequest.Override r
                     && (r.sessionId() == null || r.sessionId().equals(session.id))) {
                 items.add(execute(childId, new FilterRequest.Override(r.ownerId(), r.filter(),
-                        r.strength(), r.priority(), session.id)));
+                        r.strength(), r.priority(), session.id, r.adjustments())));
             } else items.add(failure(childId, FilterOperationStatus.INVALID_ARGUMENT,
                     FeedbackCode.INVALID_ARGUMENT, FilterFailureReason.INVALID_ARGUMENT,
                     "batch accepts only registrations and overrides in its session"));

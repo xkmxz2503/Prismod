@@ -23,6 +23,7 @@ api/client/
 ├─ submit/                         输入相关契约
 │  ├─ request/FilterRequest.java    业务请求
 │  ├─ model/CustomFilterMetadata.java  注册输入数据
+│  │       FilterAdjustments.java      稀疏高级调参
 │  ├─ result/FilterReceipt.java     一次性最终回执
 │  ├─ listener/                    状态、事件回调接口
 │  └─ event/                       不可变通知及事件类型
@@ -42,9 +43,9 @@ api/client/
 | 注册 | `Register(ownerId, logicalId, postEffect, metadata, sessionId)` | 注册 PostChain；可省略 sessionId，另有推导逻辑 ID 的便捷构造 |
 | 释放 | `Release(resourceId)` | 释放注册、覆盖、订阅或 Session |
 | 清理注册 | `ClearRegistrations(ownerId)` | 清理 owner 的注册 |
-| 临时选择 | `Select(filter, strength)`、`ClearSelection()` | 不写玩家配置 |
-| 强制 | `Force(filter, strength)`、`ClearForced()` | 替换或解除旧式强制覆盖 |
-| 覆盖 | `Override(ownerId, filter, strength, priority, sessionId)` | sessionId 可省略；同优先级较新者胜出 |
+| 临时选择 | `Select(filter, strength[, adjustments])`、`ClearSelection()` | 不写玩家配置 |
+| 强制 | `Force(filter, strength[, adjustments])`、`ClearForced()` | 替换或解除旧式强制覆盖 |
+| 覆盖 | `Override(ownerId, filter, strength, priority[, adjustments])` | sessionId 可省略；同优先级较新者胜出 |
 | 清理覆盖 | `ClearOverrides(ownerId)` | 清理 owner 的覆盖 |
 | 监听 | `SubscribeState(ownerId, listener)`、`SubscribeEvents(ownerId, listener)` | 创建订阅，使用资源 ID 取消 |
 | Session | `OpenSession(ownerId)`、`ClearSession(sessionId)`、`CloseSession(sessionId)` | 创建、清空或关闭会话 |
@@ -107,6 +108,7 @@ Session 只管理自身创建的注册和覆盖，同 owner 的其他资源不�
 
 ```java
 import com.xkmxz.prismod.api.client.FilterClientApi;
+import com.xkmxz.prismod.api.client.submit.model.FilterAdjustments;
 import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
 import com.xkmxz.prismod.api.client.query.request.FilterQuery;
 import net.minecraft.resources.ResourceLocation;
@@ -132,7 +134,20 @@ FilterClientApi.submit(new FilterRequest.Override("example-mod", filter, 0.75F, 
 
 服务端 `FilterServerApi` 也只保留 submit/query，使用独立的 ServerFilterRequest 与 ServerFilterQuery；客户端公开契约不变。服务端通过 `prismod:policy` 协议 `2` 下发，协议 `1` 不兼容。requestId 标识本次请求，policyId 标识持续策略，同策略新请求替换旧网络覆盖。服务端 OperationResult 只表示接受并保存策略，不是客户端渲染回执。完整边界见 [API 使用指南](API_使用指南.md) 和 [服务端 API 与命令](服务端_API_与命令.md)。
 
-调参是后续独立步骤；当前请求尚不接收曝光、饱和度等参数。`client.filter.debug.FilterDebugSettings` 保持内部位置，不作为公开模型，也不要直接启动调试预览代替 API 调用。
+### 6.1 部分高级调参
+
+高级参数通过 `api.client.submit.model.FilterAdjustments` 作为可选对象提交。它是稀疏更新：未填写的字段保持当前有效值，`clearXxx()` 让该字段恢复继承调试预设。
+
+```java
+var adjustments = FilterAdjustments.builder()
+        .exposure(1.0F)
+        .saturation(1.25F)
+        .build();
+
+FilterClientApi.submit(new FilterRequest.Select(filter, 0.75F, adjustments));
+```
+
+支持曝光、对比度、高光、阴影、饱和度、色温、色调和伽马。`strength` 仍表示整体混合强度。没有传入调参对象时，继续使用玩家调试预设；API 参数只覆盖明确填写的字段。现有 `client.filter.debug.FilterDebugSettings` 保持内部位置，服务端和网络协议暂未接入调参。
 
 ## 7. 常见错误
 

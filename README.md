@@ -172,7 +172,7 @@ FilterClientApi.submit(new FilterRequest.ClearForced());
 
 输入返回一次最终回执，查询返回不可变数据。注册、覆盖和订阅创建后返回资源 UUID；保存 ID，在结束时提交 Release。Session 管理自身的批量注册和覆盖。不要在客户端线程阻塞等待异步结果。
 
-当前 API 尚不接收曝光、饱和度等调参输入。外部模组只依赖公开 API，不调用 `client.filter` 内部类。完整规范见 [Java API 调用说明](docs/Java_API_调用说明.md)，易读图解见 [API 架构地图](docs/api-architecture-guide.html)，两端总览见 [API 使用指南](docs/API_使用指南.md)。
+客户端 API 支持可选的部分高级调参：使用 `FilterAdjustments.builder().exposure(1.0F).build()` 只修改曝光，未填写字段保持当前值。外部模组只依赖公开 API，不调用 `client.filter` 内部类。服务端和网络协议暂未接入调参。完整规范见 [Java API 调用说明](docs/Java_API_调用说明.md)，易读图解见 [API 架构地图](docs/api-architecture-guide.html)，两端总览见 [API 使用指南](docs/API_使用指南.md)。
 
 ## 服务端 API 与命令
 

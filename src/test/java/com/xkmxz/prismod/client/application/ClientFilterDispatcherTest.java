@@ -1,6 +1,7 @@
 package com.xkmxz.prismod.client.application;
 
 import com.xkmxz.prismod.api.client.submit.model.CustomFilterMetadata;
+import com.xkmxz.prismod.api.client.submit.model.FilterAdjustments;
 import com.xkmxz.prismod.api.client.submit.result.FilterReceipt;
 import com.xkmxz.prismod.api.client.submit.listener.FilterStateListener;
 import com.xkmxz.prismod.api.client.query.view.FilterSnapshot;
@@ -47,6 +48,20 @@ class ClientFilterDispatcherTest {
         assertEquals(1, api.query(new FilterQuery.Snapshot()).strength());
         assertEquals(FILTER, api.query(new FilterQuery.Snapshot()).filter());
         assertTrue(tasks.isEmpty());
+    }
+
+    @Test
+    void forwardsOptionalAdjustmentsWithoutChangingLegacyRequests() {
+        MemoryBackend backend = new MemoryBackend();
+        ClientFilterDispatcher api = new ClientFilterDispatcher(Runnable::run, backend);
+        FilterAdjustments adjustments = FilterAdjustments.builder().exposure(1.0F).build();
+
+        submit(api, new FilterRequest.Select(FILTER, .8F, adjustments));
+        assertSame(adjustments, backend.selectedAdjustments);
+        submit(api, new FilterRequest.Force(FILTER, .7F));
+        assertNull(backend.forcedAdjustments);
+        submit(api, new FilterRequest.Override("owner", FILTER, .6F, 10, adjustments));
+        assertSame(adjustments, backend.overrideAdjustments);
     }
 
     @Test
@@ -305,6 +320,9 @@ class ClientFilterDispatcherTest {
         private Consumer<FilterEvent> observer;
         private final Map<ResourceLocation, Registration> registrations = new HashMap<>();
         private final List<OverrideHandle> overrides = new ArrayList<>();
+        private FilterAdjustments selectedAdjustments;
+        private FilterAdjustments forcedAdjustments;
+        private FilterAdjustments overrideAdjustments;
         private int writes;
         @Override public FilterSnapshot snapshot() { return snapshot; }
         @Override public List<FilterDescriptor> filters() { return List.of(); }
@@ -315,11 +333,19 @@ class ClientFilterDispatcherTest {
                     "", 0, FilterFallbackReason.NONE, snapshot.generation() + 1);
             observer.accept(FilterEvent.snapshotChanged(snapshot));
         }
-        @Override public void select(ResourceLocation filter, float strength) { change(filter, strength, false); }
+        @Override public void select(ResourceLocation filter, float strength, FilterAdjustments adjustments) {
+            selectedAdjustments = adjustments;
+            change(filter, strength, false);
+        }
         @Override public void clearSelection() { change(id("original"), 0, false); }
-        @Override public void force(ResourceLocation filter, float strength) { change(filter, strength, true); }
+        @Override public void force(ResourceLocation filter, float strength, FilterAdjustments adjustments) {
+            forcedAdjustments = adjustments;
+            change(filter, strength, true);
+        }
         @Override public void clearForced() { change(id("original"), 0, false); }
-        @Override public FilterOverride override(String owner, ResourceLocation filter, float strength, int priority) {
+        @Override public FilterOverride override(String owner, ResourceLocation filter, float strength, int priority,
+                                                 FilterAdjustments adjustments) {
+            overrideAdjustments = adjustments;
             OverrideHandle handle = new OverrideHandle(owner, filter, priority);
             overrides.add(handle);
             change(filter, strength, true);

@@ -116,7 +116,7 @@ public final class WorldFilterRenderer {
         try {
             prepare(mc, main, key);
             FilterDefinition definition = FilterRegistry.get().definition(key);
-            FilterDebugSettings settings = debugSettingsFor(definition, key);
+            FilterDebugSettings settings = debugSettingsFor(definition, key).apply(selection.adjustments());
             if (intensity != null) intensity.set(combinedIntensity(selection.strength(), settings));
             if (definition != null && definition.type() == FilterType.LUT3D) {
                 float[] min = definition.lutData().domainMin();

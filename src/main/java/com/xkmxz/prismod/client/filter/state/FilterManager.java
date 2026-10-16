@@ -2,6 +2,7 @@ package com.xkmxz.prismod.client.filter.state;
 
 import com.xkmxz.prismod.client.config.PrismodClientConfig;
 import com.xkmxz.prismod.client.filter.*;
+import com.xkmxz.prismod.api.client.submit.model.FilterAdjustments;
 import com.xkmxz.prismod.client.filter.registry.FilterDefinition;
 import com.xkmxz.prismod.client.filter.registry.FilterRegistry;
 import com.xkmxz.prismod.client.application.handle.FilterOverride;
@@ -56,7 +57,11 @@ public final class FilterManager {
     }
 
     public void selectSession(FilterKey key, float strength) {
-        controller.selectSession(key, strength);
+        selectSession(key, strength, null);
+    }
+
+    public void selectSession(FilterKey key, float strength, FilterAdjustments adjustments) {
+        controller.selectSession(key, strength, adjustments);
         notifyListeners();
     }
 
@@ -66,7 +71,11 @@ public final class FilterManager {
     }
 
     public void setForced(FilterKey key, float strength) {
-        controller.setForced(key, strength);
+        setForced(key, strength, null);
+    }
+
+    public void setForced(FilterKey key, float strength, FilterAdjustments adjustments) {
+        controller.setForced(key, strength, adjustments);
         notifyListeners();
     }
 
@@ -81,7 +90,12 @@ public final class FilterManager {
     }
 
     public FilterOverride addOverride(String ownerId, FilterKey key, float strength, int priority) {
-        long id = controller.addOverride(ownerId, key, strength, priority);
+        return addOverride(ownerId, key, strength, priority, null);
+    }
+
+    public FilterOverride addOverride(String ownerId, FilterKey key, float strength, int priority,
+                                      FilterAdjustments adjustments) {
+        long id = controller.addOverride(ownerId, key, strength, priority, adjustments);
         notifyListeners();
         return new OverrideHandle(id, ownerId, key.id(), priority);
     }

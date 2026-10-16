@@ -1,6 +1,7 @@
 package com.xkmxz.prismod.client.application;
 
 import com.xkmxz.prismod.api.client.submit.model.CustomFilterMetadata;
+import com.xkmxz.prismod.api.client.submit.model.FilterAdjustments;
 import com.xkmxz.prismod.api.client.query.view.FilterSnapshot;
 import com.xkmxz.prismod.api.client.submit.event.FilterEvent;
 import com.xkmxz.prismod.api.common.query.view.FilterDescriptor;
@@ -45,14 +46,17 @@ final class MinecraftFilterBackend implements FilterBackend {
         if (count > 0) FilterManager.get().registryChanged();
         return count;
     }
-    @Override public FilterOverride override(String owner, ResourceLocation filter, float strength, int priority) {
-        return FilterManager.get().addOverride(owner, new FilterKey(filter), strength, priority);
+    @Override public FilterOverride override(String owner, ResourceLocation filter, float strength, int priority,
+                                              FilterAdjustments adjustments) {
+        return FilterManager.get().addOverride(owner, new FilterKey(filter), strength, priority, adjustments);
     }
     @Override public int clearOverrides(String owner) { return FilterManager.get().removeOverridesByOwner(owner); }
-    @Override public void select(ResourceLocation filter, float strength) {
-        FilterManager.get().selectSession(new FilterKey(filter), strength);
+    @Override public void select(ResourceLocation filter, float strength, FilterAdjustments adjustments) {
+        FilterManager.get().selectSession(new FilterKey(filter), strength, adjustments);
     }
     @Override public void clearSelection() { FilterManager.get().clearSessionSelection(); }
-    @Override public void force(ResourceLocation filter, float strength) { FilterManager.get().setForced(filter, strength); }
+    @Override public void force(ResourceLocation filter, float strength, FilterAdjustments adjustments) {
+        FilterManager.get().setForced(new FilterKey(filter), strength, adjustments);
+    }
     @Override public void clearForced() { FilterManager.get().clearForced(); }
 }

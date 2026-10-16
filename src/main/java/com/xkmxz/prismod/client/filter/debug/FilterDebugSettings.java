@@ -1,6 +1,7 @@
 package com.xkmxz.prismod.client.filter.debug;
 
 import com.google.gson.JsonObject;
+import com.xkmxz.prismod.api.client.submit.model.FilterAdjustments;
 import com.xkmxz.prismod.client.filter.legacy.LutDebugSettings;
 
 /**
@@ -83,6 +84,24 @@ public record FilterDebugSettings(
 
     public LutDebugSettings toLutSettings() {
         return new LutDebugSettings(intensity, exposure, contrast, highlights, shadows, saturation, temperature, tint, gamma);
+    }
+
+    /** 将公开 API 的稀疏调参叠加到当前内部调试值。 */
+    public FilterDebugSettings apply(FilterAdjustments adjustments) {
+        if (adjustments == null || adjustments.isEmpty()) return this;
+        return new FilterDebugSettings(intensity,
+                value(adjustments.exposure(), adjustments.clearsExposure(), exposure),
+                value(adjustments.contrast(), adjustments.clearsContrast(), contrast),
+                value(adjustments.highlights(), adjustments.clearsHighlights(), highlights),
+                value(adjustments.shadows(), adjustments.clearsShadows(), shadows),
+                value(adjustments.saturation(), adjustments.clearsSaturation(), saturation),
+                value(adjustments.temperature(), adjustments.clearsTemperature(), temperature),
+                value(adjustments.tint(), adjustments.clearsTint(), tint),
+                value(adjustments.gamma(), adjustments.clearsGamma(), gamma));
+    }
+
+    private static float value(Float value, boolean clear, float current) {
+        return value == null || clear ? current : value;
     }
 
     private static float number(JsonObject object, String name, float fallback) {
