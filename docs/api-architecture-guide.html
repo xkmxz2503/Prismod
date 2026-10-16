@@ -42,7 +42,7 @@
 <h2>最小示例：强制 → 查询 → 恢复</h2>
 <pre><code>var filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");
 
-FilterClientApi.submit(new FilterRequest.Force(filter, 0.75F))
+FilterClientApi.submit(new FilterRequest.Force(filter, 75.0F))
     .thenAccept(receipt -&gt; {
         var snapshot = FilterClientApi.query(new FilterQuery.Snapshot());
         // 根据 receipt 的状态和反馈代码处理失败。
@@ -58,9 +58,9 @@ FilterClientApi.submit(new FilterRequest.ClearForced());</code></pre>
 <article class="card blue"><h3>submit · 保存策略</h3><p>选择、覆盖、清理。</p><p><code>CompletionStage&lt;OperationResult&gt;</code></p><p class="muted">服务端线程执行，保存状态后交付一次最终回执。成功不代表客户端收到或画面完成。</p></article>
 <article class="card green"><h3>query · 查看服务端</h3><p>Status / FilterStatus。</p><p><code>query(ServerFilterQuery&lt;R&gt;)</code></p><p class="muted">读取不可变服务端状态，不远程查询客户端。</p></article>
 </div>
-<div class="flow"><div class="node">服务端 submit<br><small>保存策略</small></div><span class="arrow" aria-hidden="true">→</span><div class="node">prismod:policy<br><small>协议 2 · 仅下行</small></div><span class="arrow" aria-hidden="true">→</span><div class="node">客户端 submit<br><small>执行选择或覆盖</small></div></div>
+<div class="flow"><div class="node">服务端 submit<br><small>保存策略</small></div><span class="arrow" aria-hidden="true">→</span><div class="node">prismod:policy<br><small>协议 3 · strength 0-100 · 仅下行</small></div><span class="arrow" aria-hidden="true">→</span><div class="node">客户端 submit<br><small>执行选择或覆盖</small></div></div>
 <details><summary>两个 ID，解决覆盖更新</summary><p><b>requestId</b>：这一次请求，每次更新都不同。<br><b>policyId</b>：持续策略，同范围同 owner 更新保持不变。</p><p>同策略同请求不重复执行；同策略新请求释放旧覆盖并创建新覆盖。排队中的旧请求完成后只释放自己的 UUID。清理只影响网络资源，保留其他模组本地覆盖。</p></details>
-<details><summary>登录补发、失败与兼容</summary><p>登录补发复用策略 ID、新生成请求 ID；个人选择保持优先。服务器不可用返回 UNAVAILABLE，指定玩家离线返回 NOT_FOUND；重复清理成功且影响数量为零。</p><p>旧服务端方法已删除；协议 2 拒绝协议 1。断线重置映射，旧连接回执不能改写新连接状态。不增加客户端回执、重试、乱序恢复或远程调参。</p></details>
+<details><summary>登录补发、失败与兼容</summary><p>登录补发复用策略 ID、新生成请求 ID；个人选择保持优先。服务器不可用返回 UNAVAILABLE，指定玩家离线返回 NOT_FOUND；重复清理成功且影响数量为零。</p><p>旧服务端方法已删除；协议 3 拒绝协议 2 及更早版本。断线重置映射，旧连接回执不能改写新连接状态。不增加客户端回执、重试、乱序恢复或远程调参。</p></details>
 </section>
 <section id="boundary">
 <h2>实现放在边界之后</h2>
@@ -69,6 +69,6 @@ FilterClientApi.submit(new FilterRequest.ClearForced());</code></pre>
 <details><summary>服务端源码与契约</summary><p><code>api/server/FilterServerApi.java</code> 保留在根目录；<code>submit/model</code>、<code>submit/request</code>、<code>submit/result</code> 保存目标、请求和回执；<code>query/request</code>、<code>query/view</code> 保存查询和不可变状态。<code>api/common</code> 只保留两端共同依赖的反馈代码、操作状态和失败分类；客户端描述与渲染状态归入 <code>api/client</code>，公共层不负责模型转换。</p><p>FilterServerApi → ServerFilterApplication → PolicyTransport → PolicyNetwork。频道及协议常量统一来源为 PolicyTransport，协议消息为 operation、requestId、policyId、owner、filter、strength、priority。</p><p>不开放远程注册、Session、订阅、批量或客户端状态查询。管理命令语法和 OP 权限保持不变。</p><p><a href="服务端_API_与命令.md">查看服务端调用示例</a> · <a href="API_使用指南.md">查看完整总览</a></p></details>
 </section>
 <footer>客户端规范来源：<a href="Java_API_调用说明.md">Java_API_调用说明.md</a> · <a href="API_与指令架构审查.md">架构审查</a></footer>
-<details><summary>参数单位</summary><p>客户端 strength 使用 0-100 百分制；高级参数按字段语义使用百分制：曝光 -100 到 100、对比度和饱和度 0 到 200、gamma 10 到 300，其余方向型参数 -100 到 100。渲染边界再转换为 shader 原有范围。</p></details></main>
+<details><summary>参数单位</summary><p>客户端 API、服务端 API、命令和协议的 strength 使用 0-100 百分制；高级参数按字段语义使用百分制：曝光 -100 到 100、对比度和饱和度 0 到 200、gamma 10 到 300，其余方向型参数 -100 到 100。只有渲染边界再转换为 shader 原有范围。</p></details></main>
 </body>
 </html>

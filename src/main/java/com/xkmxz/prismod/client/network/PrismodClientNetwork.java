@@ -12,7 +12,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-/** 协议 2 客户端适配器；请求 ID、策略 ID 与客户端资源 ID 分别管理。 */
+/** 协议 3 客户端适配器；请求 ID、策略 ID 与客户端资源 ID 分别管理，strength 使用百分制。 */
 public final class PrismodClientNetwork {
     private static final PrismodClientNetwork INSTANCE = new PrismodClientNetwork(FilterClientApi::submit);
     private final Map<UUID, OverrideCreation> overrides = new HashMap<>();
@@ -31,7 +31,7 @@ public final class PrismodClientNetwork {
         switch (message.operation()) {
             case SELECT -> {
                 if (message.filter() != null) submit.apply(
-                        new FilterRequest.Select(message.filter(), percent(message.strength())));
+                        new FilterRequest.Select(message.filter(), message.strength()));
             }
             case OVERRIDE -> {
                 OverrideCreation previous = overrides.get(message.policyId());
@@ -40,7 +40,7 @@ public final class PrismodClientNetwork {
                     if (previous != null) release(previous.creation());
                     overrides.put(message.policyId(), new OverrideCreation(message.requestId(), submit.apply(
                         new FilterRequest.Override(message.owner(), message.filter(),
-                                percent(message.strength()), message.priority()))));
+                                message.strength(), message.priority()))));
                 }
             }
             case CLEAR_OVERRIDE -> {
@@ -62,10 +62,6 @@ public final class PrismodClientNetwork {
         List<OverrideCreation> creations = List.copyOf(overrides.values());
         overrides.clear();
         creations.forEach(creation -> release(creation.creation()));
-    }
-
-    private static float percent(float normalized) {
-        return Math.round(normalized * 100.0F);
     }
 
     public static void resetSession() {

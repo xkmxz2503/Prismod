@@ -6,7 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 import java.util.Objects;
 import java.util.UUID;
 
-/** 协议 2 策略消息：请求身份描述一次操作，策略身份描述持续存在的策略。 */
+/** 协议 3 策略消息：请求身份描述一次操作，策略身份描述持续存在的策略；strength 使用 0-100 百分制。 */
 public record PolicyMessage(
         Operation operation,
         UUID requestId,
@@ -32,7 +32,7 @@ public record PolicyMessage(
         if (requiresPolicy) Objects.requireNonNull(policyId, "policyId");
         else if (policyId != null) throw new IllegalArgumentException("整体清理不接受单个策略 ID");
         owner = owner == null ? "" : owner.trim();
-        strength = Float.isFinite(strength) ? Math.max(0.0F, Math.min(1.0F, strength)) : 0.0F;
+        strength = Float.isFinite(strength) ? Math.max(0.0F, Math.min(100.0F, strength)) : 0.0F;
     }
 
     public static PolicyMessage selection(UUID requestId, UUID policyId, ResourceLocation filter, float strength) {

@@ -25,8 +25,8 @@ class PolicyMessageTest {
         UUID policyId = UUID.randomUUID();
         ResourceLocation filter = ResourceLocation.fromNamespaceAndPath("example", "debug");
         for (PolicyMessage source : List.of(
-                PolicyMessage.selection(requestId, policyId, filter, 0.7F),
-                PolicyMessage.override(requestId, policyId, " rule ", filter, 2.0F, 17),
+                PolicyMessage.selection(requestId, policyId, filter, 70.0F),
+                PolicyMessage.override(requestId, policyId, " rule ", filter, 200.0F, 17),
                 PolicyMessage.clearSelection(requestId),
                 PolicyMessage.clearOverride(requestId, policyId, "rule"),
                 PolicyMessage.clearAllOverrides(requestId))) {
@@ -45,9 +45,9 @@ class PolicyMessageTest {
     void preservesNormalizationAndSeparateIdentities() {
         UUID requestId = UUID.randomUUID();
         UUID policyId = UUID.randomUUID();
-        PolicyMessage message = PolicyMessage.override(requestId, policyId, " rule ", null, 2.0F, 17);
+        PolicyMessage message = PolicyMessage.override(requestId, policyId, " rule ", null, 200.0F, 17);
         assertEquals("rule", message.owner());
-        assertEquals(1.0F, message.strength());
+        assertEquals(100.0F, message.strength());
         assertEquals(requestId, message.requestId());
         assertEquals(policyId, message.policyId());
         assertEquals(0.0F, PolicyMessage.selection(requestId, policyId, null, Float.NaN).strength());

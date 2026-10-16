@@ -32,12 +32,12 @@ cycle_order = ["original", "grayscale", "warm", "cool", "vintage", "night_vision
 custom_strengths = []
 disabled_packs = []
 hidden_filters = []
-strength_original = 1.0
-strength_grayscale = 1.0
-strength_warm = 1.0
-strength_cool = 1.0
-strength_vintage = 1.0
-strength_night_vision = 1.0
+strength_original = 100.0
+strength_grayscale = 100.0
+strength_warm = 100.0
+strength_cool = 100.0
+strength_vintage = 100.0
+strength_night_vision = 100.0
 ```
 
 `cycle_order` 使用 `FilterKey` 序列化值：内置滤镜继续接受短名称，自定义滤镜使用 `namespace:path`。解析时忽略非法项和重复项；如果解析后为空则回退内置默认顺序。资源重载完成时会补充已发现滤镜，并清理 `cycle_order`、`custom_strengths`、`hidden_filters` 中已经不再被注册表或现存资源包清单提供的滤镜；配置页面点击保存时也会执行一次同样的清理，不使用循环任务。暂时禁用的资源包仍在清单检查范围内，调试预设也不参与清理。
@@ -83,7 +83,7 @@ import net.minecraft.resources.ResourceLocation;
 var target = new ServerFilterTarget.Broadcast();
 FilterServerApi.submit(new ServerFilterRequest.Override(target,
         new FilterOverrideRequest("server-rule",
-                ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F, 100)))
+                ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 75.0F, 100)))
         .thenAccept(receipt -> {
             // 只表示服务端接受并保存策略，不是客户端回执。
             var state = FilterServerApi.query(new ServerFilterQuery.FilterStatus());
@@ -94,7 +94,7 @@ FilterServerApi.submit(new ServerFilterRequest.ClearOverride(target, "server-rul
 
 submit 返回 CompletionStage<OperationResult>，服务端线程串行执行、状态发布后交付一次最终回执；不要阻塞等待。query 读取最近发布的线程安全不可变状态。每次请求生成独立 UUID；同范围同 owner 更新复用策略 UUID，新建和更新的回执返回策略 ID，失败和清理为空。重复清理成功且影响数量为零；服务器不可用返回 UNAVAILABLE，指定玩家离线返回 NOT_FOUND 且不保存策略。OperationResult 使用固定字段，不含参数 Map、QUEUED 或句柄。
 
-协议 2 分离 requestId 与 policyId；客户端同策略同请求去重，新请求替换旧覆盖。排队旧创建完成后只释放自身资源，断线后旧回执不能改写新连接映射。登录补发复用策略 ID、新生成请求 ID，个人选择优先。服务端成功不证明发送、接收或渲染完成；网络仅下行，不增加客户端确认、重试或乱序恢复。
+协议 3 分离 requestId 与 policyId；strength 使用 0-100 百分制；客户端同策略同请求去重，新请求替换旧覆盖。排队旧创建完成后只释放自身资源，断线后旧回执不能改写新连接映射。登录补发复用策略 ID、新生成请求 ID，个人选择优先。服务端成功不证明发送、接收或渲染完成；网络仅下行，不增加客户端确认、重试或乱序恢复。
 
 ```java
 import com.xkmxz.prismod.api.client.FilterClientApi;
@@ -103,7 +103,7 @@ import com.xkmxz.prismod.api.client.query.request.FilterQuery;
 import net.minecraft.resources.ResourceLocation;
 
 FilterClientApi.submit(new FilterRequest.Force(
-        ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F))
+        ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 75.0F))
         .thenAccept(receipt -> {
             var effective = FilterClientApi.query(new FilterQuery.Snapshot());
         });
@@ -264,7 +264,7 @@ private void registerCommands(RegisterCommandsEvent event) {
 ```java
 // 在物理客户端提交请求；最终回执表示业务结果。
 FilterClientApi.submit(new FilterRequest.Force(
-        ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 0.75F))
+        ResourceLocation.fromNamespaceAndPath("prismod", "vintage"), 75.0F))
         .thenAccept(receipt -> {
             var effective = FilterClientApi.query(new FilterQuery.Snapshot());
         });

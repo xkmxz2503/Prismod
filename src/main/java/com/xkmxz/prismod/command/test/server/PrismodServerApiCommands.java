@@ -77,16 +77,16 @@ public final class PrismodServerApiCommands {
         if (player) {
             id.executes(context -> selectPlayer(context,
                     EntityArgument.getPlayer(context, "target"),
-                    ResourceLocationArgument.getId(context, "filter"), 1.0F));
-            id.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 1.0F))
+                    ResourceLocationArgument.getId(context, "filter"), 100.0F));
+            id.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 100.0F))
                     .executes(context -> selectPlayer(context,
                             EntityArgument.getPlayer(context, "target"),
                             ResourceLocationArgument.getId(context, "filter"),
                             FloatArgumentType.getFloat(context, "strength"))));
         } else {
             id.executes(context -> selectBroadcast(context,
-                    ResourceLocationArgument.getId(context, "filter"), 1.0F));
-            id.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 1.0F))
+                    ResourceLocationArgument.getId(context, "filter"), 100.0F));
+            id.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 100.0F))
                     .executes(context -> selectBroadcast(context,
                             ResourceLocationArgument.getId(context, "filter"),
                             FloatArgumentType.getFloat(context, "strength"))));
@@ -108,8 +108,8 @@ public final class PrismodServerApiCommands {
             priority.executes(context -> overridePlayer(context,
                     EntityArgument.getPlayer(context, "target"),
                     ResourceLocationArgument.getId(context, "filter"),
-                    IntegerArgumentType.getInteger(context, "priority"), 1.0F));
-            priority.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 1.0F))
+                    IntegerArgumentType.getInteger(context, "priority"), 100.0F));
+            priority.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 100.0F))
                     .executes(context -> overridePlayer(context,
                             EntityArgument.getPlayer(context, "target"),
                             ResourceLocationArgument.getId(context, "filter"),
@@ -118,8 +118,8 @@ public final class PrismodServerApiCommands {
         } else {
             priority.executes(context -> overrideBroadcast(context,
                     ResourceLocationArgument.getId(context, "filter"),
-                    IntegerArgumentType.getInteger(context, "priority"), 1.0F));
-            priority.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 1.0F))
+                    IntegerArgumentType.getInteger(context, "priority"), 100.0F));
+            priority.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 100.0F))
                     .executes(context -> overrideBroadcast(context,
                             ResourceLocationArgument.getId(context, "filter"),
                             IntegerArgumentType.getInteger(context, "priority"),

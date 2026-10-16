@@ -1,6 +1,6 @@
 # Prismod API 使用指南
 
-本文档是 Prismod 客户端 API、服务端 API、命令、测试入口、实现架构和网络协议的统一说明。内容对应 Minecraft 1.20.1、Forge 47.3.32、Java 17，以及当前两入口 API 和网络协议 2；资源包格式仍为 v1。
+本文档是 Prismod 客户端 API、服务端 API、命令、测试入口、实现架构和网络协议的统一说明。内容对应 Minecraft 1.20.1、Forge 47.3.32、Java 17，以及当前两入口 API 和网络协议 3；资源包格式仍为 v1。
 
 ## 1. 使用边界
 
@@ -35,7 +35,7 @@ ResourceLocation postEffect = ResourceLocation.fromNamespaceAndPath(
 
 公共类型只保留真正由两端共同依赖的契约：`api.common.submit` 保存结果代码与操作状态，`api.common.query.state.filter` 保存共享失败分类。客户端快照、滤镜描述、回退原因、滤镜类型和生命周期状态归入 `api.client`。公共层不负责模型转换、单位换算、默认值或边界裁剪。
 
-- 客户端 strength 使用 `0-100` 百分制；服务端协议字段仍使用 `0.0-1.0` 的归一化值。非有限值按各侧默认值处理。
+- 客户端 API、服务端 API、命令和网络协议的 strength 统一使用 `0-100` 百分制。非有限值按 `0` 处理；只有客户端渲染边界将百分制转换为 shader 使用的底层数值。
 - 客户端写操作会调度到 Minecraft 客户端线程；状态和事件监听器也只在客户端线程同步执行。
 - 客户端快照、滤镜描述、服务端请求和服务端结果都是不可变数据。
 - API 结果使用状态和稳定反馈代码，不依赖自然语言详情。
@@ -79,7 +79,7 @@ import com.xkmxz.prismod.api.server.submit.request.FilterSelectionRequest;
 import net.minecraft.resources.ResourceLocation;
 
 ResourceLocation filter = ResourceLocation.fromNamespaceAndPath("prismod", "original");
-FilterSelectionRequest selection = new FilterSelectionRequest(filter, 1.0F);
+FilterSelectionRequest selection = new FilterSelectionRequest(filter, 100.0F);
 ```
 
 覆盖请求：
@@ -88,7 +88,7 @@ FilterSelectionRequest selection = new FilterSelectionRequest(filter, 1.0F);
 import com.xkmxz.prismod.api.server.submit.request.FilterOverrideRequest;
 
 FilterOverrideRequest override = new FilterOverrideRequest(
-        "server-rule", filter, 1.0F, 100);
+        "server-rule", filter, 100.0F, 100);
 ```
 
 请求模型会检查滤镜不为空、owner 不为空，并规范化强度；非有限强度按 `0.0` 处理，`ownerId` 会去除首尾空白。同一作用域内重复使用相同 `ownerId` 会更新已有覆盖。优先级是整数，允许调用方根据业务规则决定大小。
@@ -118,14 +118,14 @@ policy.generation();
 
 ```java
 var result = FilterServerApi.submit(new ServerFilterRequest.Select(
-        new ServerFilterTarget.Broadcast(), new FilterSelectionRequest(filter, 1.0F)));
+        new ServerFilterTarget.Broadcast(), new FilterSelectionRequest(filter, 100.0F)));
 ```
 
 发送给单个玩家：
 
 ```java
 var result = FilterServerApi.submit(new ServerFilterRequest.Select(
-        new ServerFilterTarget.Player(playerId), new FilterSelectionRequest(filter, 0.75F)));
+        new ServerFilterTarget.Player(playerId), new FilterSelectionRequest(filter, 75.0F)));
 ```
 
 广播覆盖：
@@ -133,7 +133,7 @@ var result = FilterServerApi.submit(new ServerFilterRequest.Select(
 ```java
 var result = FilterServerApi.submit(new ServerFilterRequest.Override(
         new ServerFilterTarget.Broadcast(),
-        new FilterOverrideRequest("server-rule", filter, 1.0F, 100)));
+        new FilterOverrideRequest("server-rule", filter, 100.0F, 100)));
 ```
 
 指定玩家覆盖：
@@ -141,7 +141,7 @@ var result = FilterServerApi.submit(new ServerFilterRequest.Override(
 ```java
 var result = FilterServerApi.submit(new ServerFilterRequest.Override(
         new ServerFilterTarget.Player(playerId),
-        new FilterOverrideRequest("server-rule", filter, 1.0F, 100)));
+        new FilterOverrideRequest("server-rule", filter, 100.0F, 100)));
 ```
 
 清理策略：
@@ -205,7 +205,7 @@ FilterServerApi.submit(new ServerFilterRequest.ClearSelection());
 /prismod filter clear all
 ```
 
-`filter` 下的管理操作需要 OP 权限等级 2。命令参数由 Brigadier 校验，滤镜参数使用 `namespace:path`，strength 限制在 `0.0` 到 `1.0`。
+`filter` 下的管理操作需要 OP 权限等级 2。命令参数由 Brigadier 校验，滤镜参数使用 `namespace:path`，strength 限制在 `0` 到 `100`，省略时默认为 `100`。
 
 命令适配器只负责解析参数、创建公共请求模型、调用 `FilterServerApi` 和把 `OperationResult` 转换为 `Component.translatable(...)`。服务端命令不直接访问 `ServerFilterApplication` 的策略表，也不直接使用 `SimpleChannel`。
 
@@ -411,7 +411,7 @@ CLEAR_ALL_OVERRIDES
 
 ### strength 超出范围
 
-客户端请求和元数据把强度限制在 `0-100`；服务端命令和协议仍限制在 `0.0` 到 `1.0`。NaN 和无穷值按各侧默认值处理。
+客户端请求、服务端请求、命令和协议统一把强度限制在 `0-100`。NaN 和无穷值按 `0` 处理。
 
 ### 服务端调用成功但画面没有变化
 

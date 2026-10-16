@@ -6,7 +6,7 @@ import net.minecraft.server.level.ServerPlayer;
 public interface PolicyTransport {
     String CHANNEL_NAMESPACE = "prismod";
     String CHANNEL_PATH = "policy";
-    String PROTOCOL_VERSION = "2";
+    String PROTOCOL_VERSION = "3";
 
     /** Sends a policy message to every connected client. */
     void broadcast(PolicyMessage message);

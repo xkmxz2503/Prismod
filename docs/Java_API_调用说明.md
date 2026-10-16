@@ -53,7 +53,7 @@ api/client/
 
 逻辑滤镜 ID 使用完整 `namespace:path`，例如 `prismod:vintage`；`postEffect` 使用实际 PostChain JSON 路径，例如 `example:shaders/post/debug.json`，不能混用。
 
-强度限制在 `[0, 1]`，非有限值按 `0` 处理。普通选择、强制、优先级覆盖沿用现有规则；强制覆盖可以优先于玩家总开关，渲染不可用时仍回退原色。
+强度限制在 `[0, 100]`，非有限值按 `0` 处理。普通选择、强制、优先级覆盖沿用现有规则；强制覆盖可以优先于玩家总开关，渲染不可用时仍回退原色。
 
 ## 3. 只读查询清单
 
@@ -132,7 +132,7 @@ FilterClientApi.submit(new FilterRequest.Override("example-mod", filter, 75F, 10
 
 ## 6. 服务端与后续调参边界
 
-服务端 `FilterServerApi` 也只保留 submit/query，使用独立的 ServerFilterRequest 与 ServerFilterQuery；客户端公开契约不变。服务端通过 `prismod:policy` 协议 `2` 下发，协议 `1` 不兼容。requestId 标识本次请求，policyId 标识持续策略，同策略新请求替换旧网络覆盖。服务端 OperationResult 只表示接受并保存策略，不是客户端渲染回执。完整边界见 [API 使用指南](API_使用指南.md) 和 [服务端 API 与命令](服务端_API_与命令.md)。
+服务端 `FilterServerApi` 也只保留 submit/query，使用独立的 ServerFilterRequest 与 ServerFilterQuery；客户端公开契约不变。服务端通过 `prismod:policy` 协议 `3` 下发，协议 `2` 及更早版本不兼容。服务端 API 和网络协议的 strength 同样使用 `0-100` 百分制。requestId 标识本次请求，policyId 标识持续策略，同策略新请求替换旧网络覆盖。服务端 OperationResult 只表示接受并保存策略，不是客户端渲染回执。完整边界见 [API 使用指南](API_使用指南.md) 和 [服务端 API 与命令](服务端_API_与命令.md)。
 
 ### 6.1 部分高级调参
 

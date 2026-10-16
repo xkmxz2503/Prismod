@@ -218,7 +218,7 @@ submit 承接注册、选择、强制、覆盖、订阅和 Session，返回 Comp
 | 项目 | 当前固定值 |
 | --- | --- |
 | 通道 | `prismod:policy` |
-| 协议版本 | `2`；拒绝协议 `1`，无兼容分支 |
+| 协议版本 | `3`；拒绝协议 `2` 及更早版本，无兼容分支 |
 | 抽象端口 | `PolicyTransport` |
 | Forge 实现 | `PolicyNetwork` |
 | 消息类型 | `PolicyMessage` |
@@ -243,7 +243,7 @@ requestId   = UUID
 policyId    = UUID；CLEAR_SELECTION、CLEAR_ALL_OVERRIDES 不携带
 owner       = String
 filter      = ResourceLocation，可为空
-客户端 strength = float，规范化到 0 到 100；服务端协议 strength 保持 0.0 到 1.0
+客户端和服务端 API、命令以及协议 strength 均为 float，规范化到 0 到 100；只有渲染边界转换为 shader 数值
 priority    = int
 ```
 

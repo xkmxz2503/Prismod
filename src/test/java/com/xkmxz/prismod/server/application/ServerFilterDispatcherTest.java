@@ -29,6 +29,7 @@ class ServerFilterDispatcherTest {
         h.drain(); h.drain();
         assertEquals(List.of(WARM), observed);
         assertEquals(1, h.sent.size());
+        assertEquals(75.0F, h.sent.get(0).message().strength());
         assertEquals(1, stage.toCompletableFuture().join().generation());
         assertNotEquals(new UUID(0, 0), stage.toCompletableFuture().join().requestId());
     }
@@ -75,7 +76,7 @@ class ServerFilterDispatcherTest {
         Harness h = new Harness();
         assertEquals(FilterOperationStatus.INVALID_ARGUMENT, h.run(null).status());
         assertEquals(FilterOperationStatus.INVALID_ARGUMENT,
-                h.run(new ServerFilterRequest.Select(null, new FilterSelectionRequest(WARM, 1))).status());
+                h.run(new ServerFilterRequest.Select(null, new FilterSelectionRequest(WARM, 100))).status());
         h.reject = true;
         assertEquals(FilterOperationStatus.UNAVAILABLE,
                 h.api.submit(select(BROADCAST, WARM)).toCompletableFuture().join().status());
@@ -143,10 +144,10 @@ class ServerFilterDispatcherTest {
     }
 
     private static ServerFilterRequest select(ServerFilterTarget target, ResourceLocation filter) {
-        return new ServerFilterRequest.Select(target, new FilterSelectionRequest(filter, .75F));
+        return new ServerFilterRequest.Select(target, new FilterSelectionRequest(filter, 75F));
     }
     private static ServerFilterRequest override(ServerFilterTarget target, String owner, ResourceLocation filter, int priority) {
-        return new ServerFilterRequest.Override(target, new FilterOverrideRequest(owner, filter, .6F, priority));
+        return new ServerFilterRequest.Override(target, new FilterOverrideRequest(owner, filter, 60F, priority));
     }
     private record Delivery(UUID player, PolicyMessage message) { }
     private static final class Harness implements ServerFilterRuntime {

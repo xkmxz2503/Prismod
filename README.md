@@ -147,7 +147,7 @@ config/prismod/config/prismod-client.toml
 | `hidden_filters` | 不在配置页和 F8 循环中显示的滤镜 |
 | `strength_<id>` | 内置滤镜强度 |
 
-所有强度都会规范化到 `[0.0, 1.0]`；NaN 和无穷值按 `0.0` 处理。渲染不可用时临时原色优先，其次是有效强制滤镜，最后是玩家总开关和普通选择。回退不会丢失用户选择。
+客户端和服务端业务强度统一规范化到 `[0, 100]`；NaN 和无穷值按 `0` 处理。只有客户端渲染边界将百分制强度转换为 shader 底层数值。渲染不可用时临时原色优先，其次是有效强制滤镜，最后是玩家总开关和普通选择。回退不会丢失用户选择。
 
 ## 🔌 客户端 Java API
 
@@ -160,7 +160,7 @@ import com.xkmxz.prismod.api.client.query.request.FilterQuery;
 import net.minecraft.resources.ResourceLocation;
 
 var filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");
-FilterClientApi.submit(new FilterRequest.Force(filter, 0.75F))
+FilterClientApi.submit(new FilterRequest.Force(filter, 75.0F))
         .thenAccept(receipt -> {
             // receipt 表示本次业务结果；不代表画面已经完成渲染。
             var snapshot = FilterClientApi.query(new FilterQuery.Snapshot());
@@ -178,7 +178,7 @@ FilterClientApi.submit(new FilterRequest.ClearForced());
 
 服务端框架会在通用入口初始化，不会加载客户端渲染类。`FilterServerApi` 同样只保留 `submit(ServerFilterRequest)` 和 `query(ServerFilterQuery<R>)`，分别返回异步最终回执和不可变服务端状态；旧业务方法已移除。
 
-网络频道仍为 `prismod:policy`，协议升级为 `2`，不兼容协议 `1`。请求 ID 与持续策略 ID 分离，同范围同 owner 再次覆盖会更新客户端参数。服务端回执只表示接受并保存策略，不证明客户端已收到或完成渲染。可用命令包括 `/prismod help`、`/prismod status` 和 `/prismod filter ...`，原语法及 OP 权限保持不变。示例与协议说明见 [服务端 API 与命令](docs/服务端_API_与命令.md)，两端总览见 [API 使用指南](docs/API_使用指南.md)。
+网络频道仍为 `prismod:policy`，协议升级为 `3`，strength 使用 `0-100` 百分制，不兼容协议 `2` 及更早版本。请求 ID 与持续策略 ID 分离，同范围同 owner 再次覆盖会更新客户端参数。服务端回执只表示接受并保存策略，不证明客户端已收到或完成渲染。可用命令包括 `/prismod help`、`/prismod status` 和 `/prismod filter ...`，原语法及 OP 权限保持不变。示例与协议说明见 [服务端 API 与命令](docs/服务端_API_与命令.md)，两端总览见 [API 使用指南](docs/API_使用指南.md)。
 
 ## 🛠️ 开发与构建
 

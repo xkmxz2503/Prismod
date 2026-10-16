@@ -10,7 +10,7 @@ import net.minecraft.resources.ResourceLocation;
  * 选择需要通过 {@code playerSelectionCount} 观察数量，具体玩家目标由发送操作决定。</p>
  *
  * <p>{@code generation} 在服务端策略状态发生有效变化时递增，可用于比较两次快照的
- * 新旧关系。强度在构造时会被归一化到 {@code 0.0F} 至 {@code 1.0F}。</p>
+ * 新旧关系。强度在构造时会被归一化到 {@code 0.0F} 至 {@code 100.0F}。</p>
  *
  * @param globalSelection 当前全局选择的滤镜，未设置时为 {@code null}
  * @param globalStrength 当前全局选择强度
@@ -29,6 +29,6 @@ public record ServerFilterStatus(
 ) {
     public ServerFilterStatus {
         globalSelection = globalSelection;
-        globalStrength = Float.isFinite(globalStrength) ? Math.max(0.0F, Math.min(1.0F, globalStrength)) : 0.0F;
+        globalStrength = Float.isFinite(globalStrength) ? Math.max(0.0F, Math.min(100.0F, globalStrength)) : 0.0F;
     }
 }

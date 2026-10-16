@@ -59,12 +59,12 @@ public final class PrismodServerCommands {
     private static com.mojang.brigadier.builder.ArgumentBuilder<CommandSourceStack, ?> selectionArguments(boolean player) {
         var id = Commands.argument("id", ResourceLocationArgument.id());
         if (player) {
-            id.executes(context -> selectPlayer(context.getSource(), EntityArgument.getPlayer(context, "target"), ResourceLocationArgument.getId(context, "id"), 1.0F));
-            id.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 1.0F))
+            id.executes(context -> selectPlayer(context.getSource(), EntityArgument.getPlayer(context, "target"), ResourceLocationArgument.getId(context, "id"), 100.0F));
+            id.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 100.0F))
                     .executes(context -> selectPlayer(context.getSource(), EntityArgument.getPlayer(context, "target"), ResourceLocationArgument.getId(context, "id"), FloatArgumentType.getFloat(context, "strength"))));
         } else {
-            id.executes(context -> selectBroadcast(context.getSource(), ResourceLocationArgument.getId(context, "id"), 1.0F));
-            id.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 1.0F))
+            id.executes(context -> selectBroadcast(context.getSource(), ResourceLocationArgument.getId(context, "id"), 100.0F));
+            id.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 100.0F))
                     .executes(context -> selectBroadcast(context.getSource(), ResourceLocationArgument.getId(context, "id"), FloatArgumentType.getFloat(context, "strength"))));
         }
         return id;
@@ -74,8 +74,8 @@ public final class PrismodServerCommands {
         var broadcastOwner = Commands.argument("owner", StringArgumentType.word());
         var broadcastId = Commands.argument("id", ResourceLocationArgument.id());
         var broadcastPriority = Commands.argument("priority", IntegerArgumentType.integer());
-        broadcastPriority.executes(context -> overrideBroadcast(context.getSource(), StringArgumentType.getString(context, "owner"), ResourceLocationArgument.getId(context, "id"), IntegerArgumentType.getInteger(context, "priority"), 1.0F));
-        broadcastPriority.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 1.0F)).executes(context -> overrideBroadcast(context.getSource(), StringArgumentType.getString(context, "owner"), ResourceLocationArgument.getId(context, "id"), IntegerArgumentType.getInteger(context, "priority"), FloatArgumentType.getFloat(context, "strength"))));
+        broadcastPriority.executes(context -> overrideBroadcast(context.getSource(), StringArgumentType.getString(context, "owner"), ResourceLocationArgument.getId(context, "id"), IntegerArgumentType.getInteger(context, "priority"), 100.0F));
+        broadcastPriority.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 100.0F)).executes(context -> overrideBroadcast(context.getSource(), StringArgumentType.getString(context, "owner"), ResourceLocationArgument.getId(context, "id"), IntegerArgumentType.getInteger(context, "priority"), FloatArgumentType.getFloat(context, "strength"))));
         broadcastId.then(broadcastPriority);
         broadcastOwner.then(broadcastId);
 
@@ -83,8 +83,8 @@ public final class PrismodServerCommands {
         var playerOwner = Commands.argument("owner", StringArgumentType.word());
         var playerId = Commands.argument("id", ResourceLocationArgument.id());
         var playerPriority = Commands.argument("priority", IntegerArgumentType.integer());
-        playerPriority.executes(context -> overridePlayer(context.getSource(), EntityArgument.getPlayer(context, "target"), StringArgumentType.getString(context, "owner"), ResourceLocationArgument.getId(context, "id"), IntegerArgumentType.getInteger(context, "priority"), 1.0F));
-        playerPriority.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 1.0F)).executes(context -> overridePlayer(context.getSource(), EntityArgument.getPlayer(context, "target"), StringArgumentType.getString(context, "owner"), ResourceLocationArgument.getId(context, "id"), IntegerArgumentType.getInteger(context, "priority"), FloatArgumentType.getFloat(context, "strength"))));
+        playerPriority.executes(context -> overridePlayer(context.getSource(), EntityArgument.getPlayer(context, "target"), StringArgumentType.getString(context, "owner"), ResourceLocationArgument.getId(context, "id"), IntegerArgumentType.getInteger(context, "priority"), 100.0F));
+        playerPriority.then(Commands.argument("strength", FloatArgumentType.floatArg(0.0F, 100.0F)).executes(context -> overridePlayer(context.getSource(), EntityArgument.getPlayer(context, "target"), StringArgumentType.getString(context, "owner"), ResourceLocationArgument.getId(context, "id"), IntegerArgumentType.getInteger(context, "priority"), FloatArgumentType.getFloat(context, "strength"))));
         playerId.then(playerPriority);
         playerOwner.then(playerId);
         player.then(playerOwner);

@@ -12,11 +12,11 @@ import java.util.Objects;
  * 而不是创建无法管理的匿名覆盖。</p>
  *
  * <p>构造时会去除 owner 两端空白、拒绝空 owner，并将强度归一化到
- * {@code 0.0F} 至 {@code 1.0F}；非有限强度按 {@code 0.0F} 处理。</p>
+ * {@code 0.0F} 至 {@code 100.0F}；非有限强度按 {@code 0.0F} 处理。</p>
  *
  * @param ownerId 覆盖策略所有者标识，不能为空或全为空白
  * @param filter 要覆盖使用的滤镜资源标识
- * @param strength 覆盖强度，构造后始终位于 {@code [0.0F, 1.0F]}
+ * @param strength 覆盖强度，构造后始终位于 {@code [0.0F, 100.0F]}
  * @param priority 覆盖优先级，数值越大表示优先级越高
  */
 public record FilterOverrideRequest(String ownerId, ResourceLocation filter, float strength, int priority) {
@@ -39,6 +39,6 @@ public record FilterOverrideRequest(String ownerId, ResourceLocation filter, flo
 
     private static float normalizeStrength(float value) {
         if (!Float.isFinite(value)) return 0.0F;
-        return Math.max(0.0F, Math.min(1.0F, value));
+        return Math.max(0.0F, Math.min(100.0F, value));
     }
 }

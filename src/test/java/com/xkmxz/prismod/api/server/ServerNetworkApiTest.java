@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ServerNetworkApiTest {
     @Test void unavailableServerReturnsDistinctFinalReceiptsWithoutSavingState() {
         var request = new ServerFilterRequest.Select(new ServerFilterTarget.Broadcast(),
-                new FilterSelectionRequest(ResourceLocation.fromNamespaceAndPath("prismod", "warm"), .75F));
+                new FilterSelectionRequest(ResourceLocation.fromNamespaceAndPath("prismod", "warm"), 75F));
         var first = FilterServerApi.submit(request).toCompletableFuture().join();
         var second = FilterServerApi.submit(request).toCompletableFuture().join();
         assertEquals(FilterOperationStatus.UNAVAILABLE, first.status());

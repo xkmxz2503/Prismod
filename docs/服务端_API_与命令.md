@@ -79,9 +79,9 @@ import net.minecraft.resources.ResourceLocation;
 ResourceLocation id = ResourceLocation.fromNamespaceAndPath("prismod", "original");
 var target = new ServerFilterTarget.Broadcast();
 FilterServerApi.submit(new ServerFilterRequest.Select(
-        target, new FilterSelectionRequest(id, 1.0F)));
+        target, new FilterSelectionRequest(id, 100.0F)));
 FilterServerApi.submit(new ServerFilterRequest.Override(
-        target, new FilterOverrideRequest("server-rule", id, 1.0F, 100)))
+        target, new FilterOverrideRequest("server-rule", id, 100.0F, 100)))
         .thenAccept(receipt -> {
             // 本次最终结果；后续查询重新调用 query。
             boolean accepted = receipt.accepted();
@@ -117,7 +117,7 @@ query 返回最近发布的线程安全不可变状态，无业务副作用。�
 - `CLEAR_OVERRIDE`
 - `CLEAR_ALL_OVERRIDES`
 
-消息字段为 operation、requestId、policyId、owner、filter、strength、priority。requestId 标识本次请求，policyId 标识持续策略；ClearSelection 和 ClearAllOverrides 对应消息不携带单个策略 ID。广播和指定玩家是传输目标，不写入业务消息。`SimpleChannel`、`PacketDistributor` 和编解码器只存在于网络实现内部；服务端业务只能使用 `PolicyTransport` 端口。
+消息字段为 operation、requestId、policyId、owner、filter、strength、priority。协议版本为 `3`，strength 使用 `0-100` 百分制。requestId 标识本次请求，policyId 标识持续策略；ClearSelection 和 ClearAllOverrides 对应消息不携带单个策略 ID。广播和指定玩家是传输目标，不写入业务消息。`SimpleChannel`、`PacketDistributor` 和编解码器只存在于网络实现内部；服务端业务只能使用 `PolicyTransport` 端口。
 
 登录补发先发送全局选择，再发送个人选择；随后合并全局和个人覆盖，按原提交顺序发送，使同优先级较新者继续胜出。补发复用策略 ID、重新生成请求 ID。广播选择后重新发送个人选择，保持个人选择优先。
 
