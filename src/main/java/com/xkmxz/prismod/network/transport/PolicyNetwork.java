@@ -10,10 +10,10 @@ import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
-
 import java.util.function.Consumer;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.UUID;
 
 /** Forge implementation of the frozen policy transport contract. */
 public final class PolicyNetwork implements PolicyTransport {
@@ -50,21 +50,29 @@ public final class PolicyNetwork implements PolicyTransport {
     @Override
     public void broadcast(PolicyMessage message) {
         if (channel == null) return;
-        try {
-            channel.send(PacketDistributor.ALL.noArg(), new PolicyPacket(message));
-        } catch (RuntimeException ignored) {
-            // Unit tests and optional server environments may not have a network bus.
-        }
+        deliver(PolicyTransportErrorHandler.Direction.BROADCAST, null, message,
+                () -> channel.send(PacketDistributor.ALL.noArg(), new PolicyPacket(message)));
     }
 
     @Override
     public void send(ServerPlayer player, PolicyMessage message) {
         if (player == null || channel == null) return;
+        deliver(PolicyTransportErrorHandler.Direction.PLAYER, player.getUUID(), message,
+                () -> channel.send(PacketDistributor.PLAYER.with(() -> player), new PolicyPacket(message)));
+    }
+
+    private static void deliver(PolicyTransportErrorHandler.Direction direction, UUID player,
+                                PolicyMessage message, Runnable send) {
         try {
-            channel.send(PacketDistributor.PLAYER.with(() -> player), new PolicyPacket(message));
-        } catch (RuntimeException ignored) {
-            // Unit tests and optional server environments may not have a network bus.
+            send.run();
+        } catch (RuntimeException error) {
+            PolicyTransportErrorHandler.handle(direction, player, message, error);
         }
+    }
+
+    static void deliverForTests(PolicyTransportErrorHandler.Direction direction, UUID player,
+                                PolicyMessage message, Runnable send) {
+        deliver(direction, player, message, send);
     }
 
     private void handle(PolicyPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
