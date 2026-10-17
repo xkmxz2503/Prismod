@@ -129,4 +129,4 @@ query 返回最近发布的线程安全不可变状态，无业务副作用。�
 
 - [API 架构与文档索引](API_架构与文档索引.md)：跨端边界、Application/Dispatcher 职责和当前规范索引。
 - [Prismod 客户端 API 规范](Prismod_客户端_API_规范.md)：客户端 API 的完整契约。
-- [Prismod 资源包格式与编辑指南](Prismod_资源包格式与编辑指南.md)：Prismod v1 资源包格式和编辑流程。
+- [Prismod 资源包格式与编辑指南](../Prismod_资源包格式与编辑指南.md)：Prismod v1 资源包格式和编辑流程。

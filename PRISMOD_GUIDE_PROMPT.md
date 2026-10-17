@@ -1,6 +1,6 @@
 # Prismod 后续开发引导提示词
 
-你正在维护 Prismod：一个面向 Minecraft 1.20.1、Forge 47.3.32、Java 17 的客户端世界画面滤镜模组。开始修改前先阅读本文件和 `docs/API_架构与文档索引.md`，再按任务读取一个专题文档：`docs/Prismod_客户端_API_规范.md`、`docs/Prismod_服务端_API_命令与协议.md` 或 `docs/Prismod_资源包格式与编辑指南.md`，并核对相关源码和测试。仓库根目录 `README.md` 只面向人类读者，除非用户明确要求更新，否则不要读取、引用或修改它；资源包内部的 `README.md` 属于资源包功能内容。文档中的当前行为应以源码和测试为准。
+你正在维护 Prismod：一个面向 Minecraft 1.20.1、Forge 47.3.32、Java 17 的客户端世界画面滤镜模组。开始修改前先阅读本文件和 `docs/api/API_架构与文档索引.md`，再按任务读取一个专题文档：`docs/api/Prismod_客户端_API_规范.md`、`docs/api/Prismod_服务端_API_命令与协议.md` 或 `docs/Prismod_资源包格式与编辑指南.md`，并核对相关源码和测试。处理 API 问题时先读 `docs/api/bug/INDEX.md`，仅继续读取与当前任务相关的活动问题文件。仓库根目录 `README.md` 只面向人类读者，除非用户明确要求更新，否则不要读取、引用或修改它；资源包内部的 `README.md` 属于资源包功能内容。文档中的当前行为应以源码和测试为准。
 
 ## 当前项目状态
 
@@ -29,7 +29,7 @@
 
 ### API 与网络边界
 
-- 客户端公开入口是 `api.client.FilterClientApi`，服务端公开入口是 `api.server.FilterServerApi`；两者均采用 `submit` 写入、`query` 读取。完整契约、示例和生命周期规则分别见[客户端 API](docs/Prismod_客户端_API_规范.md)与[服务端 API、命令与协议](docs/Prismod_服务端_API_命令与协议.md)。
+- 客户端公开入口是 `api.client.FilterClientApi`，服务端公开入口是 `api.server.FilterServerApi`；两者均采用 `submit` 写入、`query` 读取。完整契约、示例和生命周期规则分别见[客户端 API](docs/api/Prismod_客户端_API_规范.md)与[服务端 API、命令与协议](docs/api/Prismod_服务端_API_命令与协议.md)。
 - 外部模组不得依赖应用层、dispatcher、状态管理器、注册表、渲染器或网络实现。客户端和服务端 API 数据保持不可变。
 - `Application` 负责组合运行依赖并提供用例入口；内部 `Dispatcher` 执行请求调度、业务用例和结果交付。命令适配器经公开 API 调用用例，不直接操作策略状态或传输实现。
 - 服务端通道为 `prismod:policy`，现行协议为 `3`；协议 `2` 及更早版本不兼容。消息字段与登录补发行为以服务端 API 文档和源码为准。
@@ -91,6 +91,6 @@ minecraft:main --(一个滤镜 pass)--> swap --(颜色 blit)--> minecraft:main
 
 ## 命令与文档规则
 
-Prismod 当前注册 `/prismod` 管理命令和独立 API 测试命令。管理命令语法、权限和反馈以[服务端 API、命令与协议](docs/Prismod_服务端_API_命令与协议.md)为准；不要在本文件复制完整命令树。新增命令时明确它运行于客户端还是服务端，检查事件总线及专用服务器类加载边界。
+Prismod 当前注册 `/prismod` 管理命令和独立 API 测试命令。管理命令语法、权限和反馈以[服务端 API、命令与协议](docs/api/Prismod_服务端_API_命令与协议.md)为准；不要在本文件复制完整命令树。新增命令时明确它运行于客户端还是服务端，检查事件总线及专用服务器类加载边界。
 
-新增 API 或用户功能时，应在对应专题文档说明调用环境、参数、线程、失败行为和可复现的使用路径。资源包功能还要说明目录、清单、导入方式和资源重载时机。跨端架构只更新[API 架构与文档索引](docs/API_架构与文档索引.md)。
+新增 API 或用户功能时，应在对应专题文档说明调用环境、参数、线程、失败行为和可复现的使用路径。资源包功能还要说明目录、清单、导入方式和资源重载时机。跨端架构只更新[API 架构与文档索引](docs/api/API_架构与文档索引.md)。

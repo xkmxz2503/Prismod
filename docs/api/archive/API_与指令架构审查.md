@@ -354,10 +354,10 @@ network/transport -> Forge 网络实现
 
 ## 9. 关联文档和验证入口
 
-- [`docs/API_架构与文档索引.md`](../API_架构与文档索引.md)：跨端架构和当前规范文档索引。
-- [`docs/Prismod_客户端_API_规范.md`](../Prismod_客户端_API_规范.md)：客户端 API 专题说明。
-- [`docs/Prismod_服务端_API_命令与协议.md`](../Prismod_服务端_API_命令与协议.md)：服务端 API、管理指令和网络协议说明。
-- [`PRISMOD_GUIDE_PROMPT.md`](../../PRISMOD_GUIDE_PROMPT.md)：项目边界和开发约定。
+- [`../API_架构与文档索引.md`](../API_架构与文档索引.md)：跨端架构和当前规范文档索引。
+- [`../Prismod_客户端_API_规范.md`](../Prismod_客户端_API_规范.md)：客户端 API 专题说明。
+- [`../Prismod_服务端_API_命令与协议.md`](../Prismod_服务端_API_命令与协议.md)：服务端 API、管理指令和网络协议说明。
+- [`../../../PRISMOD_GUIDE_PROMPT.md`](../../../PRISMOD_GUIDE_PROMPT.md)：项目边界和开发约定。
 
 建议审查后运行：
 

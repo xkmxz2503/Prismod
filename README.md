@@ -54,7 +54,26 @@ Prismod 提供一套可配置、可调试、可扩展的客户端世界滤镜：
 - 服务端：`FilterServerApi`/命令 → `ServerFilterApplication` → 内部 dispatcher、策略状态和 `PolicyTransport`；
 - 滤镜只作用于世界画面和手持物品，HUD、聊天、菜单和容器保持原色。
 
-`Application` 负责组合依赖和提供用例入口，`Dispatcher` 负责内部请求调度和结果交付。完整数据流和边界见 [API 架构与文档索引](docs/API_架构与文档索引.md)。
+```mermaid
+flowchart LR
+  subgraph Client[客户端]
+    CM[外部模组] --> CA[FilterClientApi]
+    CA --> CD[ClientFilterApplication / Dispatcher]
+    CD --> CS[滤镜状态与注册表]
+    CS --> CR[世界画面渲染器]
+    CN[PrismodClientNetwork] --> CA
+  end
+  subgraph Server[可选服务端]
+    SM[服务端模组 / 命令] --> SA[FilterServerApi]
+    SA --> SD[ServerFilterApplication / Dispatcher]
+    SD --> SS[策略状态]
+    SS --> PT[PolicyTransport]
+  end
+  PT --> PN[PolicyNetwork / Forge 通道]
+  PN -->|prismod:policy / 协议 3| CN
+```
+
+`Application` 负责组合依赖和提供用例入口，`Dispatcher` 负责内部请求调度和结果交付。完整数据流和边界见 [API 架构与文档索引](docs/api/API_架构与文档索引.md)。
 
 ## 🎮 安装与运行
 
@@ -124,13 +143,13 @@ config/prismod/config/prismod-client.toml
 
 客户端公开门面 `FilterClientApi` 只保留 `submit` 和 `query`。请求返回一次最终回执，查询返回不可变视图；资源、订阅和 Session 的生命周期必须通过公开 API 管理，不要在客户端线程阻塞等待异步结果。
 
-完整请求、查询、调参和线程约束见 [Java API 调用说明](docs/Java_API_调用说明.md)。
+完整请求、查询、调参和线程约束见 [Prismod 客户端 API 规范](docs/api/Prismod_客户端_API_规范.md)。
 
 ## 服务端 API 与命令
 
 服务端框架不会加载客户端渲染类。`FilterServerApi` 只保留 `submit(ServerFilterRequest)` 和 `query(ServerFilterQuery<R>)`，服务端回执表示策略已被服务端接受并保存，不是客户端渲染回执。
 
-网络通道为 `prismod:policy`，现行协议为 `3`，协议 `2` 及更早版本不兼容，strength 使用 `0-100` 百分制。命令、请求模型和协议细节见 [服务端 API 与命令](docs/服务端_API_与命令.md)。
+网络通道为 `prismod:policy`，现行协议为 `3`，协议 `2` 及更早版本不兼容，strength 使用 `0-100` 百分制。命令、请求模型和协议细节见 [Prismod 服务端 API、命令与协议](docs/api/Prismod_服务端_API_命令与协议.md)。
 
 ## 🛠️ 开发与构建
 
@@ -181,10 +200,10 @@ GPU 性能诊断：
 
 ## 📚 项目文档
 
-- [`docs/Java_API_调用说明.md`](docs/Java_API_调用说明.md)：客户端 API、注册生命周期和线程约束。
-- [`docs/服务端_API_与命令.md`](docs/服务端_API_与命令.md)：服务端 API、管理命令、测试命令和网络协议。
-- [`docs/API_架构与文档索引.md`](docs/API_架构与文档索引.md)：跨端架构边界和当前规范文档索引。
-- [`docs/自定义滤镜资源包制作说明.md`](docs/自定义滤镜资源包制作说明.md)：资源包 v1、PostChain、LUT 和调试 uniform。
+- [`docs/api/Prismod_客户端_API_规范.md`](docs/api/Prismod_客户端_API_规范.md)：客户端 API、注册生命周期和线程约束。
+- [`docs/api/Prismod_服务端_API_命令与协议.md`](docs/api/Prismod_服务端_API_命令与协议.md)：服务端 API、管理命令、测试命令和网络协议。
+- [`docs/api/API_架构与文档索引.md`](docs/api/API_架构与文档索引.md)：跨端架构边界和当前规范文档索引。
+- [`docs/Prismod_资源包格式与编辑指南.md`](docs/Prismod_资源包格式与编辑指南.md)：资源包 v1、PostChain、LUT 和调试 uniform。
 - [`PRISMOD_GUIDE_PROMPT.md`](PRISMOD_GUIDE_PROMPT.md)：项目架构、边界和开发约定。
 
 ## 📄 许可证

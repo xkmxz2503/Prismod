@@ -10,10 +10,11 @@ description: 在 Prismod 仓库中进行开发时使用，负责项目契约的�
 ## 必须执行
 
 1. 先读取 `PRISMOD_GUIDE_PROMPT.md`。
-2. 再读取 `docs/API_架构与文档索引.md`，确认跨端边界和当前规范来源。
+2. 再读取 `../../../docs/api/API_架构与文档索引.md`，确认跨端边界和当前规范来源。
 3. 按任务读取一个专题文档：客户端 API、服务端 API/命令/协议或资源包格式/编辑。
-4. 修改前追踪实际调用链和数据流；不要仅凭类名、历史设计或模板猜测行为。
-5. 修改完成后运行覆盖变更的测试和 `git diff --check`，报告实际结果与未验证项。
+4. 处理 API 问题时先读 `../../../docs/api/bug/INDEX.md`，再按需读取相关活动问题记录；不要默认扫描归档。
+5. 修改前追踪实际调用链和数据流；不要仅凭类名、历史设计或模板猜测行为。
+6. 修改完成后运行覆盖变更的测试和 `git diff --check`，报告实际结果与未验证项。
 
 ## 根 README 边界
 
@@ -21,10 +22,10 @@ description: 在 Prismod 仓库中进行开发时使用，负责项目契约的�
 
 ## 按任务读取
 
-- 客户端 API：`src/main/java/com/xkmxz/prismod/api/client/`、相关测试、`docs/Prismod_客户端_API_规范.md`
-- 服务端 API、命令或协议：`src/main/java/com/xkmxz/prismod/api/server/`、`src/main/java/com/xkmxz/prismod/network/`、相关测试、`docs/Prismod_服务端_API_命令与协议.md`
-- 资源包、编辑器或 shader：`src/main/java/com/xkmxz/prismod/client/pack/`、`src/main/java/com/xkmxz/prismod/client/ui/resourcepack/`、资源包测试、`docs/Prismod_资源包格式与编辑指南.md`
-- 架构或跨端边界：`docs/API_架构与文档索引.md`、`PRISMOD_GUIDE_PROMPT.md`、相关源码和测试
+- 客户端 API：`src/main/java/com/xkmxz/prismod/api/client/`、相关测试、`../../../docs/api/Prismod_客户端_API_规范.md`
+- 服务端 API、命令或协议：`src/main/java/com/xkmxz/prismod/api/server/`、`src/main/java/com/xkmxz/prismod/network/`、相关测试、`../../../docs/api/Prismod_服务端_API_命令与协议.md`
+- 资源包、编辑器或 shader：`src/main/java/com/xkmxz/prismod/client/pack/`、`src/main/java/com/xkmxz/prismod/client/ui/resourcepack/`、资源包测试、`../../../docs/Prismod_资源包格式与编辑指南.md`
+- 架构或跨端边界：`../../../docs/api/API_架构与文档索引.md`、`PRISMOD_GUIDE_PROMPT.md`、相关源码和测试
 
 ## 文档同步规则
 
@@ -33,6 +34,7 @@ description: 在 Prismod 仓库中进行开发时使用，负责项目契约的�
 - 资源包格式、目录、编辑器和重载流程写入资源包专题文档。
 - `PRISMOD_GUIDE_PROMPT.md` 只记录稳定项目契约、边界和维护规则，不复制完整 API 手册，也不要求在其中保留专题示例。
 - 新增或修改用户可见功能时，先以源码和测试为事实来源，再同步唯一对应的规范文档。
+- 每次发现 API 问题都在 `../../../docs/api/bug/list/` 新建独立记录，不覆盖旧问题；修复并验证后移至 `../../../docs/api/bug/archive/` 并更新问题索引。同类问题再次发生时新建记录并关联历史记录。
 
 ## 验证边界
 

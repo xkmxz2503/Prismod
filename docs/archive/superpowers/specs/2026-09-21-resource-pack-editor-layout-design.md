@@ -8,7 +8,7 @@
 
 - 主编辑页：显示名称、namespace、滤镜摘要、新增滤镜、README、语言编辑、高级文件编辑、统一保存/取消。
 - 滤镜页：编辑单个 `filter.json` 的 ID、名称键、类型、源文件、默认强度、预览和色彩空间；重命名和删除同步清单与目录。
-- README 页：只编辑资源包根目录 `README.md`。
+- README 页：只编辑资源包根目录 `../../../../../README.md`。
 - 语言页：按 `assets/<namespace>/lang/<language>.json` 分类，编辑每个滤镜的 `display_name` 对应翻译值。
 - 高级文件页：保留完整文件编辑能力，界面显示 basename，内部仍使用完整路径。
 
