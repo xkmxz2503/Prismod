@@ -33,13 +33,14 @@ flowchart LR
     SV -. query .-> SA
     SS --> PT[PolicyTransport]
     PT --> PN[PolicyNetwork / Forge 通道]
+    PN --> PE[PolicyTransportErrorHandler]
   end
   PN -->|prismod:policy / 协议 3| CN
 ```
 
 `Application` 是 API 与命令共用的组合根，负责组装运行依赖并向外提供用例入口；内部 `Dispatcher` 是用例执行核心，负责请求调度、业务执行和结果交付。命令适配器调用公开 API，不直接操作策略状态或网络实现。
 
-服务端网络通道为 `prismod:policy`，现行协议为 `3`；协议 `2` 及更早版本不兼容。网络仅下发策略，服务端成功回执不代表客户端已接收或渲染完成。
+服务端网络通道为 `prismod:policy`，现行协议为 `3`；协议 `2` 及更早版本不兼容。网络仅下发策略，服务端成功回执不代表客户端已接收或渲染完成。`PolicyNetwork` 负责通道发送；发送异常交由 `PolicyTransportErrorHandler` 统一记录诊断警告。错误处理器不修改服务端策略状态、`OperationResult` 或协议行为，也不负责重试、确认和对账。
 
 ## 规范文档
 

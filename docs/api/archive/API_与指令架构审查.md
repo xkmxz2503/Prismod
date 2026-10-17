@@ -284,7 +284,7 @@ ServerFilterApplication
 
 补发保留策略 ID，并重新生成请求 ID。广播选择后再次发送玩家个人选择，保持个人选择优先。
 
-网络层不提供服务端状态查询、通用 RPC 或操作回执。`OperationResult` 是服务端本地用例结果，不是客户端确认消息。当前 `PolicyNetwork.broadcast(...)` 和 `send(...)` 在通道未初始化或 Forge 网络发送抛出 `RuntimeException` 时会静默返回，因此 `OperationResult.SUCCESS` 只能证明服务端用例层已接受并保存策略，不能证明网络发送、客户端接收或客户端渲染成功；发送失败的可观测性保留为后续独立决策。
+网络层不提供服务端状态查询、通用 RPC 或操作回执。`OperationResult` 是服务端本地用例结果，不是客户端确认消息。修复前的 `PolicyNetwork.broadcast(...)` 和 `send(...)` 在通道未初始化或 Forge 网络发送抛出 `RuntimeException` 时会静默返回，因此当时的 `OperationResult.SUCCESS` 只能证明服务端用例层已接受并保存策略，不能证明网络发送、客户端接收或客户端渲染成功；现行实现已将发送异常交由 `PolicyTransportErrorHandler` 记录诊断，但仍不改变回执语义。
 
 ## 6. 依赖方向审查
 
@@ -330,7 +330,7 @@ network/transport -> Forge 网络实现
 
 1. `PolicyTransport` 已收窄为服务端发送端口；客户端接收注册保留在 `PolicyNetwork` 实现中。后续只需验证是否需要独立的客户端接收接口，不应重新把接收能力放回服务端端口。
 2. 已固定 `PolicyTransport` 为频道与协议常量的单一来源；FilterServerApi 与 PolicyNetwork 直接复用，不新增元数据类型。
-3. `PolicyNetwork.broadcast(...)` 和 `send(...)` 当前捕获 `RuntimeException` 后静默返回。需要决定失败是否必须写入日志、暴露监控事件或反映到服务端操作结果。
+3. 历史记录：修复前的 `PolicyNetwork.broadcast(...)` 和 `send(...)` 捕获 `RuntimeException` 后静默返回。现行实现已由 `PolicyTransportErrorHandler` 记录诊断；不修改服务端操作结果。
 4. 已分离 requestId 与 policyId：前者每次调用唯一，后者标识持续策略，修正客户端将覆盖更新当成重复请求的问题。
 5. OperationResult 已移除 parameters，使用固定结果字段和策略 ID 列表；旧业务方法与协议 1 不兼容。
 6. 当前网络层没有操作回执。需要确认服务端测试范围是否永远只验证服务端本地 API 结果，还是未来需要增加独立的客户端确认事件；若增加，必须扩展协议，而不能让命令读取客户端状态。

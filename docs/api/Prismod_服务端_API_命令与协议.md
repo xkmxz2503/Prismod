@@ -119,6 +119,10 @@ query 返回最近发布的线程安全不可变状态，无业务副作用。�
 
 消息字段为 operation、requestId、policyId、owner、filter、strength、priority。协议版本为 `3`，strength 使用 `0-100` 百分制。requestId 标识本次请求，policyId 标识持续策略；ClearSelection 和 ClearAllOverrides 对应消息不携带单个策略 ID。广播和指定玩家是传输目标，不写入业务消息。`SimpleChannel`、`PacketDistributor` 和编解码器只存在于网络实现内部；服务端业务只能使用 `PolicyTransport` 端口。
 
+### 传输失败诊断
+
+`PolicyNetwork` 在通道未初始化时直接返回；Forge 发送抛出的 `RuntimeException` 不向业务调用方传播，而是转交 `PolicyTransportErrorHandler`。处理器记录发送方向、通道、操作、requestId、policyId、玩家 UUID 和原始异常堆栈，便于检索网络诊断。该路径不重试、不回滚、不修改服务端策略状态，也不把本地提交成功的 `OperationResult` 改为失败。
+
 登录补发先发送全局选择，再发送个人选择；随后合并全局和个人覆盖，按原提交顺序发送，使同优先级较新者继续胜出。补发复用策略 ID、重新生成请求 ID。广播选择后重新发送个人选择，保持个人选择优先。
 
 客户端按策略 ID 跟踪最近请求和创建结果：同请求不重复创建，新请求释放旧覆盖并创建新覆盖。排队中的旧创建完成后只释放其自身 UUID；断线重置映射，旧连接回执不能修改新连接映射。清理只释放网络创建的覆盖，不影响其他模组本地资源。

@@ -8,7 +8,7 @@
 
 ## 证据
 
-`PolicyNetwork.broadcast` 和 `PolicyNetwork.send` 曾捕获 `RuntimeException` 后忽略异常（`../../../../src/main/java/com/xkmxz/prismod/network/transport/PolicyNetwork.java`）。`ServerFilterDispatcher` 外层虽然会记录发送异常，但传输层吞掉异常后外层无法观察到它（`src/main/java/com/xkmxz/prismod/server/application/ServerFilterDispatcher.java`）。
+历史实现中，`PolicyNetwork.broadcast` 和 `PolicyNetwork.send` 曾捕获 `RuntimeException` 后忽略异常（`../../../../src/main/java/com/xkmxz/prismod/network/transport/PolicyNetwork.java`）。`ServerFilterDispatcher` 外层虽然会记录发送异常，但传输层吞掉异常后外层无法观察到它（`../../../../src/main/java/com/xkmxz/prismod/server/application/ServerFilterDispatcher.java`）。该段描述的是修复前行为。
 
 修复实现已改为统一失败报告路径：发送异常仍不向调用方抛出，但会记录包含方向、通道、操作、请求 ID、策略 ID、玩家 UUID 和异常堆栈的警告。
 

@@ -45,6 +45,7 @@
 - `server/application/ServerFilterDispatcher.java`：内部请求执行核心，维护用例执行流程。
 - `network/contract/PolicyTransport.java`：服务端应用可见的冻结传输端口及频道/协议常量。
 - `network/transport/PolicyNetwork.java`：封装 Forge 通道和消息传输实现。
+- `network/transport/PolicyTransportErrorHandler.java`：统一记录发送异常诊断；不改变策略状态、回执或协议语义。
 - `api/server/FilterServerApi.java`：服务端公开 API 门面和查询契约。
 - `client/application/ClientFilterApplication.java`、`ClientFilterDispatcher.java`：客户端公开入口后的内部组装与请求执行。
 - `client/FilterController.java`、`FilterManager.java`：客户端滤镜状态机、配置刷新及失败回退。
