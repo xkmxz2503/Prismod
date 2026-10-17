@@ -10,6 +10,7 @@
 </head>
 <body>
 <main>
+<div style="background:#fff3cd;border:1px solid #e0bd55;border-radius:10px;padding:12px 16px;margin-bottom:20px;color:#5b4600" role="note"><strong>历史归档：</strong>本文不属于当前规范来源。当前文档请从 <a href="../API_架构与文档索引.md">API 架构与文档索引</a> 开始。</div>
 <header class="hero">
 <p class="badge">Prismod · 客户端与服务端 API</p>
 <h1>两个入口，各做一件事</h1>
@@ -50,7 +51,7 @@ FilterClientApi.submit(new FilterRequest.Force(filter, 75.0F))
 
 // 在业务结束时恢复普通选择。
 FilterClientApi.submit(new FilterRequest.ClearForced());</code></pre>
-<p class="muted">仅限物理客户端调用。不要在客户端线程阻塞等待异步结果。完整 imports 和资源管理示例见 <a href="Java_API_调用说明.md">Java API 规范</a>。</p>
+<p class="muted">仅限物理客户端调用。不要在客户端线程阻塞等待异步结果。完整 imports 和资源管理示例见 <a href="../Prismod_客户端_API_规范.md">Prismod 客户端 API 规范</a>。</p>
 </section>
 <section id="server">
 <h2>服务端，也使用两个入口</h2>
@@ -66,9 +67,9 @@ FilterClientApi.submit(new FilterRequest.ClearForced());</code></pre>
 <h2>实现放在边界之后</h2>
 <div class="flow"><div class="node">外部模组<br><small>FilterClientApi</small></div><span class="arrow" aria-hidden="true">→</span><div class="node">应用层<br><small>校验、调度、资源管理</small></div><span class="arrow" aria-hidden="true">→</span><div class="node">注册与状态<br><small>渲染器读取最终状态</small></div></div>
 <details><summary>源码位置与依赖边界</summary><p><code>api/client/FilterClientApi.java</code>：公开两个业务入口。<br><code>api/client/submit/</code>：request 请求、model 输入数据、result 回执、listener 回调、event 通知。<br><code>api/client/query/</code>：request 查询请求、view 只读视图。<br><code>client/application</code>、<code>client/filter</code>、<code>client/render</code>：内部实现，不供外部模组调用。</p><p>监听通过 submit 建立，通知复用 query.view 的不可变快照。专用服务器不得加载 api.client 或 net.minecraft.client。滤镜只作用于世界画面和手持物品，不进入 HUD、聊天、菜单或容器。</p></details>
-<details><summary>服务端源码与契约</summary><p><code>api/server/FilterServerApi.java</code> 保留在根目录；<code>submit/model</code>、<code>submit/request</code>、<code>submit/result</code> 保存目标、请求和回执；<code>query/request</code>、<code>query/view</code> 保存查询和不可变状态。<code>api/common</code> 只保留两端共同依赖的反馈代码、操作状态和失败分类；客户端描述与渲染状态归入 <code>api/client</code>，公共层不负责模型转换。</p><p>FilterServerApi → ServerFilterApplication → PolicyTransport → PolicyNetwork。频道及协议常量统一来源为 PolicyTransport，协议消息为 operation、requestId、policyId、owner、filter、strength、priority。</p><p>不开放远程注册、Session、订阅、批量或客户端状态查询。管理命令语法和 OP 权限保持不变。</p><p><a href="服务端_API_与命令.md">查看服务端调用示例</a> · <a href="API_使用指南.md">查看完整总览</a></p></details>
+<details><summary>服务端源码与契约</summary><p><code>api/server/FilterServerApi.java</code> 保留在根目录；<code>submit/model</code>、<code>submit/request</code>、<code>submit/result</code> 保存目标、请求和回执；<code>query/request</code>、<code>query/view</code> 保存查询和不可变状态。<code>api/common</code> 只保留两端共同依赖的反馈代码、操作状态和失败分类；客户端描述与渲染状态归入 <code>api/client</code>，公共层不负责模型转换。</p><p>FilterServerApi → ServerFilterApplication → PolicyTransport → PolicyNetwork。频道及协议常量统一来源为 PolicyTransport，协议版本为 3，协议消息为 operation、requestId、policyId、owner、filter、strength、priority。</p><p>不开放远程注册、Session、订阅、批量或客户端状态查询。管理命令语法和 OP 权限保持不变。</p><p><a href="../Prismod_服务端_API_命令与协议.md">查看服务端调用示例</a> · <a href="../API_架构与文档索引.md">查看当前总览</a></p></details>
 </section>
-<footer>客户端规范来源：<a href="Java_API_调用说明.md">Java_API_调用说明.md</a> · <a href="API_与指令架构审查.md">架构审查</a></footer>
+<footer>客户端规范来源：<a href="../Prismod_客户端_API_规范.md">Prismod_客户端_API_规范.md</a> · <a href="API_与指令架构审查.md">历史架构审查</a></footer>
 <details><summary>参数单位</summary><p>客户端 API、服务端 API、命令和协议的 strength 使用 0-100 百分制；高级参数按字段语义使用百分制：曝光 -100 到 100、对比度和饱和度 0 到 200、gamma 10 到 300，其余方向型参数 -100 到 100。只有渲染边界再转换为 shader 原有范围。</p></details></main>
 </body>
 </html>

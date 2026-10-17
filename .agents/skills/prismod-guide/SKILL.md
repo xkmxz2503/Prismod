@@ -1,39 +1,39 @@
 ---
 name: prismod-项目引导
-description: 在 Prismod 仓库中进行开发时使用，尤其适用于修改过滤器、自定义资源包、客户端界面、渲染、配置、客户端 API、模板代码或项目文档的场景。
+description: 在 Prismod 仓库中进行开发时使用，负责项目契约的读取顺序、任务路由和验证要求。
 ---
 
 # Prismod 项目引导
 
-这个 Skill 用于确保处理 Prismod 任务时遵守项目现有契约。它不替代引导文档；开始分析或修改代码前，必须先读取项目根目录的 `PRISMOD_GUIDE_PROMPT.md`。
+这个 Skill 负责 Prismod 任务的读取顺序和验证流程。项目架构、渲染边界、资源包契约和稳定开发约束以根目录 `PRISMOD_GUIDE_PROMPT.md` 为准；本 Skill 不复制完整业务规则。
 
 ## 必须执行
 
-1. 先读取 `PRISMOD_GUIDE_PROMPT.md`，再读取 `README.md` 和与任务相关的文档、测试及源码。
-2. 把引导文档中的配置格式、客户端/服务端边界、`FilterKey`/`FilterSelection` 身份、资源包格式、渲染时序和 UI 页面职责视为项目契约。若实际代码已经发生变化，先核对事实，再同步更新引导文档。
-3. 修改前追踪实际调用链和数据流；不要仅凭类名或模板代码猜测行为。保留用户已有的未提交改动。
-4. 重要功能完成后，在 `PRISMOD_GUIDE_PROMPT.md` 中补充用户用法、配置字段、API 调用、资源目录或界面操作步骤，并至少给出一个具体示例。
-5. 如果从源码移除暂时不用的示范代码，可以删除源码中的代码，但必须在 `PRISMOD_GUIDE_PROMPT.md` 保留用途、恢复位置、启用步骤和完整示例。不要为了保留示例而把无用注册重新加入运行代码。
-6. 完成后运行覆盖变更的测试和 `git diff --check`，报告实际运行的命令、结果以及没有验证的游戏内行为。
+1. 先读取 `PRISMOD_GUIDE_PROMPT.md`。
+2. 再读取 `docs/API_架构与文档索引.md`，确认跨端边界和当前规范来源。
+3. 按任务读取一个专题文档：客户端 API、服务端 API/命令/协议或资源包格式/编辑。
+4. 修改前追踪实际调用链和数据流；不要仅凭类名、历史设计或模板猜测行为。
+5. 修改完成后运行覆盖变更的测试和 `git diff --check`，报告实际结果与未验证项。
 
-## Prismod 关键边界
+## 根 README 边界
 
-- 这是 Minecraft 1.20.1、Forge 47.3.32、Java 17 的客户端滤镜模组；专用服务器路径不能加载 `net.minecraft.client` 或 `api.client`。
-- 自定义资源包是 Prismod 自己的模组资源包，位于 `config/prismod/resourcepacks/`，不是 Minecraft 原版资源包；不要引入 `pack.mcmeta` 或原版资源包管理流程。
-- 自定义滤镜必须保留 `namespace:path` 身份。UI 和 F8 提示使用 `FilterDefinition.displayName()`，不能用旧版 `FilterState.id()` 替代。
-- Oculus 只能作为可选共存模组，不能调用其私有 API 或变成发布依赖。
-- 滤镜后处理只作用于世界画面，不能把 HUD、聊天、菜单或容器绘制放入滤镜链。
-- 资源包管理和滤镜展示管理是两个独立的二级页面；当前生效滤镜来自某资源包时，该资源包不能禁用。
+仓库根目录的 `README.md` 只面向人类读者，AI 默认不得读取、引用或修改；只有用户明确要求更新 README 时才允许处理。资源包内部的 `README.md` 和 `docs/example-resource-pack/README.md` 是产品资料，按相关资源包任务读取。
 
-## 读取顺序
+## 按任务读取
 
-根据任务选择补充阅读内容：
+- 客户端 API：`src/main/java/com/xkmxz/prismod/api/client/`、相关测试、`docs/Prismod_客户端_API_规范.md`
+- 服务端 API、命令或协议：`src/main/java/com/xkmxz/prismod/api/server/`、`src/main/java/com/xkmxz/prismod/network/`、相关测试、`docs/Prismod_服务端_API_命令与协议.md`
+- 资源包、编辑器或 shader：`src/main/java/com/xkmxz/prismod/client/pack/`、`src/main/java/com/xkmxz/prismod/client/ui/resourcepack/`、资源包测试、`docs/Prismod_资源包格式与编辑指南.md`
+- 架构或跨端边界：`docs/API_架构与文档索引.md`、`PRISMOD_GUIDE_PROMPT.md`、相关源码和测试
 
-- 配置、启动和资源包：`src/main/java/com/xkmxz/prismod/client/PrismodClientConfig.java`、`PrismodPackLoader.java`、`README.md`、`docs/自定义滤镜资源包制作说明.md`
-- 状态、F8 和 API：`FilterController.java`、`FilterManager.java`、`FilterApi.java`、`docs/Java_API_调用说明.md`
-- 配置界面：`FilterConfigScreen.java`、`ResourcePackManagerScreen.java`、`FilterVisibilityManagerScreen.java`
-- 渲染和 Mixin：`WorldFilterRenderer.java`、`mixin/client/`、相关 shader 资源
-- 行为回归：`src/test/java/com/xkmxz/prismod/client/`
+## 文档同步规则
 
-如果 `PRISMOD_GUIDE_PROMPT.md` 缺失或与当前实现冲突，先报告这个问题并以实际源码和测试结果为依据，不要无声地编造契约。
+- 客户端 API 的参数、线程、回执和生命周期写入客户端专题文档。
+- 服务端 API、命令和网络协议写入服务端专题文档。
+- 资源包格式、目录、编辑器和重载流程写入资源包专题文档。
+- `PRISMOD_GUIDE_PROMPT.md` 只记录稳定项目契约、边界和维护规则，不复制完整 API 手册，也不要求在其中保留专题示例。
+- 新增或修改用户可见功能时，先以源码和测试为事实来源，再同步唯一对应的规范文档。
 
+## 验证边界
+
+普通文档或 AI 入口变更执行静态链接审计和 `git diff --check`。修改 Java、GLSL、渲染、GUI、网络或资源加载行为时，才运行对应 Gradle 测试；未运行的游戏内、专用服务器或可选模组验证必须明确报告。

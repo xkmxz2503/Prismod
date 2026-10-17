@@ -4,7 +4,7 @@
 
 Prismod 是面向 Minecraft 1.20.1、Forge 47.3.32、Java 17 的客户端滤镜模组。主要代码位于 `src/main/java/com/xkmxz/prismod/`：`client/` 包含状态、配置、资源包、UI 和渲染逻辑，`api/client/` 是对外客户端 API，`mixin/client/` 存放渲染访问器与 Mixin。单元测试位于 `src/test/java/com/xkmxz/prismod/client/`；内置 shader 和语言文件位于 `src/main/resources/assets/prismod/`。`docs/` 保存资源包与 API 文档，`config/prismod/resourcepacks/` 是运行时自定义资源包目录。
 
-开始修改前先阅读 `PRISMOD_GUIDE_PROMPT.md`、`README.md` 及相关文档。项目只处理世界画面（包括手持物品），不要把 HUD、聊天、菜单或容器绘制接入滤镜链；服务端路径不得加载 `net.minecraft.client` 或 `api.client`。
+开始修改前先阅读 `PRISMOD_GUIDE_PROMPT.md`、`docs/API_架构与文档索引.md` 及与任务相关的专题文档。仓库根目录 `README.md` 只面向人类读者，AI 不得默认读取、引用或修改；只有用户明确要求更新 README 时才处理。资源包内部的 `README.md` 属于资源包功能内容，不受此限制。项目只处理世界画面（包括手持物品），不要把 HUD、聊天、菜单或容器绘制接入滤镜链；服务端路径不得加载 `net.minecraft.client` 或 `api.client`。
 
 ## 构建、测试与开发命令
 

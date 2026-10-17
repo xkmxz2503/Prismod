@@ -1,4 +1,4 @@
-# Prismod Java API 规范
+# Prismod 客户端 API 规范
 
 本文是客户端公开 Java API 的规范来源，适用于 Minecraft 1.20.1、Forge 47.3.32、Java 17。
 
@@ -132,7 +132,7 @@ FilterClientApi.submit(new FilterRequest.Override("example-mod", filter, 75F, 10
 
 ## 6. 服务端与后续调参边界
 
-服务端 `FilterServerApi` 也只保留 submit/query，使用独立的 ServerFilterRequest 与 ServerFilterQuery；客户端公开契约不变。服务端通过 `prismod:policy` 协议 `3` 下发，协议 `2` 及更早版本不兼容。服务端 API 和网络协议的 strength 同样使用 `0-100` 百分制。requestId 标识本次请求，policyId 标识持续策略，同策略新请求替换旧网络覆盖。服务端 OperationResult 只表示接受并保存策略，不是客户端渲染回执。完整边界见 [API 使用指南](API_使用指南.md) 和 [服务端 API 与命令](服务端_API_与命令.md)。
+服务端 `FilterServerApi` 同样采用 submit/query，但服务端请求、回执和网络协议不属于本文件的规范来源。跨端边界见 [API 架构与文档索引](API_架构与文档索引.md)，服务端细节见 [Prismod 服务端 API、命令与协议](Prismod_服务端_API_命令与协议.md)。
 
 ### 6.1 部分高级调参
 

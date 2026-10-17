@@ -48,42 +48,13 @@ Prismod 提供一套可配置、可调试、可扩展的客户端世界滤镜：
 
 ## 🧱 技术架构
 
-```text
-Prismod
-├─ Prismod.java                         通用 Forge 入口
-├─ server/                              服务端生命周期、命令和网络基础框架
-├─ api/common/                          两端共享契约
-│  ├─ submit/                           结果代码、操作状态
-│  └─ query/                            只读视图、滤镜及生命周期状态
-├─ api/server/
-│  ├─ FilterServerApi                   服务端 API 入口
-│  ├─ submit/                           服务端请求、操作结果
-│  └─ query/                            服务端只读状态视图
-├─ client/
-│  ├─ PrismodClient                     客户端事件、配置和资源重载
-│  ├─ filter/
-│  │  ├─ FilterKey / FilterSelection    内置与自定义滤镜身份、动态选择
-│  │  ├─ FilterRegistry                  资源发现、校验和动态注册
-│  │  └─ FilterStrength                 强度规范化
-│  ├─ pack/                              Prismod v1 资源包扫描与编辑
-│  ├─ render/                            世界画面 PostChain、LUT 和 GPU 状态
-│  └─ ui/                                配置、资源包和滤镜调试页面
-├─ api/client/
-│  ├─ FilterClientApi                     稳定客户端 API 入口
-│  ├─ submit/                            输入：request、model、result、listener、event
-│  └─ query/                             查询：request、view
-└─ mixin/client/                         GameRenderer 与 PostChain 访问器
-```
+客户端和服务端 API 都通过 `submit` 写入、`query` 读取：
 
-### 渲染数据流
+- 客户端：`FilterClientApi` → `ClientFilterApplication` → 内部 dispatcher、状态管理和世界渲染器；
+- 服务端：`FilterServerApi`/命令 → `ServerFilterApplication` → 内部 dispatcher、策略状态和 `PolicyTransport`；
+- 滤镜只作用于世界画面和手持物品，HUD、聊天、菜单和容器保持原色。
 
-```text
-minecraft:main --(一个滤镜 pass)--> swap --(颜色 blit)--> minecraft:main
-```
-
-滤镜注入位置位于世界、手持物品和原版后处理完成之后，HUD 开始之前。成功处理前不清空主目标；原色或强度为零时跳过后处理。资源、GL 或 native 上传失败时停止当前滤镜并回退原色，资源重载后允许重新尝试。
-
-调试页面被替换、退出世界、窗口缩放或资源重载时，会立即释放调试链、LUT 纹理和临时目标，避免旧 GPU 资源继续提交。
+`Application` 负责组合依赖和提供用例入口，`Dispatcher` 负责内部请求调度和结果交付。完整数据流和边界见 [API 架构与文档索引](docs/API_架构与文档索引.md)。
 
 ## 🎮 安装与运行
 
@@ -151,34 +122,15 @@ config/prismod/config/prismod-client.toml
 
 ## 🔌 客户端 Java API
 
-客户端公开门面 `FilterClientApi` 仅保留 `submit` 和 `query`。旧业务方法已移除，这是不兼容的客户端 API 调整。
+客户端公开门面 `FilterClientApi` 只保留 `submit` 和 `query`。请求返回一次最终回执，查询返回不可变视图；资源、订阅和 Session 的生命周期必须通过公开 API 管理，不要在客户端线程阻塞等待异步结果。
 
-```java
-import com.xkmxz.prismod.api.client.FilterClientApi;
-import com.xkmxz.prismod.api.client.submit.request.FilterRequest;
-import com.xkmxz.prismod.api.client.query.request.FilterQuery;
-import net.minecraft.resources.ResourceLocation;
-
-var filter = ResourceLocation.fromNamespaceAndPath("prismod", "vintage");
-FilterClientApi.submit(new FilterRequest.Force(filter, 75.0F))
-        .thenAccept(receipt -> {
-            // receipt 表示本次业务结果；不代表画面已经完成渲染。
-            var snapshot = FilterClientApi.query(new FilterQuery.Snapshot());
-        });
-
-// 在业务结束时解除强制，恢复普通选择。
-FilterClientApi.submit(new FilterRequest.ClearForced());
-```
-
-输入返回一次最终回执，查询返回不可变数据。注册、覆盖和订阅创建后返回资源 UUID；保存 ID，在结束时提交 Release。Session 管理自身的批量注册和覆盖。不要在客户端线程阻塞等待异步结果。
-
-客户端 API 支持可选的部分高级调参：使用 `FilterAdjustments.builder().exposure(1.0F).build()` 只修改曝光，未填写字段保持当前值。外部模组只依赖公开 API，不调用 `client.filter` 内部类。服务端和网络协议暂未接入调参。完整规范见 [Java API 调用说明](docs/Java_API_调用说明.md)，易读图解见 [API 架构地图](docs/api-architecture-guide.html)，两端总览见 [API 使用指南](docs/API_使用指南.md)。
+完整请求、查询、调参和线程约束见 [Java API 调用说明](docs/Java_API_调用说明.md)。
 
 ## 服务端 API 与命令
 
-服务端框架会在通用入口初始化，不会加载客户端渲染类。`FilterServerApi` 同样只保留 `submit(ServerFilterRequest)` 和 `query(ServerFilterQuery<R>)`，分别返回异步最终回执和不可变服务端状态；旧业务方法已移除。
+服务端框架不会加载客户端渲染类。`FilterServerApi` 只保留 `submit(ServerFilterRequest)` 和 `query(ServerFilterQuery<R>)`，服务端回执表示策略已被服务端接受并保存，不是客户端渲染回执。
 
-网络频道仍为 `prismod:policy`，协议升级为 `3`，strength 使用 `0-100` 百分制，不兼容协议 `2` 及更早版本。请求 ID 与持续策略 ID 分离，同范围同 owner 再次覆盖会更新客户端参数。服务端回执只表示接受并保存策略，不证明客户端已收到或完成渲染。可用命令包括 `/prismod help`、`/prismod status` 和 `/prismod filter ...`，原语法及 OP 权限保持不变。示例与协议说明见 [服务端 API 与命令](docs/服务端_API_与命令.md)，两端总览见 [API 使用指南](docs/API_使用指南.md)。
+网络通道为 `prismod:policy`，现行协议为 `3`，协议 `2` 及更早版本不兼容，strength 使用 `0-100` 百分制。命令、请求模型和协议细节见 [服务端 API 与命令](docs/服务端_API_与命令.md)。
 
 ## 🛠️ 开发与构建
 
@@ -230,8 +182,8 @@ GPU 性能诊断：
 ## 📚 项目文档
 
 - [`docs/Java_API_调用说明.md`](docs/Java_API_调用说明.md)：客户端 API、注册生命周期和线程约束。
-- [`docs/API_使用指南.md`](docs/API_使用指南.md)：客户端 API、服务端 API、管理命令、测试命令、实现架构和网络协议总览。
-- [`docs/API_与指令架构审查.md`](docs/API_与指令架构审查.md)：API、指令、抽象层和网络层的架构审查稿。
+- [`docs/服务端_API_与命令.md`](docs/服务端_API_与命令.md)：服务端 API、管理命令、测试命令和网络协议。
+- [`docs/API_架构与文档索引.md`](docs/API_架构与文档索引.md)：跨端架构边界和当前规范文档索引。
 - [`docs/自定义滤镜资源包制作说明.md`](docs/自定义滤镜资源包制作说明.md)：资源包 v1、PostChain、LUT 和调试 uniform。
 - [`PRISMOD_GUIDE_PROMPT.md`](PRISMOD_GUIDE_PROMPT.md)：项目架构、边界和开发约定。
 

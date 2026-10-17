@@ -1,5 +1,7 @@
 # Prismod API、指令与网络架构审查稿
 
+> 历史归档：本文不属于当前规范来源。当前架构和文档入口见 [API 架构与文档索引](../API_架构与文档索引.md)。
+
 本文档用于审查 Prismod 当前的 API、指令、抽象层和网络层。它以源码现状为事实来源，区分已经实现的调用链、必须保持的边界和需要在后续审查中确认的架构决策。
 
 适用版本：Minecraft 1.20.1、Forge 47.3.32、Java 17。
@@ -352,10 +354,10 @@ network/transport -> Forge 网络实现
 
 ## 9. 关联文档和验证入口
 
-- [`docs/API_使用指南.md`](API_使用指南.md)：面向 API 使用者的统一指南。
-- [`docs/Java_API_调用说明.md`](Java_API_调用说明.md)：客户端 API 专题说明。
-- [`docs/服务端_API_与命令.md`](服务端_API_与命令.md)：服务端 API、管理指令和网络协议说明。
-- [`PRISMOD_GUIDE_PROMPT.md`](../PRISMOD_GUIDE_PROMPT.md)：项目边界和开发约定。
+- [`docs/API_架构与文档索引.md`](../API_架构与文档索引.md)：跨端架构和当前规范文档索引。
+- [`docs/Prismod_客户端_API_规范.md`](../Prismod_客户端_API_规范.md)：客户端 API 专题说明。
+- [`docs/Prismod_服务端_API_命令与协议.md`](../Prismod_服务端_API_命令与协议.md)：服务端 API、管理指令和网络协议说明。
+- [`PRISMOD_GUIDE_PROMPT.md`](../../PRISMOD_GUIDE_PROMPT.md)：项目边界和开发约定。
 
 建议审查后运行：
 
